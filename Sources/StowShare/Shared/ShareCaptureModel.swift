@@ -80,7 +80,7 @@ final class ShareCaptureModel {
         let simulatorID = ProcessInfo.processInfo.environment["SIMULATOR_UDID"] ?? "unknown"
         root = URL(fileURLWithPath: "/tmp/StowSimulatorAppGroup/\(simulatorID)", isDirectory: true)
         #else
-        if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.stow.Stow") {
+        if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.dev.narumi.stow") {
             root = groupURL
         } else {
             #if DEBUG && os(macOS)

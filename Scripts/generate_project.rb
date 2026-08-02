@@ -73,12 +73,12 @@ def configure_target(target, platform:, deployment:, bundle_id:, info_plist:, en
 end
 
 ios_app = project.new_target(:application, "Stow-iOS", :ios, "17.0")
-configure_target(ios_app, platform: :ios, deployment: "17.0", bundle_id: "app.stow.Stow", info_plist: "Configuration/iOS-App-Info.plist", entitlements: "Configuration/Stow-iOS.entitlements", module_name: "StowApp")
+configure_target(ios_app, platform: :ios, deployment: "17.0", bundle_id: "dev.narumi.stow", info_plist: "Configuration/iOS-App-Info.plist", entitlements: "Configuration/Stow-iOS.entitlements", module_name: "StowApp")
 add_sources(sources_group, ios_app, ROOT, ["StowApp/Shared", "StowApp/iOS"])
 add_package(project, ios_app, package_ref, "StowCore")
 
 mac_app = project.new_target(:application, "Stow-macOS", :osx, "14.0")
-configure_target(mac_app, platform: :macos, deployment: "14.0", bundle_id: "app.stow.Stow-macOS", info_plist: "Configuration/macOS-App-Info.plist", entitlements: "Configuration/Stow-macOS.entitlements", module_name: "StowApp")
+configure_target(mac_app, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow", info_plist: "Configuration/macOS-App-Info.plist", entitlements: "Configuration/Stow-macOS.entitlements", module_name: "StowApp")
 add_sources(sources_group, mac_app, ROOT, ["StowApp/Shared", "StowApp/macOS"])
 add_package(project, mac_app, package_ref, "StowCore")
 
@@ -89,7 +89,7 @@ assets = resources_group.new_file("Assets.xcassets")
 end
 
 ios_share = project.new_target(:app_extension, "StowShare-iOS", :ios, "17.0")
-configure_target(ios_share, platform: :ios, deployment: "17.0", bundle_id: "app.stow.Stow.ShareExtension", info_plist: "Configuration/iOS-Share-Info.plist", entitlements: "Configuration/StowShare-iOS.entitlements", module_name: "StowShare")
+configure_target(ios_share, platform: :ios, deployment: "17.0", bundle_id: "dev.narumi.stow.share.ios", info_plist: "Configuration/iOS-Share-Info.plist", entitlements: "Configuration/StowShare-iOS.entitlements", module_name: "StowShare")
 add_sources(sources_group, ios_share, ROOT, ["StowShare/Shared", "StowShare/iOS"])
 add_package(project, ios_share, package_ref, "StowCore")
 ios_app.add_dependency(ios_share)
@@ -98,7 +98,7 @@ copy_phase.symbol_dst_subfolder_spec = :plug_ins
 copy_phase.add_file_reference(ios_share.product_reference, true)
 
 mac_share = project.new_target(:app_extension, "StowShare-macOS", :osx, "14.0")
-configure_target(mac_share, platform: :macos, deployment: "14.0", bundle_id: "app.stow.Stow-macOS.ShareExtension", info_plist: "Configuration/macOS-Share-Info.plist", entitlements: "Configuration/StowShare-macOS.entitlements", module_name: "StowShare")
+configure_target(mac_share, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow.share.macos", info_plist: "Configuration/macOS-Share-Info.plist", entitlements: "Configuration/StowShare-macOS.entitlements", module_name: "StowShare")
 add_sources(sources_group, mac_share, ROOT, ["StowShare/Shared", "StowShare/macOS"])
 add_package(project, mac_share, package_ref, "StowCore")
 mac_app.add_dependency(mac_share)
@@ -107,18 +107,18 @@ copy_phase.symbol_dst_subfolder_spec = :plug_ins
 copy_phase.add_file_reference(mac_share.product_reference, true)
 
 unit_tests = project.new_target(:unit_test_bundle, "StowAppTests", :osx, "14.0")
-configure_target(unit_tests, platform: :macos, deployment: "14.0", bundle_id: "app.stow.StowAppTests", info_plist: "Configuration/Test-Info.plist", module_name: "StowAppTests")
+configure_target(unit_tests, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow.tests.unit", info_plist: "Configuration/Test-Info.plist", module_name: "StowAppTests")
 add_sources(tests_group, unit_tests, ROOT, ["StowAppTests"], source_root: "Tests")
 add_package(project, unit_tests, package_ref, "StowCore")
 
 ui_tests = project.new_target(:ui_test_bundle, "StowUITests", :ios, "17.0")
-configure_target(ui_tests, platform: :ios, deployment: "17.0", bundle_id: "app.stow.StowUITests", info_plist: "Configuration/Test-Info.plist", module_name: "StowUITests")
+configure_target(ui_tests, platform: :ios, deployment: "17.0", bundle_id: "dev.narumi.stow.tests.ui.ios", info_plist: "Configuration/Test-Info.plist", module_name: "StowUITests")
 add_sources(tests_group, ui_tests, ROOT, ["StowUITests"], source_root: "Tests")
 ui_tests.add_dependency(ios_app)
 ui_tests.build_configurations.each { |c| c.build_settings["TEST_TARGET_NAME"] = "Stow-iOS" }
 
 mac_ui_tests = project.new_target(:ui_test_bundle, "StowMacUITests", :osx, "14.0")
-configure_target(mac_ui_tests, platform: :macos, deployment: "14.0", bundle_id: "app.stow.StowMacUITests", info_plist: "Configuration/Test-Info.plist", module_name: "StowMacUITests")
+configure_target(mac_ui_tests, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow.tests.ui.macos", info_plist: "Configuration/Test-Info.plist", module_name: "StowMacUITests")
 add_sources(tests_group, mac_ui_tests, ROOT, ["StowMacUITests"], source_root: "Tests")
 mac_ui_tests.add_dependency(mac_app)
 mac_ui_tests.build_configurations.each { |c| c.build_settings["TEST_TARGET_NAME"] = "Stow-macOS" }

@@ -4,8 +4,8 @@
 <key>com.apple.security.app-sandbox</key><true/>
 <key>com.apple.security.network.client</key><true/>
 <key>com.apple.security.files.user-selected.read-write</key><true/>
-<key>com.apple.security.application-groups</key><array><string>group.app.stow.Stow</string></array>
-<key>com.apple.developer.icloud-container-identifiers</key><array><string>iCloud.app.stow.Stow</string></array>
+<key>com.apple.security.application-groups</key><array><string>group.dev.narumi.stow</string></array>
+<key>com.apple.developer.icloud-container-identifiers</key><array><string>iCloud.dev.narumi.stow</string></array>
 <key>com.apple.developer.icloud-services</key><array><string>CloudKit</string></array>
-<key>com.apple.developer.ubiquity-kvstore-identifier</key><string>$(TeamIdentifierPrefix)app.stow.Stow</string>
+<key>com.apple.developer.ubiquity-kvstore-identifier</key><string>$(TeamIdentifierPrefix)dev.narumi.stow</string>
 </dict></plist>

@@ -153,7 +153,7 @@ final class StowUITests: XCTestCase {
         let stowActivity = safari.cells["Stow"]
         XCTAssertTrue(stowActivity.waitForExistence(timeout: 5))
         stowActivity.tap()
-        let shareExtension = XCUIApplication(bundleIdentifier: "app.stow.Stow.ShareExtension")
+        let shareExtension = XCUIApplication(bundleIdentifier: "dev.narumi.stow.share.ios")
         XCTAssertTrue(shareExtension.staticTexts["Save to Stow"].waitForExistence(timeout: 5))
         XCTAssertTrue(shareExtension.textFields["Title"].exists)
         let advanced = shareExtension.buttons["Advanced"]
