@@ -22,12 +22,18 @@ enum PlatformActions {
             UIPasteboard.general.string = stringValue(item)
         }
         #elseif os(macOS)
-        NSPasteboard.general.clearContents()
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
         if item.type == .image {
             guard let attachmentData, let image = NSImage(data: attachmentData) else { throw PlatformActionError.unavailable }
-            NSPasteboard.general.writeObjects([image])
+            let marker = NSPasteboardItem()
+            marker.setString("1", forType: .stowOwnedContent)
+            guard pasteboard.writeObjects([image, marker]) else { throw PlatformActionError.unavailable }
         } else {
-            NSPasteboard.general.setString(stringValue(item), forType: .string)
+            let pasteboardItem = NSPasteboardItem()
+            pasteboardItem.setString(stringValue(item), forType: .string)
+            pasteboardItem.setString("1", forType: .stowOwnedContent)
+            guard pasteboard.writeObjects([pasteboardItem]) else { throw PlatformActionError.unavailable }
         }
         #endif
     }

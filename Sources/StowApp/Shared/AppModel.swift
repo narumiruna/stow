@@ -15,10 +15,12 @@ final class AppModel {
     var isAdding = false
     var syncStatus = CloudSyncMonitor.Status.idle
     var globalShortcutStatus = "Not checked"
+    var clipboardMonitoringStatus = "Not checked"
     private(set) var launchReadyMilliseconds: Double?
     var searchResultIDs: Set<UUID>?
     var isSearching = false
     var usesPrivateICloud: Bool { StowEnvironment.currentContainerUsesCloud }
+    var isReadyForCapture: Bool { repository != nil }
     var privacyStorageText: String {
         usesPrivateICloud ? "Private • Stored in your iCloud" : "Private • Stored locally"
     }
@@ -66,11 +68,12 @@ final class AppModel {
     func create(_ draft: CaptureDraft) {
         let started = ContinuousClock.now
         do {
-            let item = try repository?.create(from: draft)
+            guard let repository else { throw StowRepositoryError.itemNotFound }
+            let item = try repository.create(from: draft)
             try? metrics?.record(.captureSucceeded)
             try? metrics?.recordDuration(.captureDuration, seconds: started.duration(to: .now).secondsValue)
             isAdding = false
-            if let item, item.type == .link, let repository {
+            if item.type == .link {
                 Task { await LinkMetadataEnricher().enrich(item: item, repository: repository) }
             }
         } catch {

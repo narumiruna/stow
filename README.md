@@ -54,3 +54,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Sto
 Release metadata, privacy/support copy, screenshots, and the current device matrix live in [`docs/release`](docs/release).
 
 Signing team selection and CloudKit credentials are kept in local Xcode settings and are never committed.
+
+## macOS clipboard monitoring
+
+While Stow is running, it can automatically save newly copied text, links, images, and regular files to Inbox. Configure this under **Stow → Settings → Clipboard**. On macOS 15.4 or later, set Stow to **Always Allow** in **System Settings → Privacy & Security → Paste from Other Apps** for reliable background capture.

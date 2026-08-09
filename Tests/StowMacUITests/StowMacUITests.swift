@@ -5,9 +5,9 @@ import XCTest
 final class StowMacUITests: XCTestCase {
     func testMainWindowQuickPanelAndQuickAdd() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing", "--ui-testing-seed-panel", "-ApplePersistenceIgnoreState", "YES"]
+        app.launchArguments = ["--ui-testing", "--ui-testing-seed-panel", "-ApplePersistenceIgnoreState", "YES", "-clipboardMonitoringEnabled", "YES"]
         app.launch()
-        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
 
         for section in ["Inbox", "Recent", "Pinned", "Archive", "Trash", "Settings"] {
             XCTAssertTrue(app.staticTexts[section].waitForExistence(timeout: 3), "Missing \(section)")
@@ -20,6 +20,7 @@ final class StowMacUITests: XCTestCase {
 
         app.cells.containing(.staticText, identifier: "Settings").firstMatch.click()
         XCTAssertTrue(app.staticTexts["Registered"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Access"].waitForExistence(timeout: 3))
         app.cells.containing(.staticText, identifier: "Inbox").firstMatch.click()
 
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")

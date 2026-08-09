@@ -2,6 +2,9 @@ import Foundation
 import SwiftData
 import SwiftUI
 import StowCore
+#if os(macOS)
+import AppKit
+#endif
 
 struct StowSettingsView: View {
     @Environment(AppModel.self) private var model
@@ -10,6 +13,7 @@ struct StowSettingsView: View {
     #if os(macOS)
     @AppStorage("quickAddShortcut") private var quickAddShortcut = "optionShiftS"
     @AppStorage("quickPanelShortcut") private var quickPanelShortcut = "commandShiftV"
+    @AppStorage("clipboardMonitoringEnabled") private var clipboardMonitoringEnabled = true
     #endif
 
     var body: some View {
@@ -39,6 +43,17 @@ struct StowSettingsView: View {
                 }
             }
             #if os(macOS)
+            Section("Clipboard") {
+                Toggle("Automatically save copied items", isOn: $clipboardMonitoringEnabled)
+                LabeledContent("Access", value: model.clipboardMonitoringStatus)
+                Text("While Stow is running, new text, links, images, and files copied to the clipboard are saved to Inbox. Clipboard contents that existed before monitoring started are ignored.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if #available(macOS 15.4, *) {
+                    Text("For reliable background capture, set Stow to Always Allow in Privacy & Security › Paste from Other Apps.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("Open Privacy & Security…") { openPrivacySettings() }
+                }
+            }
             Section("Keyboard Shortcuts") {
                 LabeledContent("Global registration", value: model.globalShortcutStatus)
                 Picker("Quick Add", selection: $quickAddShortcut) {
@@ -68,10 +83,18 @@ struct StowSettingsView: View {
         .navigationTitle("Settings")
         .onChange(of: analyticsEnabled) { _, enabled in model.setMetricsEnabled(enabled) }
         #if os(macOS)
+        .onChange(of: clipboardMonitoringEnabled) { _, _ in NotificationCenter.default.post(name: .stowClipboardMonitoringChanged, object: nil) }
         .onChange(of: quickAddShortcut) { _, _ in NotificationCenter.default.post(name: .stowHotKeysChanged, object: nil) }
         .onChange(of: quickPanelShortcut) { _, _ in NotificationCenter.default.post(name: .stowHotKeysChanged, object: nil) }
         #endif
     }
+
+    #if os(macOS)
+    private func openPrivacySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") else { return }
+        NSWorkspace.shared.open(url)
+    }
+    #endif
 
     private var storageBytes: Int64 {
         attachments.reduce(0) { $0 + Int64($1.byteCount) }
