@@ -113,15 +113,15 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
 
     @objc private func screenParametersDidChange() { repositionForScreenChange() }
     @objc private func applicationDidResignActive() {
-        guard isVisible, !shouldDeferOutsideClick else { return }
-        if NSEvent.pressedMouseButtons != 0 {
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .milliseconds(250))
-                guard let self, self.isVisible, !self.shouldDeferOutsideClick else { return }
-                self.requestClose(.outsideClick)
-            }
-        } else {
-            requestClose(.outsideClick)
+        guard isVisible,
+              !shouldDeferOutsideClick,
+              QuickPanelOutsideEventPolicy.shouldRequestCloseOnApplicationResign(
+                  pointerButtonsArePressed: NSEvent.pressedMouseButtons != 0
+              ) else { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard let self, self.isVisible, !self.shouldDeferOutsideClick else { return }
+            self.requestClose(.outsideClick)
         }
     }
     @objc private func menuDidBeginTracking(_ notification: Notification) { menuTrackingDepth += 1 }

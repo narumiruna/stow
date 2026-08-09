@@ -83,6 +83,11 @@ final class QuickPanelClosePolicyTests: XCTestCase {
         )
     }
 
+    func testAppResignationOnlyRequestsCloseDuringPointerInteraction() {
+        XCTAssertFalse(QuickPanelOutsideEventPolicy.shouldRequestCloseOnApplicationResign(pointerButtonsArePressed: false))
+        XCTAssertTrue(QuickPanelOutsideEventPolicy.shouldRequestCloseOnApplicationResign(pointerButtonsArePressed: true))
+    }
+
     private func decision(
         _ request: QuickPanelCloseRequest,
         search: Bool = false,
