@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+if [[ -z "${DEVELOPER_DIR:-}" && -n "${MD_APPLE_SDK_ROOT:-}" ]]; then
+  export DEVELOPER_DIR="$MD_APPLE_SDK_ROOT/Contents/Developer"
+fi
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 
 xcode_version="$(xcodebuild -version)"
