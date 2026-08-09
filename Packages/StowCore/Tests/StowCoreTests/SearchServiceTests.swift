@@ -27,6 +27,19 @@ final class SearchServiceTests: XCTestCase {
         XCTAssertEqual(results, [wanted.id])
     }
 
+    func testFullwidthInputAndContentMatchHalfwidthSearchTerms() async throws {
+        let index = try SQLiteSearchIndex(url: temporaryURL())
+        let halfwidthContent = document(content: "Swift concurrency guide")
+        let fullwidthContent = document(content: "Ｐａｎｅｌ　Ｔｅｘｔ")
+        try await index.rebuild([halfwidthContent, fullwidthContent])
+
+        let fullwidthQuery = try await index.search(SearchQuery(text: "Ｓｗｉｆｔ　ｃｏｎｃｕｒｒｅｎｃｙ"))
+        let halfwidthQuery = try await index.search(SearchQuery(text: "Panel Text"))
+
+        XCTAssertEqual(fullwidthQuery, [halfwidthContent.id])
+        XCTAssertEqual(halfwidthQuery, [fullwidthContent.id])
+    }
+
     func testTrashIsExcludedByDefaultAndCanBeRequested() async throws {
         let index = try SQLiteSearchIndex(url: temporaryURL())
         let live = document(content: "receipt", status: .archived)

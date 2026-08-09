@@ -23,6 +23,9 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     private var clipboardStartupTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        retrievalPanel.destinationHandler = { [weak self] destination in
+            self?.present(destination)
+        }
         if let dependencies = Self.dependencies {
             model = dependencies.model
             container = dependencies.container
@@ -32,6 +35,7 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(showQuickPanel), name: .stowShowQuickPanel, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(showQuickAdd), name: .stowShowQuickAdd, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(openLibrary), name: .stowOpenLibrary, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(openSettings), name: .stowOpenSettings, object: nil)
         hotKeys.handler = { [weak self] action in self?.handle(action) }
         clipboardMonitor.captureHandler = { [weak self] content in self?.handle(content) }
         clipboardMonitor.statusHandler = { [weak self] status in
@@ -61,6 +65,7 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     @objc private func showQuickPanel() { handle(.quickPanel) }
     @objc private func showQuickAdd() { handle(.quickAdd) }
     @objc private func openLibrary() { retrievalPanel.openLibrary() }
+    @objc private func openSettings() { retrievalPanel.openSettings() }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag { retrievalPanel.openLibrary() }
@@ -150,10 +155,31 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
         }
         switch action {
         case .quickAdd:
-            if let model, let container { quickCapturePanel.present(model: model, container: container) }
+            if retrievalPanel.isVisible {
+                retrievalPanel.requestClose(.destination(.quickAdd))
+            } else {
+                presentQuickAdd()
+            }
         case .quickPanel:
             if let model, let container { retrievalPanel.present(model: model, container: container) }
         }
+    }
+
+    private func present(_ destination: QuickPanelDestination) {
+        switch destination {
+        case .quickAdd:
+            presentQuickAdd()
+        case .library:
+            retrievalPanel.presentLibrary()
+        case .settings:
+            retrievalPanel.presentSettings()
+        }
+    }
+
+    private func presentQuickAdd() {
+        guard let model, let container else { return }
+        model.isAdding = false
+        quickCapturePanel.present(model: model, container: container)
     }
 }
 
@@ -163,6 +189,7 @@ extension Notification.Name {
     static let stowShowQuickPanel = Notification.Name("StowShowQuickPanel")
     static let stowShowQuickAdd = Notification.Name("StowShowQuickAdd")
     static let stowOpenLibrary = Notification.Name("StowOpenLibrary")
+    static let stowOpenSettings = Notification.Name("StowOpenSettings")
 }
 
 extension NSPasteboard.PasteboardType {
@@ -170,30 +197,42 @@ extension NSPasteboard.PasteboardType {
 }
 
 @MainActor
-private final class QuickCapturePanelController {
+private final class QuickCapturePanelController: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
 
     func present(model: AppModel, container: ModelContainer) {
-        model.isAdding = true
-        if panel == nil {
-            let root = QuickAddView()
-                .environment(model)
-                .modelContainer(container)
-                .onChange(of: model.isAdding) { [weak self] _, presented in
-                    if !presented { self?.panel?.orderOut(nil) }
-                }
-            let host = NSHostingController(rootView: root)
-            let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 520, height: 620), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
-            panel.title = "Quick Add to Stow"
-            panel.isFloatingPanel = true
-            panel.level = .floating
-            panel.isReleasedWhenClosed = false
-            panel.contentViewController = host
-            panel.center()
-            self.panel = panel
+        if let panel, panel.isVisible {
+            NSApp.activate(ignoringOtherApps: true)
+            panel.makeKeyAndOrderFront(nil)
+            return
         }
+
+        let root = QuickAddView(onFinished: { [weak self] in self?.dismiss() })
+            .environment(model)
+            .modelContainer(container)
+        let host = NSHostingController(rootView: root)
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 520, height: 620), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+        panel.title = "Quick Add to Stow"
+        panel.identifier = NSUserInterfaceItemIdentifier("stow-quick-add-panel")
+        panel.isFloatingPanel = true
+        panel.level = .floating
+        panel.isReleasedWhenClosed = false
+        panel.contentViewController = host
+        panel.delegate = self
+        panel.center()
+        self.panel = panel
         NSApp.activate(ignoringOtherApps: true)
-        panel?.makeKeyAndOrderFront(nil)
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    private func dismiss() {
+        panel?.delegate = nil
+        panel?.close()
+        panel = nil
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        panel = nil
     }
 }
 

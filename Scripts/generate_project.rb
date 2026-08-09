@@ -110,6 +110,11 @@ unit_tests = project.new_target(:unit_test_bundle, "StowAppTests", :osx, "14.0")
 configure_target(unit_tests, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow.tests.unit", info_plist: "Configuration/Test-Info.plist", module_name: "StowAppTests")
 add_sources(tests_group, unit_tests, ROOT, ["StowAppTests"], source_root: "Tests")
 add_package(project, unit_tests, package_ref, "StowCore")
+unit_tests.add_dependency(mac_app)
+unit_tests.build_configurations.each do |configuration|
+  configuration.build_settings["TEST_HOST"] = "$(BUILT_PRODUCTS_DIR)/Stow-macOS.app/Contents/MacOS/Stow-macOS"
+  configuration.build_settings["BUNDLE_LOADER"] = "$(TEST_HOST)"
+end
 
 ui_tests = project.new_target(:ui_test_bundle, "StowUITests", :ios, "17.0")
 configure_target(ui_tests, platform: :ios, deployment: "17.0", bundle_id: "dev.narumi.stow.tests.ui.ios", info_plist: "Configuration/Test-Info.plist", module_name: "StowUITests")
