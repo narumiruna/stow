@@ -46,12 +46,6 @@ enum QuickPanelCloseDecision: Equatable {
     case confirmDiscard(QuickPanelDiscardScope)
 }
 
-enum QuickPanelOutsideEventPolicy {
-    static func shouldRequestCloseOnApplicationResign(pointerButtonsArePressed: Bool) -> Bool {
-        pointerButtonsArePressed
-    }
-}
-
 enum QuickPanelClosePolicy {
     static func decision(for request: QuickPanelCloseRequest, state: QuickPanelCloseState) -> QuickPanelCloseDecision {
         switch request {

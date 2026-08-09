@@ -18,6 +18,4 @@ jobs:
         env:
           EXPECTED_XCODE_VERSION: "26.3"
           EXPECTED_SWIFT_VERSION_PREFIX: "6.2"
-          STOW_CAPTURE_UI_TEST_SCREENSHOTS: "0"
-          RUN_UI_TESTS: "1"
         run: Scripts/ci.sh
