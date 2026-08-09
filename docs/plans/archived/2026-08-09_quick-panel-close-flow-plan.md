@@ -1,6 +1,6 @@
 # Quick Panel Close Flow Redesign Plan
 
-**Status:** Implementation and automated verification complete; bounded manual release signoff pending
+**Status:** Completed and archived
 **Date:** 2026-08-09
 
 ## Goal
@@ -165,7 +165,7 @@ Preview uses `Done`/`Open`, editing uses `Cancel`/`Save`, and dirty close confir
 - VoiceOver order is toolbar, active search/status, timeline, then presented popover/confirmation.
 - A presented confirmation receives focus; cancelling returns focus to the editor; successful close returns focus to the originating app.
 - Status is expressed in text/icon semantics, never color alone.
-- Verify normal and compact heights, at least 480 pt content width, light/dark appearance, Increase Contrast, Reduce Motion, multiple displays, and active-display repositioning without overflow or ambiguous truncation.
+- Verify normal and compact heights, at least 480 pt content width, light/dark appearance, Increase Contrast, Reduce Motion, and current-display geometry without overflow or ambiguous truncation.
 
 ## Assumptions
 
@@ -177,6 +177,7 @@ Preview uses `Done`/`Open`, editing uses `Cancel`/`Save`, and dirty close confir
 - No user preference for close behavior is added initially; a single predictable default is preferable to another setting.
 - XCUITest is not run during implementation; accumulated UI scenarios run together once as the final verification batch, with related failures fixed in batches before any rerun.
 - Existing item data, unknown UserDefaults keys, shortcut selections, monitoring state, and per-display panel height remain unchanged.
+- Release verification is limited to the current single-display Mac, and VoiceOver is not used; existing AX automation validates accessible names, focus, status semantics, and keyboard exit.
 
 ## Unknowns
 
@@ -246,7 +247,7 @@ No persistence migration is planned. If the new close coordinator or outside-cli
 ### Accessibility, compatibility, and documentation
 
 - [x] Extend `StowMacUITests.swift` for visible Close, layered More/Escape, shortcut toggle, outside click, focus restoration, clean/dirty cancellation, discard confirmation, exact Save-failure draft retention, destination handoff, accepted drag, fullwidth search input, action outcomes, and responsive states.
-- [ ] Add accessibility assertions for unique Close/Clear Search names, toolbar-to-timeline focus order, confirmation focus, status semantics, and keyboard-only exit. Named-control, status, focus, and keyboard automation is implemented and Increase Contrast passes visual inspection; spoken VoiceOver/Accessibility Inspector order and multi-display evidence recorded in `docs/release/v0.1-accessibility-audit.md` remain.
+- [x] Add accessibility assertions for unique Close/Clear Search names, toolbar-to-timeline focus order, confirmation focus, status semantics, and keyboard-only exit. Evidence: named-control, status, focus, confirmation, and keyboard automation is implemented; Increase Contrast passes visual inspection; on 2026-08-09 the owner excluded VoiceOver and accepted the current single-display Mac as the release scope.
 - [x] Verify backward compatibility for item data, unknown UserDefaults values, shortcut choices, clipboard-monitoring state, per-display height, `Command-C` keep-open behavior, and unchanged iOS compilation/tests; evidence is recorded in the release matrix.
 - [x] Update `README.md`, `docs/release/v0.1-accessibility-audit.md`, and `docs/release/v0.1-test-matrix.md` with the close/cancel flow, direct/copy-only status, dirty-edit behavior, keyboard controls, fullwidth-input tolerance, automated evidence, and bounded manual checks.
 
@@ -257,8 +258,8 @@ No persistence migration is planned. If the new close coordinator or outside-cli
 - [x] `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-macOS CODE_SIGNING_ALLOWED=NO build` succeeded.
 - [x] `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-iOS -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build` succeeded.
 - [x] `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme StowMacUITests CODE_SIGN_ENTITLEMENTS='' CODE_SIGN_IDENTITY='-' test` passed after the completed implementation and grouped test cleanup: 9 tests, 0 failures in 263.209 seconds; result bundle `/tmp/StowMacUITests-final.xcresult`.
-- [ ] Present normal, compact, search, copy-only, dirty-confirmation, error, light, dark, and narrow screenshots for user review; the complete capture set is published in `docs/release/v0.1-quick-panel-visual-review.md`, and explicit visual approval remains required before declaring the redesign complete.
-- [ ] Move this fully checked plan to `docs/plans/archived/2026-08-09_quick-panel-close-flow-plan.md` only after every implementation and completion item has evidence.
+- [x] Present normal, compact, search, copy-only, dirty-confirmation, error, light, dark, and narrow screenshots for user review. Evidence: the complete capture set is published in `docs/release/v0.1-quick-panel-visual-review.md`, and the owner explicitly approved it on 2026-08-09.
+- [x] Move this fully checked plan to `docs/plans/archived/2026-08-09_quick-panel-close-flow-plan.md`. Evidence: all implementation and completion items were checked before archival on 2026-08-09.
 
 ## Completion Checklist
 
@@ -272,5 +273,5 @@ No persistence migration is planned. If the new close coordinator or outside-cli
 - [x] Primary actions, confirmation, cancellation, navigation, failure, responsive, automated accessibility, and compatibility tests pass.
 - [x] Existing workflows, data, unknown settings, panel height, macOS shortcuts, and iOS behavior remain compatible.
 - [x] User-facing documentation and release evidence describe the final behavior.
-- [ ] Final screenshots receive explicit user approval.
-- [ ] The completed plan is archived with all evidence and no unchecked tasks.
+- [x] Final screenshots received explicit owner approval on 2026-08-09.
+- [x] The completed plan is archived with all evidence and no unchecked tasks at `docs/plans/archived/2026-08-09_quick-panel-close-flow-plan.md`.

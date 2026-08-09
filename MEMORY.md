@@ -7,4 +7,6 @@
 
 ## TASTE
 
+- Prefer macOS release validation without VoiceOver and scope display behavior to a single display unless explicitly requested.
+
 ## CONVENTIONS
