@@ -185,7 +185,7 @@ private final class ClipboardMonitor: NSObject {
         if #available(macOS 15.4, *) {
             switch pasteboard.accessBehavior {
             case .default: return "Permission not requested"
-            case .ask: return "Ask Every Time"
+            case .ask: return "Needs Always Allow"
             case .alwaysAllow: return "Always Allow"
             case .alwaysDeny: return "Blocked by macOS"
             @unknown default: return "Unknown"
@@ -214,7 +214,16 @@ private final class ClipboardMonitor: NSObject {
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount
         statusHandler?(statusText)
-        if #available(macOS 15.4, *), pasteboard.accessBehavior == .alwaysDeny { return }
+        if #available(macOS 15.4, *) {
+            switch pasteboard.accessBehavior {
+            case .ask, .alwaysDeny:
+                return
+            case .default, .alwaysAllow:
+                break
+            @unknown default:
+                return
+            }
+        }
         guard pasteboard.availableType(from: [.stowOwnedContent]) == nil else { return }
 
         do {

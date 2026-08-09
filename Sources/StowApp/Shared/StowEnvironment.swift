@@ -43,7 +43,12 @@ public enum StowEnvironment {
         try? FileManager.default.createDirectory(at: simulatorURL, withIntermediateDirectories: true)
         return simulatorURL
         #else
-        if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
+        #if os(macOS)
+        let canAccessAppGroup = hasAppGroupEntitlement()
+        #else
+        let canAccessAppGroup = true
+        #endif
+        if canAccessAppGroup, let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
             return groupURL
         }
         #if DEBUG && os(macOS)
@@ -54,6 +59,18 @@ public enum StowEnvironment {
         #endif
         try? FileManager.default.createDirectory(at: fallback, withIntermediateDirectories: true)
         return fallback
+        #endif
+    }
+
+    private static func hasAppGroupEntitlement() -> Bool {
+        #if os(macOS)
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(task, "com.apple.security.application-groups" as CFString, nil) as? [String] else {
+            return false
+        }
+        return value.contains(appGroupIdentifier)
+        #else
+        return true
         #endif
     }
 
