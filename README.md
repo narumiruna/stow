@@ -24,6 +24,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift --version
 
 ## Development
 
+Build and open the macOS app:
+
+```sh
+just macos
+```
+
 Generate the Xcode project after adding targets or source files:
 
 ```sh
