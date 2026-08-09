@@ -1,6 +1,7 @@
 ## Testing
 
-- Treat local `StowMacUITests`, `StowUITests`, and commands with `RUN_UI_TESTS=1` as interactive UI tests.
+- Treat `StowMacUITests`, `StowUITests`, and `Scripts/ui_tests.sh` as local interactive UI tests.
+- Keep UI test orchestration exclusively in `Scripts/ui_tests.sh`; CI scripts and workflows must never invoke UI test schemes or the local UI test script.
 - Never run or ask about interactive UI tests while implementation is in progress.
 - Finish the entire requested code change and all relevant non-interactive checks before starting interactive UI tests.
 - Use unit tests, builds, and static checks that do not operate the desktop UI during implementation.

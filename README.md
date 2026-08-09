@@ -36,24 +36,31 @@ Generate the Xcode project after adding targets or source files:
 ruby Scripts/generate_project.rb
 ```
 
-Run the local quality gate:
+Run the non-interactive quality gate used by CI:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ci.sh
 ```
 
-Run the full UI suite only on the newest available iPhone simulator and the current macOS host:
+`Scripts/ci.sh` never runs UI tests. Run the full interactive UI suite locally, on the current macOS host and newest available iPhone simulator, through its separate entry point:
 
 ```sh
-RUN_UI_TESTS=1 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ci.sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh
 ```
 
-Focused commands:
+`Scripts/ui_tests.sh` is local-only and exits without running tests when a CI environment is detected.
+
+Focused non-interactive commands:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --package-path Packages/StowCore
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-macOS CODE_SIGNING_ALLOWED=NO build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-iOS -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
+```
+
+Focused local macOS UI test command:
+
+```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme StowMacUITests CODE_SIGN_ENTITLEMENTS='' CODE_SIGN_IDENTITY='-' test
 ```
 

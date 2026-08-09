@@ -358,7 +358,7 @@ The redesign is complete only when all of the following are true:
 
 Completed on 2026-08-09:
 
-- Full `RUN_UI_TESTS=1 Scripts/ci.sh` passed with Xcode 26.6 / Swift 6.3.3: 50 StowCore tests, 1 native smoke test, macOS and iOS builds, entitlement verification, 4 macOS UI tests, and 13 iOS UI tests.
+- Before UI orchestration was split into the local-only `Scripts/ui_tests.sh`, the full local quality run passed with Xcode 26.6 / Swift 6.3.3: 50 StowCore tests, 1 native smoke test, macOS and iOS builds, entitlement verification, 4 macOS UI tests, and 13 iOS UI tests.
 - A second post-utility-lifecycle `StowMacUITests` run passed all 4 tests after the explicit Library window handoff was added.
 - Unsigned macOS Release builds pass. Runtime window inspection verifies a normal Release launch remains alive with zero Library windows in front, while `--open-library` presents one management Library window.
 - Kept screenshot attachments verify normal, compact, active search, inline filter token, no-results, anchored edit, light, dark, and Reduce Motion states.
