@@ -24,6 +24,7 @@
 		3A8363D4DD3C8CB9474FD949 /* StowItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FDFD2918401BE0607B499DA /* StowItemDetailView.swift */; };
 		3E8614CF07C3F6BB2A6E2EF3 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3E8029BACD97A3BA20ADDAF7 /* Cocoa.framework */; };
 		42DC667A4C591DCB6AAE3721 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AB02A2D4C7C1FEF43232F23 /* AppModel.swift */; };
+		42E753D02FB5DAF262010328 /* DirectPasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E356A13186F3EE245DADFD /* DirectPasteService.swift */; };
 		49D5C7AD4065CD170ADCF4A2 /* ShareCaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C7176CCF4F29E3CC9E8971 /* ShareCaptureModel.swift */; };
 		4F2BAB3A2CE1FF02BEC8CB66 /* StowShare-iOS.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F943DC7882EC8A848E2F0CF9 /* StowShare-iOS.appex */; };
 		4FAD6F5A9A06BC56615B56B4 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CCB6C93DF69610D40596AF0 /* ShareViewController.swift */; };
@@ -51,6 +52,7 @@
 		CEFC62897F97F8E82CC999CD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 12C0CCE3DDA0A70C4DFC2652 /* Assets.xcassets */; };
 		D4004DAF1A203E89C27424E6 /* PlatformActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2EAE03F611396DA856ECA49 /* PlatformActions.swift */; };
 		D45A0D7DCE57E3C5EBB3DD0F /* StowEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 708432F47A95AD74F365A79A /* StowEnvironment.swift */; };
+		D7945FE2EF2ACD1EE845247A /* RetrievalPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEB3B9981EB38EAD31151E62 /* RetrievalPanelController.swift */; };
 		D844765E0D04C23D5DBE152D /* StowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 788809D63C56A13CB1486BF6 /* StowUITests.swift */; };
 		D8E5817A889ACF715EE241B6 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5202479D4598B4424E370B43 /* Foundation.framework */; };
 		D9E338863869E2F187720B59 /* GlobalHotKeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0DB4AC4F98D08AAE838D888 /* GlobalHotKeyService.swift */; };
@@ -177,7 +179,9 @@
 		E0DB4AC4F98D08AAE838D888 /* GlobalHotKeyService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyService.swift; sourceTree = "<group>"; };
 		F2EAE03F611396DA856ECA49 /* PlatformActions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlatformActions.swift; sourceTree = "<group>"; };
 		F37CC087815C204EEDF6BD1F /* AppModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		F6E356A13186F3EE245DADFD /* DirectPasteService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DirectPasteService.swift; sourceTree = "<group>"; };
 		F943DC7882EC8A848E2F0CF9 /* StowShare-iOS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "StowShare-iOS.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FEB3B9981EB38EAD31151E62 /* RetrievalPanelController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPanelController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -412,6 +416,8 @@
 				D5E846AB696FB4C386879886 /* MacAppCoordinator.swift */,
 				49E1F8A66053805A4C4E8BD4 /* RetrievalPanel.swift */,
 				AE33F1FD23AA1DDF553AA272 /* StowMacApp.swift */,
+				F6E356A13186F3EE245DADFD /* DirectPasteService.swift */,
+				FEB3B9981EB38EAD31151E62 /* RetrievalPanelController.swift */,
 			);
 			name = macOS;
 			path = StowApp/macOS;
@@ -761,6 +767,8 @@
 				E8512A105B0046E273AFF8FD /* MacAppCoordinator.swift in Sources */,
 				E5DFDD49E0B45FA34F6F5374 /* RetrievalPanel.swift in Sources */,
 				2B188252D7CBD57378C6693D /* StowMacApp.swift in Sources */,
+				42E753D02FB5DAF262010328 /* DirectPasteService.swift in Sources */,
+				D7945FE2EF2ACD1EE845247A /* RetrievalPanelController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

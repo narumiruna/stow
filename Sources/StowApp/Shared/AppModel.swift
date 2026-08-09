@@ -33,6 +33,7 @@ final class AppModel {
     private var searchIndex: SQLiteSearchIndex?
     private var indexedFingerprint = ""
     private var searchGeneration = 0
+    private var retrievalSearchGeneration = 0
     private let syncMonitor = CloudSyncMonitor()
 
     func markLaunchReady() {
@@ -125,12 +126,17 @@ final class AppModel {
         } catch { presentedError = error.localizedDescription }
     }
 
-    func performUse(_ item: StowItem, action: ItemRetrievalAction, metric: MetricCounter, operation: () throws -> Void) {
+    @discardableResult
+    func performUse(_ item: StowItem, action: ItemRetrievalAction, metric: MetricCounter, operation: () throws -> Void) -> Bool {
         do {
             guard let actionService else { throw StowRepositoryError.itemNotFound }
             try actionService.perform(itemID: item.id, action: action, operation: operation)
             try? metrics?.record(metric)
-        } catch { presentedError = error.localizedDescription }
+            return true
+        } catch {
+            presentedError = error.localizedDescription
+            return false
+        }
     }
 
     func markUsed(_ item: StowItem, metric: MetricCounter = .itemOpened) {
@@ -193,18 +199,66 @@ final class AppModel {
         }
     }
 
+    func searchForRetrieval(
+        items: [StowItem],
+        text: String,
+        type: ItemType?,
+        source: String?,
+        date: DateAddedFilter,
+        status: ItemStatus?
+    ) async -> [UUID] {
+        guard let searchIndex else { return [] }
+        retrievalSearchGeneration += 1
+        let generation = retrievalSearchGeneration
+        do {
+            if !text.isEmpty { try await Task.sleep(for: .milliseconds(80)) }
+            guard generation == retrievalSearchGeneration, !Task.isCancelled else { return [] }
+            var versionHasher = Hasher()
+            for item in items { versionHasher.combine(item.id); versionHasher.combine(item.updatedAt) }
+            let fingerprint = "\(items.count):\(versionHasher.finalize())"
+            if fingerprint != indexedFingerprint {
+                try await searchIndex.rebuild(items.map(SearchDocument.init(item:)))
+                indexedFingerprint = fingerprint
+            }
+            let calendar = Calendar.current
+            let now = Date()
+            let addedAfter: Date?
+            switch date {
+            case .anytime: addedAfter = nil
+            case .today: addedAfter = calendar.startOfDay(for: now)
+            case .week: addedAfter = calendar.date(byAdding: .day, value: -7, to: now)
+            case .month: addedAfter = calendar.date(byAdding: .month, value: -1, to: now)
+            }
+            let query = SearchQuery(
+                text: text,
+                type: type,
+                sourceApp: source,
+                addedAfter: addedAfter,
+                status: status,
+                limit: 10_000
+            )
+            let ids = try await searchIndex.search(query)
+            guard generation == retrievalSearchGeneration, !Task.isCancelled else { return [] }
+            return ids
+        } catch {
+            guard generation == retrievalSearchGeneration, !Task.isCancelled else { return [] }
+            presentedError = "The local search index will be rebuilt. \(error.localizedDescription)"
+            return []
+        }
+    }
+
     #if DEBUG
     private func seedPanelFixtures(_ repository: StowRepository) {
         guard (try? repository.allItems().isEmpty) == true else { return }
         do {
-            let base = Date(timeIntervalSince1970: 1_000)
-            _ = try repository.create(from: CaptureDraft(type: .link, title: "Panel Link", urlString: "https://example.com"), at: base)
-            _ = try repository.create(from: CaptureDraft(type: .text, title: "Panel Text", textContent: "panel text payload"), at: base.addingTimeInterval(1))
-            _ = try repository.create(from: CaptureDraft(type: .code, title: "Panel Code", textContent: "let panel = true", language: "swift"), at: base.addingTimeInterval(2))
-            let image = try repository.create(from: CaptureDraft(type: .image, title: "Panel Image", stagedAttachmentName: "panel.png", attachmentByteCount: 68, contentType: "image/png", fileName: "panel.png"), at: base.addingTimeInterval(3))
-            let imageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
+            let base = Date().addingTimeInterval(-5 * 60)
+            _ = try repository.create(from: CaptureDraft(type: .link, title: "Panel Link", urlString: "https://example.com", sourceApp: "Safari"), at: base)
+            _ = try repository.create(from: CaptureDraft(type: .text, title: "Panel Text", textContent: "panel text payload", sourceApp: "Notes"), at: base.addingTimeInterval(1))
+            _ = try repository.create(from: CaptureDraft(type: .code, title: "Panel Code", textContent: "let panel = true", sourceApp: "Xcode", language: "swift"), at: base.addingTimeInterval(2))
+            let image = try repository.create(from: CaptureDraft(type: .image, title: "Panel Image", stagedAttachmentName: "panel.png", attachmentByteCount: 68, contentType: "image/png", fileName: "panel.png", sourceApp: "Photos"), at: base.addingTimeInterval(3))
+            let imageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAmklEQVR4nA3JkRoEIAwA4Hum43E8jod90WAwHIZhT3QwGARBEPQc16//50sX6CTaSCvTJIpKLvT7fMuFclLZWFYuk0rU4lJe8AU+iTfyyjyJo7ILv9ALepJu1JV1kkZVF31hF+wk22gr2ySLai72ol1oJ7WNbeU2qUVtLu1Fv9BP6hv7yn1Sj9pd+otxYZw0No6Vx6QRdbiM3x+pQGtB6VrbMAAAAABJRU5ErkJggg==")!
             try repository.addAttachment(StowAttachment(itemID: image.id, data: imageData, contentType: "image/png", fileName: "panel.png"))
-            let file = try repository.create(from: CaptureDraft(type: .file, title: "Panel File", stagedAttachmentName: "panel.txt", attachmentByteCount: 10, contentType: "text/plain", fileName: "panel.txt"), at: base.addingTimeInterval(4))
+            let file = try repository.create(from: CaptureDraft(type: .file, title: "Panel File", stagedAttachmentName: "panel.txt", attachmentByteCount: 10, contentType: "text/plain", fileName: "panel.txt", sourceApp: "Finder"), at: base.addingTimeInterval(4))
             try repository.addAttachment(StowAttachment(itemID: file.id, data: Data("panel file".utf8), contentType: "text/plain", fileName: "panel.txt"))
         } catch { presentedError = error.localizedDescription }
     }

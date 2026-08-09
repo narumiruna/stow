@@ -4,6 +4,7 @@ import SwiftUI
 import StowCore
 #if os(macOS)
 import AppKit
+import ApplicationServices
 #endif
 
 struct StowSettingsView: View {
@@ -14,6 +15,7 @@ struct StowSettingsView: View {
     @AppStorage("quickAddShortcut") private var quickAddShortcut = "optionShiftS"
     @AppStorage("quickPanelShortcut") private var quickPanelShortcut = "commandShiftV"
     @AppStorage("clipboardMonitoringEnabled") private var clipboardMonitoringEnabled = true
+    @State private var directPasteGranted = AXIsProcessTrusted()
     #endif
 
     var body: some View {
@@ -54,6 +56,14 @@ struct StowSettingsView: View {
                     Button("Open Privacy & Security…") { openPrivacySettings() }
                 }
             }
+            Section("Direct Paste") {
+                LabeledContent("Accessibility", value: directPasteGranted ? "Granted" : "Copy-only fallback")
+                Text("Accessibility lets Stow paste the selected item back into the app you were using. Without it, Stow safely copies the item so you can press Command-V yourself.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if !directPasteGranted {
+                    Button("Request Accessibility Access…") { requestAccessibilityAccess() }
+                }
+            }
             Section("Keyboard Shortcuts") {
                 LabeledContent("Global registration", value: model.globalShortcutStatus)
                 Picker("Quick Add", selection: $quickAddShortcut) {
@@ -86,6 +96,7 @@ struct StowSettingsView: View {
         .onChange(of: clipboardMonitoringEnabled) { _, _ in NotificationCenter.default.post(name: .stowClipboardMonitoringChanged, object: nil) }
         .onChange(of: quickAddShortcut) { _, _ in NotificationCenter.default.post(name: .stowHotKeysChanged, object: nil) }
         .onChange(of: quickPanelShortcut) { _, _ in NotificationCenter.default.post(name: .stowHotKeysChanged, object: nil) }
+        .onAppear { directPasteGranted = AXIsProcessTrusted() }
         #endif
     }
 
@@ -93,6 +104,11 @@ struct StowSettingsView: View {
     private func openPrivacySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    private func requestAccessibilityAccess() {
+        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        directPasteGranted = AXIsProcessTrustedWithOptions(options)
     }
     #endif
 

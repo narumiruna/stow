@@ -6,7 +6,11 @@ import UniformTypeIdentifiers
 
 @MainActor
 final class MacAppCoordinator: NSObject, NSApplicationDelegate {
-    static let shared = MacAppCoordinator()
+    private(set) static var dependencies: (model: AppModel, container: ModelContainer)?
+
+    static func install(model: AppModel, container: ModelContainer) {
+        dependencies = (model, container)
+    }
     private let hotKeys = GlobalHotKeyService()
     private let retrievalPanel = RetrievalPanelController()
     private let quickCapturePanel = QuickCapturePanelController()
@@ -19,9 +23,15 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     private var clipboardStartupTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let dependencies = Self.dependencies {
+            model = dependencies.model
+            container = dependencies.container
+        }
         NotificationCenter.default.addObserver(self, selector: #selector(reloadHotKeys), name: .stowHotKeysChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(reloadClipboardMonitoring), name: .stowClipboardMonitoringChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(showQuickPanel), name: .stowShowQuickPanel, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(showQuickAdd), name: .stowShowQuickAdd, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(openLibrary), name: .stowOpenLibrary, object: nil)
         hotKeys.handler = { [weak self] action in self?.handle(action) }
         clipboardMonitor.captureHandler = { [weak self] content in self?.handle(content) }
         clipboardMonitor.statusHandler = { [weak self] status in
@@ -32,11 +42,30 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
         }
         registerHotKeys()
         configureClipboardMonitoring()
+        #if DEBUG
+        let hidesLibraryOnLaunch = ProcessInfo.processInfo.arguments.contains("--ui-testing-utility-mode")
+        #else
+        let hidesLibraryOnLaunch = !ProcessInfo.processInfo.arguments.contains("--open-library")
+        #endif
+        if hidesLibraryOnLaunch {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                for window in NSApp.windows where !(window is NSPanel) && window.canBecomeMain { window.orderOut(nil) }
+            }
+        } else if ProcessInfo.processInfo.arguments.contains("--open-library") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.retrievalPanel.openLibrary() }
+        }
     }
 
     @objc private func reloadHotKeys() { registerHotKeys() }
     @objc private func reloadClipboardMonitoring() { configureClipboardMonitoring() }
     @objc private func showQuickPanel() { handle(.quickPanel) }
+    @objc private func showQuickAdd() { handle(.quickAdd) }
+    @objc private func openLibrary() { retrievalPanel.openLibrary() }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { retrievalPanel.openLibrary() }
+        return true
+    }
 
     private func registerHotKeys() {
         do {
@@ -132,6 +161,8 @@ extension Notification.Name {
     static let stowHotKeysChanged = Notification.Name("StowHotKeysChanged")
     static let stowClipboardMonitoringChanged = Notification.Name("StowClipboardMonitoringChanged")
     static let stowShowQuickPanel = Notification.Name("StowShowQuickPanel")
+    static let stowShowQuickAdd = Notification.Name("StowShowQuickAdd")
+    static let stowOpenLibrary = Notification.Name("StowOpenLibrary")
 }
 
 extension NSPasteboard.PasteboardType {

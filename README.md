@@ -61,6 +61,12 @@ Release metadata, privacy/support copy, screenshots, and the current device matr
 
 Signing team selection and CloudKit credentials are kept in local Xcode settings and are never committed.
 
-## macOS clipboard monitoring
+## macOS quick panel and clipboard monitoring
+
+Press **Command-Shift-V** from any app to open Stow as a translucent bar along the bottom of the active display. The panel provides a single horizontal clipboard timeline, Clipboard/Inbox/Pinned modes, inline search filters, compact mode when resized, and full keyboard navigation. Use the arrow keys to select, Return to paste, Space to preview, Command-C to copy, Command-O to open, Command-E to edit, and Command-Shift-A to archive.
+
+Stow requests Accessibility access only for pasting directly back into the app you were using. Without access, Return safely copies the item and displays a copy-only fallback. Configure this under **Stow → Settings → Direct Paste**.
+
+The menu bar item opens the quick panel, Quick Add, the management Library, monitoring controls, and Settings. The Library remains the place for Inbox processing, Archive, Trash, and detailed metadata work.
 
 While Stow is running, it can automatically save newly copied text, links, images, and regular files to Inbox. Configure this under **Stow → Settings → Clipboard**. On macOS 15.4 or later, set Stow to **Always Allow** in **System Settings → Privacy & Security → Paste from Other Apps** for reliable background capture.

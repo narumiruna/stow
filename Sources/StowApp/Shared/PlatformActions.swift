@@ -13,22 +13,27 @@ enum PlatformActionError: LocalizedError {
 
 @MainActor
 enum PlatformActions {
-    static func copy(_ item: StowItem, attachmentData: Data? = nil) throws {
+    static func copy(_ item: StowItem, attachmentData: Data? = nil, attachment: StowAttachment? = nil) throws {
         #if os(iOS)
         if item.type == .image {
-            guard let attachmentData, let image = UIImage(data: attachmentData) else { throw PlatformActionError.unavailable }
+            guard let data = attachmentData ?? attachment?.data, let image = UIImage(data: data) else { throw PlatformActionError.unavailable }
             UIPasteboard.general.image = image
+        } else if item.type == .file, let attachment {
+            UIPasteboard.general.url = try materialize(attachment)
         } else {
             UIPasteboard.general.string = stringValue(item)
         }
         #elseif os(macOS)
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
+        let marker = NSPasteboardItem()
+        marker.setString("1", forType: .stowOwnedContent)
         if item.type == .image {
-            guard let attachmentData, let image = NSImage(data: attachmentData) else { throw PlatformActionError.unavailable }
-            let marker = NSPasteboardItem()
-            marker.setString("1", forType: .stowOwnedContent)
+            guard let data = attachmentData ?? attachment?.data, let image = NSImage(data: data) else { throw PlatformActionError.unavailable }
             guard pasteboard.writeObjects([image, marker]) else { throw PlatformActionError.unavailable }
+        } else if item.type == .file, let attachment {
+            let url = try materialize(attachment)
+            guard pasteboard.writeObjects([url as NSURL, marker]) else { throw PlatformActionError.unavailable }
         } else {
             let pasteboardItem = NSPasteboardItem()
             pasteboardItem.setString(stringValue(item), forType: .string)
