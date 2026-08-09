@@ -5,7 +5,8 @@
 - Symptom: macOS XCUITest waits 60 seconds for accessibility even though the app process is idle. Cause: a prior test closed the restored main window with `⌘W`. Fix: do not close the main window during panel tests and launch UI tests with `-ApplePersistenceIgnoreState YES`.
 - Symptom: an ad-hoc macOS build repeatedly asks to “access data from other apps.” Cause: calling `containerURL(forSecurityApplicationGroupIdentifier:)` without the committed App Group entitlement triggers macOS container privacy. Fix: inspect the runtime App Group entitlement first and use the development fallback without touching the group container when it is absent.
 - Symptom: GitHub Actions selects a requested Xcode but `Scripts/ci.sh` reports the runner default. Cause: a hardcoded `DEVELOPER_DIR` overrides `setup-xcode`'s `MD_APPLE_SDK_ROOT`. Fix: prefer an existing `DEVELOPER_DIR`, then derive it from `MD_APPLE_SDK_ROOT`, and use `/Applications/Xcode.app` only as the local fallback.
-- Symptom: the Quick Panel disappears during a macOS UI-test screenshot or another non-pointer deactivation. Cause: `applicationDidResignActive` treats every resignation as an outside click. Fix: use resignation only as a pointer-down fallback; global/local pointer monitors own actual outside clicks.
+- Symptom: the Quick Panel closes when Stow resigns active without a pointer interaction. Cause: `applicationDidResignActive` treats every resignation as an outside click. Fix: use resignation only as a pointer-down fallback; global/local pointer monitors own actual outside clicks.
+- Symptom: hosted macOS UI tests close the Quick Panel after evaluating an `XCUIScreenshot`. Cause: hosted screenshot capture perturbs the transient panel, while release captures are produced in the final local UI batch. Fix: lazily skip screenshot expression evaluation in hosted CI with `STOW_CAPTURE_UI_TEST_SCREENSHOTS=0`; keep all interaction assertions enabled.
 
 ## TASTE
 

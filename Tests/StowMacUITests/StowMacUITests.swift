@@ -423,8 +423,9 @@ final class StowMacUITests: XCTestCase {
         field.typeText(value)
     }
 
-    private func attach(_ screenshot: XCUIScreenshot, named name: String) {
-        let attachment = XCTAttachment(screenshot: screenshot)
+    private func attach(_ screenshot: @autoclosure () -> XCUIScreenshot, named name: String) {
+        guard ProcessInfo.processInfo.environment["STOW_CAPTURE_UI_TEST_SCREENSHOTS"] != "0" else { return }
+        let attachment = XCTAttachment(screenshot: screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
