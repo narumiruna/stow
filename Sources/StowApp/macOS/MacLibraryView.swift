@@ -71,20 +71,31 @@ struct MacLibraryView: View {
         }
         .navigationTitle("Stow")
         .safeAreaInset(edge: .bottom) {
-            Label {
-                Text(appModel.privacyStorageText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } icon: {
-                Image(systemName: appModel.privacyStorageText.contains("iCloud") ? "lock.icloud" : "lock.fill")
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 10) {
+                Button {
+                    NotificationCenter.default.post(name: .stowShowQuickAdd, object: nil)
+                } label: {
+                    Label("Quick Add", systemImage: "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("library-quick-add")
+
+                Label {
+                    Text(appModel.privacyStorageText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: appModel.privacyStorageText.contains("iCloud") ? "lock.icloud" : "lock.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel(appModel.privacyStorageText)
+                .accessibilityIdentifier("library-storage-status")
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityLabel(appModel.privacyStorageText)
-            .accessibilityIdentifier("library-storage-status")
         }
     }
 
@@ -116,16 +127,6 @@ struct MacLibraryView: View {
             }
         }
         .navigationTitle(MacLibraryPolicy.title(for: appModel.selection))
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    NotificationCenter.default.post(name: .stowShowQuickAdd, object: nil)
-                } label: {
-                    Label("Quick Add", systemImage: "plus")
-                }
-                .accessibilityIdentifier("library-quick-add")
-            }
-        }
     }
 
     @ViewBuilder
