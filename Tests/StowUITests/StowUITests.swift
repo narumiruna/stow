@@ -138,8 +138,9 @@ final class StowUITests: XCTestCase {
         address.tap()
         let editor = safari.textFields["Address"]
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
-        editor.typeText("https://example.com")
-        editor.typeText(XCUIKeyboardKey.return.rawValue)
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        safari.typeText("https://example.com")
+        safari.typeText(XCUIKeyboardKey.return.rawValue)
         XCTAssertTrue(safari.staticTexts["Example Domain"].waitForExistence(timeout: 8))
         let more = safari.buttons["More"]
         XCTAssertTrue(more.waitForExistence(timeout: 5))

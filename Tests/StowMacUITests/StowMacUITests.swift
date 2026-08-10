@@ -7,16 +7,12 @@ final class StowMacUITests: XCTestCase {
         let app = launchApp()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
 
-        for section in ["Inbox", "Recent", "Pinned", "Archive", "Trash", "Settings"] {
+        for section in ["Inbox", "Recently Used", "Pinned", "Archive", "Trash"] {
             XCTAssertTrue(app.staticTexts[section].waitForExistence(timeout: 3), "Missing \(section)")
         }
+        XCTAssertFalse(app.staticTexts["Settings"].exists, "Settings belongs in the native Settings window, not the Library sidebar")
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "library-filter-menu").firstMatch.waitForExistence(timeout: 3))
         attach(app.windows.firstMatch.screenshot(), named: "stow-mac-library")
-
-        app.cells.containing(.staticText, identifier: "Settings").firstMatch.click()
-        XCTAssertTrue(app.staticTexts["Registered"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Access"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Copy-only fallback"].exists || app.staticTexts["Granted"].exists)
-        app.cells.containing(.staticText, identifier: "Inbox").firstMatch.click()
 
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
         textEdit.launch()
@@ -171,7 +167,10 @@ final class StowMacUITests: XCTestCase {
         panel.buttons["More"].click()
         panel.buttons["Settings"].click()
         XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Direct Paste"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.windows.matching(identifier: "stow-settings-window").firstMatch.waitForExistence(timeout: 5))
+        for page in ["Capture", "Paste & Shortcuts", "Sync & Storage", "Privacy"] {
+            XCTAssertTrue(app.buttons[page].exists || app.radioButtons[page].exists, "Missing Settings page \(page)")
+        }
 
         textEdit.terminate()
         app.terminate()
@@ -366,6 +365,140 @@ final class StowMacUITests: XCTestCase {
         app.terminate()
     }
 
+    func testLibraryAdaptiveWidthsEditingFailureAndTrashRecovery() {
+        for (size, attachmentName) in [("840x560", "stow-library-minimum"), ("1080x720", "stow-library-normal"), ("1440x900", "stow-library-wide")] {
+            let app = launchApp(extraArguments: [
+                "--ui-testing-library-size=\(size)",
+                "--ui-testing-library-long-content",
+                "--ui-testing-fail-save"
+            ])
+            let library = app.windows.matching(identifier: "stow-library-window").firstMatch
+            XCTAssertTrue(library.waitForExistence(timeout: 15))
+            for identifier in ["library-filter-bar", "library-filter-menu", "library-storage-status", "library-quick-add"] {
+                let element = app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+                XCTAssertTrue(element.waitForExistence(timeout: 3), "Missing \(identifier) at \(size)")
+                assertContained(element, in: library, message: "\(identifier) must not cross a Library boundary at \(size)")
+            }
+            XCTAssertTrue(app.staticTexts["A deliberately long Library title that must remain understandable at the minimum supported window width"].waitForExistence(timeout: 3))
+            if size == "1440x900" { Thread.sleep(forTimeInterval: 6) }
+            attach(library.screenshot(), named: attachmentName)
+
+            if size == "1080x720" {
+                app.staticTexts["A deliberately long Library title that must remain understandable at the minimum supported window width"].click()
+                app.typeKey(XCUIKeyboardKey.downArrow.rawValue, modifierFlags: .shift)
+                XCTAssertTrue(app.staticTexts["2 Items Selected"].waitForExistence(timeout: 3))
+                XCTAssertTrue(app.buttons["Pin All"].exists)
+
+                app.staticTexts["Panel Text"].firstMatch.click()
+                let edit = app.buttons.matching(identifier: "library-edit-item").firstMatch
+                XCTAssertTrue(edit.waitForExistence(timeout: 3))
+                edit.click()
+                let title = app.textFields.matching(identifier: "library-edit-title").firstMatch
+                XCTAssertTrue(title.waitForExistence(timeout: 3))
+                replaceSelectedText(in: title, with: "Draft retained after failure")
+                app.buttons.matching(identifier: "library-save-changes").firstMatch.click()
+                XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "library-edit-error").firstMatch.waitForExistence(timeout: 3))
+                XCTAssertEqual(app.textFields.matching(identifier: "library-edit-title").firstMatch.value as? String, "Draft retained after failure")
+                attach(library.screenshot(), named: "stow-library-edit-failure")
+                app.buttons["Cancel"].click()
+                let discardChanges = app.buttons["Discard Changes"]
+                XCTAssertTrue(discardChanges.waitForExistence(timeout: 3))
+                discardChanges.click()
+
+                let panelText = app.staticTexts["Panel Text"].firstMatch
+                XCTAssertTrue(panelText.waitForExistence(timeout: 3))
+                panelText.click()
+                var manageItem = app.descendants(matching: .any).matching(identifier: "library-manage-item").firstMatch
+                XCTAssertTrue(manageItem.waitForExistence(timeout: 3))
+                manageItem.click()
+                app.menuItems["Move to Trash"].click()
+                XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "library-feedback").firstMatch.waitForExistence(timeout: 3))
+                app.staticTexts["Trash"].click()
+                XCTAssertTrue(app.staticTexts["Panel Text"].waitForExistence(timeout: 3))
+                app.staticTexts["Panel Text"].click()
+                manageItem = app.descendants(matching: .any).matching(identifier: "library-manage-item").firstMatch
+                XCTAssertTrue(manageItem.waitForExistence(timeout: 3))
+                manageItem.click()
+                XCTAssertTrue(app.menuItems["Restore"].exists)
+                XCTAssertFalse(app.menuItems["Archive"].exists)
+                app.menuItems["Restore"].click()
+            }
+            app.terminate()
+        }
+    }
+
+    func testSettingsPagesWrapLongStatesAndPreserveRecoveryPaths() {
+        let app = launchApp(extraArguments: [
+            "--ui-testing-settings-size=620x500",
+            "--ui-testing-settings-long-status",
+            "--ui-testing-settings-accessibility-denied",
+            "--ui-testing-settings-sync-paused",
+            "--ui-testing-fail-shortcut-registration",
+            "--ui-testing-fail-search-index-rebuild"
+        ])
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
+        openSettings(in: app)
+        let settings = app.windows.matching(identifier: "stow-settings-window").firstMatch
+        XCTAssertTrue(settings.waitForExistence(timeout: 5))
+
+        selectSettingsPage("Capture", in: app)
+        let clipboardStatus = app.staticTexts["Clipboard access needs attention in System Settings before automatic background capture can resume reliably."]
+        XCTAssertTrue(clipboardStatus.waitForExistence(timeout: 3))
+        assertContained(clipboardStatus, in: settings, message: "Clipboard recovery status must wrap inside Settings")
+        attach(settings.screenshot(), named: "stow-settings-capture-minimum")
+
+        selectSettingsPage("Paste & Shortcuts", in: app)
+        XCTAssertTrue(app.staticTexts["Copy-only fallback"].waitForExistence(timeout: 3))
+        let shortcutStatus = app.descendants(matching: .any).matching(identifier: "settings-global-shortcut-status").firstMatch
+        XCTAssertTrue(shortcutStatus.waitForExistence(timeout: 3))
+        assertContained(shortcutStatus, in: settings, message: "Shortcut conflict status must wrap inside Settings")
+        let quickAddPicker = app.descendants(matching: .any).matching(identifier: "settings-quick-add-shortcut").firstMatch
+        XCTAssertTrue(quickAddPicker.waitForExistence(timeout: 3))
+        let previousShortcut = quickAddPicker.value as? String
+        quickAddPicker.click()
+        app.menuItems["⌃⌥S"].click()
+        app.buttons.matching(identifier: "settings-apply-shortcuts").firstMatch.click()
+        let shortcutFeedback = app.descendants(matching: .any).matching(identifier: "settings-shortcut-feedback").firstMatch
+        XCTAssertTrue(shortcutFeedback.waitForExistence(timeout: 3))
+        app.scrollViews["settings-paste-shortcuts-page"].scroll(byDeltaX: 0, deltaY: -240)
+        assertContained(shortcutFeedback, in: settings, message: "Shortcut recovery feedback must remain visible inside Settings")
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "settings-quick-add-shortcut").firstMatch.value as? String, previousShortcut)
+        attach(settings.screenshot(), named: "stow-settings-shortcuts-conflict")
+
+        selectSettingsPage("Sync & Storage", in: app)
+        XCTAssertTrue(app.staticTexts["Sync paused"].waitForExistence(timeout: 3))
+        let rebuild = app.buttons.matching(identifier: "settings-rebuild-search-index").firstMatch
+        XCTAssertTrue(rebuild.waitForExistence(timeout: 3))
+        rebuild.click()
+        let searchIndexError = app.descendants(matching: .any).matching(identifier: "settings-search-index-error").firstMatch
+        XCTAssertTrue(searchIndexError.waitForExistence(timeout: 3))
+        let dismissSearchError = app.buttons["Dismiss"].firstMatch
+        XCTAssertTrue(dismissSearchError.waitForExistence(timeout: 3))
+        app.scrollViews["settings-sync-storage-page"].scroll(byDeltaX: 0, deltaY: -240)
+        assertContained(searchIndexError, in: settings, message: "Search recovery feedback must remain visible inside Settings")
+        assertContained(dismissSearchError, in: settings, message: "Search recovery action must remain visible inside Settings")
+        attach(settings.screenshot(), named: "stow-settings-sync-search-failure")
+
+        selectSettingsPage("Privacy", in: app)
+        XCTAssertTrue(app.checkBoxes["Anonymous on-device product metrics"].exists || app.switches["Anonymous on-device product metrics"].exists)
+        app.terminate()
+
+        let appearanceApp = launchApp(extraArguments: [
+            "--ui-testing-settings-size=680x520",
+            "-AppleInterfaceStyle", "Dark",
+            "--ui-testing-force-dark",
+            "-NSReduceMotion", "YES",
+            "-AppleIncreaseContrast", "YES"
+        ])
+        XCTAssertTrue(appearanceApp.windows.firstMatch.waitForExistence(timeout: 15))
+        openSettings(in: appearanceApp)
+        let appearanceSettings = appearanceApp.windows.matching(identifier: "stow-settings-window").firstMatch
+        XCTAssertTrue(appearanceSettings.waitForExistence(timeout: 5))
+        selectSettingsPage("Privacy", in: appearanceApp)
+        attach(appearanceSettings.screenshot(), named: "stow-settings-dark-contrast-reduced-motion")
+        appearanceApp.terminate()
+    }
+
     private func launchApp(extraArguments: [String] = [], monitoringEnabled: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -384,6 +517,30 @@ final class StowMacUITests: XCTestCase {
         let fileMenu = app.menuBars.menuBarItems["File"]
         fileMenu.click()
         fileMenu.menus.menuItems["Quick Panel…"].click()
+    }
+
+    private func openSettings(in app: XCUIApplication) {
+        app.activate()
+        let appMenu = app.menuBars.menuBarItems["Stow"]
+        appMenu.click()
+        appMenu.menus.menuItems["Settings…"].click()
+    }
+
+    private func selectSettingsPage(_ title: String, in app: XCUIApplication) {
+        let button = app.buttons[title]
+        if button.exists { button.click(); return }
+        let radio = app.radioButtons[title]
+        XCTAssertTrue(radio.waitForExistence(timeout: 3), "Missing Settings page \(title)")
+        radio.click()
+    }
+
+    private func assertContained(_ element: XCUIElement, in window: XCUIElement, message: String) {
+        let elementFrame = element.frame
+        let windowFrame = window.frame
+        XCTAssertGreaterThanOrEqual(elementFrame.minX, windowFrame.minX - 1, message)
+        XCTAssertGreaterThanOrEqual(elementFrame.minY, windowFrame.minY - 1, message)
+        XCTAssertLessThanOrEqual(elementFrame.maxX, windowFrame.maxX + 1, message)
+        XCTAssertLessThanOrEqual(elementFrame.maxY, windowFrame.maxY + 1, message)
     }
 
     private func requestQuickAdd(in app: XCUIApplication) {

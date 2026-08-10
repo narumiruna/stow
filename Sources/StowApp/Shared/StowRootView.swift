@@ -169,7 +169,7 @@ struct StowRootView: View {
 }
 
 #if DEBUG && os(macOS)
-private struct PanelDropTestTarget: View {
+struct PanelDropTestTarget: View {
     @State private var accepted = false
 
     var body: some View {

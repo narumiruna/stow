@@ -18,10 +18,9 @@ struct StowMacApp: App {
 
     var body: some Scene {
         WindowGroup("Stow", id: "library") {
-            StowRootView()
+            MacLibraryView()
                 .environment(model)
                 .modelContainer(container)
-                .frame(minWidth: 840, minHeight: 560)
                 .task { appDelegate.configure(model: model, container: container) }
         }
         .commands { StowCommands(model: model) }
@@ -35,9 +34,11 @@ struct StowMacApp: App {
         }
 
         Settings {
-            StowSettingsView()
-                .environment(model)
-                .modelContainer(container)
+            MacSettingsView { candidate in
+                appDelegate.applyShortcutConfiguration(candidate)
+            }
+            .environment(model)
+            .modelContainer(container)
         }
     }
 }

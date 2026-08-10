@@ -16,6 +16,7 @@ final class AppModel {
     var syncStatus = CloudSyncMonitor.Status.idle
     var globalShortcutStatus = "Not checked"
     var clipboardMonitoringStatus = "Not checked"
+    private(set) var searchIndexRebuildState: SearchIndexRebuildState = .idle
     private(set) var launchReadyMilliseconds: Double?
     var searchResultIDs: Set<UUID>?
     var isSearching = false
@@ -35,6 +36,16 @@ final class AppModel {
     private var searchGeneration = 0
     private var retrievalSearchGeneration = 0
     private let syncMonitor = CloudSyncMonitor()
+    @ObservationIgnored private let searchDocumentsOverride: (() throws -> [SearchDocument])?
+    @ObservationIgnored private let searchIndexRebuildOverride: (([SearchDocument]) async throws -> Void)?
+
+    init(
+        searchDocuments: (() throws -> [SearchDocument])? = nil,
+        rebuildSearchIndex: (([SearchDocument]) async throws -> Void)? = nil
+    ) {
+        searchDocumentsOverride = searchDocuments
+        searchIndexRebuildOverride = rebuildSearchIndex
+    }
 
     func markLaunchReady() {
         guard launchReadyMilliseconds == nil else { return }
@@ -48,11 +59,16 @@ final class AppModel {
         if !StowEnvironment.currentContainerUsesCloud {
             syncStatus = .paused("This build has no iCloud entitlement; your library remains local.")
         }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-settings-sync-paused") {
+            syncStatus = .paused("A deliberately long synchronization status verifies that recovery guidance wraps completely without hiding the action people need next.")
+        }
+        #endif
         repository = StowRepository(modelContext: context)
         actionService = repository.map(ItemActionService.init(repository:))
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-panel"), let repository {
-            seedPanelFixtures(repository)
+            seedPanelFixtures(repository, context: context)
         }
         #endif
         do {
@@ -138,9 +154,15 @@ final class AppModel {
     @discardableResult
     func togglePin(_ items: [StowItem]) -> Bool {
         guard let first = items.first else { return false }
+        return setPinned(items, pinned: !first.isPinned)
+    }
+
+    @discardableResult
+    func setPinned(_ items: [StowItem], pinned: Bool) -> Bool {
+        guard !items.isEmpty else { return false }
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
-            try repository.setPinned(items.map(\.id), pinned: !first.isPinned)
+            try repository.setPinned(items.map(\.id), pinned: pinned)
             presentedError = nil
             return true
         } catch {
@@ -224,6 +246,46 @@ final class AppModel {
         metrics?.setEnabled(enabled)
     }
 
+    func rebuildSearchIndex() async {
+        guard !searchIndexRebuildState.isInProgress else { return }
+        searchIndexRebuildState = .inProgress
+        do {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing-fail-search-index-rebuild") {
+                throw NSError(domain: "StowUITesting", code: 3, userInfo: [NSLocalizedDescriptionKey: "The test replacement index could not be written. Try again."])
+            }
+            #endif
+            let documents: [SearchDocument]
+            let replacementFingerprint: String?
+            if let searchDocumentsOverride {
+                documents = try searchDocumentsOverride()
+                replacementFingerprint = nil
+            } else {
+                guard let repository else { throw SearchIndexRecoveryError.libraryUnavailable }
+                let items = try repository.allItems()
+                documents = items.map(SearchDocument.init(item:))
+                replacementFingerprint = searchFingerprint(for: items)
+            }
+
+            if let searchIndexRebuildOverride {
+                try await searchIndexRebuildOverride(documents)
+            } else {
+                guard let searchIndex else { throw SearchIndexRecoveryError.indexUnavailable }
+                try await searchIndex.rebuild(documents)
+            }
+
+            if let replacementFingerprint { indexedFingerprint = replacementFingerprint }
+            searchIndexRebuildState = .succeeded(documentCount: documents.count)
+        } catch {
+            searchIndexRebuildState = .failed(error.localizedDescription)
+        }
+    }
+
+    func dismissSearchIndexRebuildFeedback() {
+        guard !searchIndexRebuildState.isInProgress else { return }
+        searchIndexRebuildState = .idle
+    }
+
     func updateSearch(items: [StowItem]) async {
         guard let searchIndex else { return }
         searchGeneration += 1
@@ -234,9 +296,7 @@ final class AppModel {
         let requestedSource = sourceFilter
         let requestedDate = dateFilter
         let requestedSection = selection
-        var versionHasher = Hasher()
-        for item in items { versionHasher.combine(item.id); versionHasher.combine(item.updatedAt) }
-        let fingerprint = "\(items.count):\(versionHasher.finalize())"
+        let fingerprint = searchFingerprint(for: items)
         isSearching = true
         defer { if generation == searchGeneration { isSearching = false } }
         do {
@@ -295,9 +355,7 @@ final class AppModel {
                 throw NSError(domain: "StowUITesting", code: 2, userInfo: [NSLocalizedDescriptionKey: "The test search index is unavailable."])
             }
             #endif
-            var versionHasher = Hasher()
-            for item in items { versionHasher.combine(item.id); versionHasher.combine(item.updatedAt) }
-            let fingerprint = "\(items.count):\(versionHasher.finalize())"
+            let fingerprint = searchFingerprint(for: items)
             if fingerprint != indexedFingerprint {
                 try await searchIndex.rebuild(items.map(SearchDocument.init(item:)))
                 indexedFingerprint = fingerprint
@@ -328,10 +386,26 @@ final class AppModel {
         }
     }
 
+    private func searchFingerprint(for items: [StowItem]) -> String {
+        var versionHasher = Hasher()
+        for item in items {
+            versionHasher.combine(item.id)
+            versionHasher.combine(item.updatedAt)
+        }
+        return "\(items.count):\(versionHasher.finalize())"
+    }
+
     #if DEBUG
-    private func seedPanelFixtures(_ repository: StowRepository) {
-        guard (try? repository.allItems().isEmpty) == true else { return }
+    private func seedPanelFixtures(_ repository: StowRepository, context: ModelContext) {
         do {
+            for attachment in try context.fetch(FetchDescriptor<StowAttachment>()) {
+                context.delete(attachment)
+            }
+            for item in try context.fetch(FetchDescriptor<StowItem>()) {
+                context.delete(item)
+            }
+            try context.save()
+
             let base = Date().addingTimeInterval(-5 * 60)
             _ = try repository.create(from: CaptureDraft(type: .link, title: "Panel Link", urlString: "https://example.com", sourceApp: "Safari"), at: base)
             _ = try repository.create(from: CaptureDraft(type: .text, title: "Panel Text", textContent: "panel text payload", sourceApp: "Notes"), at: base.addingTimeInterval(1))
@@ -341,6 +415,14 @@ final class AppModel {
             try repository.addAttachment(StowAttachment(itemID: image.id, data: imageData, contentType: "image/png", fileName: "panel.png"))
             let file = try repository.create(from: CaptureDraft(type: .file, title: "Panel File", stagedAttachmentName: "panel.txt", attachmentByteCount: 10, contentType: "text/plain", fileName: "panel.txt", sourceApp: "Finder"), at: base.addingTimeInterval(4))
             try repository.addAttachment(StowAttachment(itemID: file.id, data: Data("panel file".utf8), contentType: "text/plain", fileName: "panel.txt"))
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing-library-long-content") {
+                _ = try repository.create(from: CaptureDraft(
+                    type: .text,
+                    title: "A deliberately long Library title that must remain understandable at the minimum supported window width",
+                    textContent: "Long content verifies wrapping, adaptive filters, complete accessibility values, and a stable detail layout.",
+                    sourceApp: "An Extremely Long Source Application Name Used to Verify Adaptive Layout"
+                ), at: base.addingTimeInterval(5))
+            }
         } catch { presentedError = error.localizedDescription }
     }
     #endif
@@ -397,6 +479,29 @@ private extension Duration {
 enum RetrievalSearchOutcome: Equatable {
     case success([UUID])
     case failure(String)
+}
+
+enum SearchIndexRebuildState: Equatable {
+    case idle
+    case inProgress
+    case succeeded(documentCount: Int)
+    case failed(String)
+
+    var isInProgress: Bool {
+        if case .inProgress = self { true } else { false }
+    }
+}
+
+private enum SearchIndexRecoveryError: LocalizedError {
+    case libraryUnavailable
+    case indexUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .libraryUnavailable: "The library is not ready yet. Wait a moment, then try again."
+        case .indexUnavailable: "The search index is unavailable. Reopen Stow, then try again."
+        }
+    }
 }
 
 enum DateAddedFilter: String, CaseIterable, Identifiable {
