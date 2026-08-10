@@ -52,6 +52,7 @@ struct MacSettingsView: View {
             refreshClipboardStatus()
         }
         #if DEBUG
+        .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("--ui-testing-force-dark") ? .dark : nil)
         .background(MacSettingsWindowConfigurator())
         #endif
     }
@@ -88,16 +89,19 @@ struct MacSettingsView: View {
 
             settingsGroup("Keyboard Shortcuts") {
                 statusRow(title: "Global registration", value: displayedGlobalShortcutStatus)
+                    .accessibilityIdentifier("settings-global-shortcut-status")
                 Picker("Quick Add", selection: $shortcutDraft.quickAdd) {
                     Text("⌥⇧S").tag("optionShiftS")
                     Text("⌃⌥S").tag("controlOptionS")
                     Text("⌘⌥S").tag("commandOptionS")
                 }
+                .accessibilityIdentifier("settings-quick-add-shortcut")
                 Picker("Quick Panel", selection: $shortcutDraft.quickPanel) {
                     Text("⌘⇧V").tag("commandShiftV")
                     Text("⌥⌘V").tag("optionCommandV")
                     Text("⌃⇧V").tag("controlShiftV")
                 }
+                .accessibilityIdentifier("settings-quick-panel-shortcut")
                 guidance("If another app owns a shortcut, Stow reports the conflict here. Your current shortcuts should remain available until a replacement configuration succeeds.")
 
                 HStack {
@@ -115,6 +119,7 @@ struct MacSettingsView: View {
                         feedback("Shortcuts updated.", systemImage: "checkmark.circle.fill", color: .green)
                     case .failure(let message):
                         feedback(message, systemImage: "exclamationmark.triangle.fill", color: .orange)
+                            .accessibilityIdentifier("settings-shortcut-feedback")
                     }
                 }
             }
@@ -188,6 +193,7 @@ struct MacSettingsView: View {
             }
         case .failed(let message):
             feedback("The search index could not be rebuilt. Your previous index remains available. \(message)", systemImage: "exclamationmark.triangle.fill", color: .orange)
+                .accessibilityIdentifier("settings-search-index-error")
             HStack {
                 Button("Try Again") { rebuildSearchIndex() }
                 Button("Dismiss") { model.dismissSearchIndexRebuildFeedback() }

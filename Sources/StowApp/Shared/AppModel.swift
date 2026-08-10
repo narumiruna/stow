@@ -68,7 +68,7 @@ final class AppModel {
         actionService = repository.map(ItemActionService.init(repository:))
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-panel"), let repository {
-            seedPanelFixtures(repository)
+            seedPanelFixtures(repository, context: context)
         }
         #endif
         do {
@@ -396,9 +396,16 @@ final class AppModel {
     }
 
     #if DEBUG
-    private func seedPanelFixtures(_ repository: StowRepository) {
-        guard (try? repository.allItems().isEmpty) == true else { return }
+    private func seedPanelFixtures(_ repository: StowRepository, context: ModelContext) {
         do {
+            for attachment in try context.fetch(FetchDescriptor<StowAttachment>()) {
+                context.delete(attachment)
+            }
+            for item in try context.fetch(FetchDescriptor<StowItem>()) {
+                context.delete(item)
+            }
+            try context.save()
+
             let base = Date().addingTimeInterval(-5 * 60)
             _ = try repository.create(from: CaptureDraft(type: .link, title: "Panel Link", urlString: "https://example.com", sourceApp: "Safari"), at: base)
             _ = try repository.create(from: CaptureDraft(type: .text, title: "Panel Text", textContent: "panel text payload", sourceApp: "Notes"), at: base.addingTimeInterval(1))

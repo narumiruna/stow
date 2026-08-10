@@ -380,6 +380,7 @@ final class StowMacUITests: XCTestCase {
                 assertContained(element, in: library, message: "\(identifier) must not cross a Library boundary at \(size)")
             }
             XCTAssertTrue(app.staticTexts["A deliberately long Library title that must remain understandable at the minimum supported window width"].waitForExistence(timeout: 3))
+            if size == "1440x900" { Thread.sleep(forTimeInterval: 6) }
             attach(library.screenshot(), named: attachmentName)
 
             if size == "1080x720" {
@@ -400,16 +401,24 @@ final class StowMacUITests: XCTestCase {
                 XCTAssertEqual(app.textFields.matching(identifier: "library-edit-title").firstMatch.value as? String, "Draft retained after failure")
                 attach(library.screenshot(), named: "stow-library-edit-failure")
                 app.buttons["Cancel"].click()
-                XCTAssertTrue(app.alerts["Discard unsaved changes?"].waitForExistence(timeout: 3))
-                app.alerts.buttons["Discard Changes"].click()
+                let discardChanges = app.buttons["Discard Changes"]
+                XCTAssertTrue(discardChanges.waitForExistence(timeout: 3))
+                discardChanges.click()
 
-                app.buttons.matching(identifier: "library-manage-item").firstMatch.click()
+                let panelText = app.staticTexts["Panel Text"].firstMatch
+                XCTAssertTrue(panelText.waitForExistence(timeout: 3))
+                panelText.click()
+                var manageItem = app.descendants(matching: .any).matching(identifier: "library-manage-item").firstMatch
+                XCTAssertTrue(manageItem.waitForExistence(timeout: 3))
+                manageItem.click()
                 app.menuItems["Move to Trash"].click()
                 XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "library-feedback").firstMatch.waitForExistence(timeout: 3))
                 app.staticTexts["Trash"].click()
                 XCTAssertTrue(app.staticTexts["Panel Text"].waitForExistence(timeout: 3))
                 app.staticTexts["Panel Text"].click()
-                app.buttons.matching(identifier: "library-manage-item").firstMatch.click()
+                manageItem = app.descendants(matching: .any).matching(identifier: "library-manage-item").firstMatch
+                XCTAssertTrue(manageItem.waitForExistence(timeout: 3))
+                manageItem.click()
                 XCTAssertTrue(app.menuItems["Restore"].exists)
                 XCTAssertFalse(app.menuItems["Archive"].exists)
                 app.menuItems["Restore"].click()
@@ -440,17 +449,20 @@ final class StowMacUITests: XCTestCase {
 
         selectSettingsPage("Paste & Shortcuts", in: app)
         XCTAssertTrue(app.staticTexts["Copy-only fallback"].waitForExistence(timeout: 3))
-        let shortcutStatus = app.staticTexts["The selected shortcut is already used by another application; the previous working shortcuts remain registered until a replacement succeeds."]
+        let shortcutStatus = app.descendants(matching: .any).matching(identifier: "settings-global-shortcut-status").firstMatch
         XCTAssertTrue(shortcutStatus.waitForExistence(timeout: 3))
         assertContained(shortcutStatus, in: settings, message: "Shortcut conflict status must wrap inside Settings")
-        let quickAddPicker = app.popUpButtons["Quick Add"]
+        let quickAddPicker = app.descendants(matching: .any).matching(identifier: "settings-quick-add-shortcut").firstMatch
         XCTAssertTrue(quickAddPicker.waitForExistence(timeout: 3))
         let previousShortcut = quickAddPicker.value as? String
         quickAddPicker.click()
         app.menuItems["⌃⌥S"].click()
         app.buttons.matching(identifier: "settings-apply-shortcuts").firstMatch.click()
-        XCTAssertTrue(app.staticTexts["The selected test shortcut is already used by another app. Your previous shortcuts remain registered."].waitForExistence(timeout: 3))
-        XCTAssertEqual(app.popUpButtons["Quick Add"].value as? String, previousShortcut)
+        let shortcutFeedback = app.descendants(matching: .any).matching(identifier: "settings-shortcut-feedback").firstMatch
+        XCTAssertTrue(shortcutFeedback.waitForExistence(timeout: 3))
+        app.scrollViews["settings-paste-shortcuts-page"].scroll(byDeltaX: 0, deltaY: -240)
+        assertContained(shortcutFeedback, in: settings, message: "Shortcut recovery feedback must remain visible inside Settings")
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "settings-quick-add-shortcut").firstMatch.value as? String, previousShortcut)
         attach(settings.screenshot(), named: "stow-settings-shortcuts-conflict")
 
         selectSettingsPage("Sync & Storage", in: app)
@@ -458,7 +470,13 @@ final class StowMacUITests: XCTestCase {
         let rebuild = app.buttons.matching(identifier: "settings-rebuild-search-index").firstMatch
         XCTAssertTrue(rebuild.waitForExistence(timeout: 3))
         rebuild.click()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'previous index remains available'")).firstMatch.waitForExistence(timeout: 3))
+        let searchIndexError = app.descendants(matching: .any).matching(identifier: "settings-search-index-error").firstMatch
+        XCTAssertTrue(searchIndexError.waitForExistence(timeout: 3))
+        let dismissSearchError = app.buttons["Dismiss"].firstMatch
+        XCTAssertTrue(dismissSearchError.waitForExistence(timeout: 3))
+        app.scrollViews["settings-sync-storage-page"].scroll(byDeltaX: 0, deltaY: -240)
+        assertContained(searchIndexError, in: settings, message: "Search recovery feedback must remain visible inside Settings")
+        assertContained(dismissSearchError, in: settings, message: "Search recovery action must remain visible inside Settings")
         attach(settings.screenshot(), named: "stow-settings-sync-search-failure")
 
         selectSettingsPage("Privacy", in: app)
@@ -468,6 +486,7 @@ final class StowMacUITests: XCTestCase {
         let appearanceApp = launchApp(extraArguments: [
             "--ui-testing-settings-size=680x520",
             "-AppleInterfaceStyle", "Dark",
+            "--ui-testing-force-dark",
             "-NSReduceMotion", "YES",
             "-AppleIncreaseContrast", "YES"
         ])

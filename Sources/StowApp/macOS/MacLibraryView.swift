@@ -54,6 +54,12 @@ struct MacLibraryView: View {
         }
         .privacySensitive()
         #if DEBUG
+        .overlay(alignment: .topTrailing) {
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing-drop-target") {
+                PanelDropTestTarget()
+                    .padding(24)
+            }
+        }
         .background(MacLibraryWindowConfigurator())
         #endif
     }
@@ -658,7 +664,8 @@ private struct MacLibraryDetailView: View {
         }
         .navigationTitle(item.title)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                managementMenu
                 Button("Edit") { editing = true }
                     .accessibilityIdentifier("library-edit-item")
             }
@@ -756,11 +763,8 @@ private struct MacLibraryDetailView: View {
 
     private var actionBar: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) { primaryActions; managementMenu }
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) { primaryActions }
-                managementMenu
-            }
+            HStack(spacing: 10) { primaryActions }
+            VStack(alignment: .leading, spacing: 10) { primaryActions }
         }
         .controlSize(.large)
     }
