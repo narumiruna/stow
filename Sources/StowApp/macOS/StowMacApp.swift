@@ -34,9 +34,11 @@ struct StowMacApp: App {
         }
 
         Settings {
-            StowSettingsView()
-                .environment(model)
-                .modelContainer(container)
+            MacSettingsView { candidate in
+                appDelegate.applyShortcutConfiguration(candidate)
+            }
+            .environment(model)
+            .modelContainer(container)
         }
     }
 }

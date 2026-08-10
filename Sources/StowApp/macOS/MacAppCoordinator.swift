@@ -67,6 +67,19 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     @objc private func openLibrary() { retrievalPanel.openLibrary() }
     @objc private func openSettings() { retrievalPanel.openSettings() }
 
+    func applyShortcutConfiguration(_ candidate: MacShortcutConfiguration) -> MacShortcutApplyResult {
+        let result = MacShortcutTransaction.apply(candidate, using: hotKeys)
+        switch result {
+        case .success:
+            pendingRegistrationError = nil
+            model?.globalShortcutStatus = "Registered"
+        case .failure(let message):
+            pendingRegistrationError = message
+            model?.globalShortcutStatus = message
+        }
+        return result
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag { retrievalPanel.openLibrary() }
         return true

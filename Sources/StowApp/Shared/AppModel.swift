@@ -16,6 +16,7 @@ final class AppModel {
     var syncStatus = CloudSyncMonitor.Status.idle
     var globalShortcutStatus = "Not checked"
     var clipboardMonitoringStatus = "Not checked"
+    private(set) var searchIndexRebuildState: SearchIndexRebuildState = .idle
     private(set) var launchReadyMilliseconds: Double?
     var searchResultIDs: Set<UUID>?
     var isSearching = false
@@ -35,6 +36,16 @@ final class AppModel {
     private var searchGeneration = 0
     private var retrievalSearchGeneration = 0
     private let syncMonitor = CloudSyncMonitor()
+    @ObservationIgnored private let searchDocumentsOverride: (() throws -> [SearchDocument])?
+    @ObservationIgnored private let searchIndexRebuildOverride: (([SearchDocument]) async throws -> Void)?
+
+    init(
+        searchDocuments: (() throws -> [SearchDocument])? = nil,
+        rebuildSearchIndex: (([SearchDocument]) async throws -> Void)? = nil
+    ) {
+        searchDocumentsOverride = searchDocuments
+        searchIndexRebuildOverride = rebuildSearchIndex
+    }
 
     func markLaunchReady() {
         guard launchReadyMilliseconds == nil else { return }
@@ -230,6 +241,41 @@ final class AppModel {
         metrics?.setEnabled(enabled)
     }
 
+    func rebuildSearchIndex() async {
+        guard !searchIndexRebuildState.isInProgress else { return }
+        searchIndexRebuildState = .inProgress
+        do {
+            let documents: [SearchDocument]
+            let replacementFingerprint: String?
+            if let searchDocumentsOverride {
+                documents = try searchDocumentsOverride()
+                replacementFingerprint = nil
+            } else {
+                guard let repository else { throw SearchIndexRecoveryError.libraryUnavailable }
+                let items = try repository.allItems()
+                documents = items.map(SearchDocument.init(item:))
+                replacementFingerprint = searchFingerprint(for: items)
+            }
+
+            if let searchIndexRebuildOverride {
+                try await searchIndexRebuildOverride(documents)
+            } else {
+                guard let searchIndex else { throw SearchIndexRecoveryError.indexUnavailable }
+                try await searchIndex.rebuild(documents)
+            }
+
+            if let replacementFingerprint { indexedFingerprint = replacementFingerprint }
+            searchIndexRebuildState = .succeeded(documentCount: documents.count)
+        } catch {
+            searchIndexRebuildState = .failed(error.localizedDescription)
+        }
+    }
+
+    func dismissSearchIndexRebuildFeedback() {
+        guard !searchIndexRebuildState.isInProgress else { return }
+        searchIndexRebuildState = .idle
+    }
+
     func updateSearch(items: [StowItem]) async {
         guard let searchIndex else { return }
         searchGeneration += 1
@@ -240,9 +286,7 @@ final class AppModel {
         let requestedSource = sourceFilter
         let requestedDate = dateFilter
         let requestedSection = selection
-        var versionHasher = Hasher()
-        for item in items { versionHasher.combine(item.id); versionHasher.combine(item.updatedAt) }
-        let fingerprint = "\(items.count):\(versionHasher.finalize())"
+        let fingerprint = searchFingerprint(for: items)
         isSearching = true
         defer { if generation == searchGeneration { isSearching = false } }
         do {
@@ -301,9 +345,7 @@ final class AppModel {
                 throw NSError(domain: "StowUITesting", code: 2, userInfo: [NSLocalizedDescriptionKey: "The test search index is unavailable."])
             }
             #endif
-            var versionHasher = Hasher()
-            for item in items { versionHasher.combine(item.id); versionHasher.combine(item.updatedAt) }
-            let fingerprint = "\(items.count):\(versionHasher.finalize())"
+            let fingerprint = searchFingerprint(for: items)
             if fingerprint != indexedFingerprint {
                 try await searchIndex.rebuild(items.map(SearchDocument.init(item:)))
                 indexedFingerprint = fingerprint
@@ -332,6 +374,15 @@ final class AppModel {
             guard generation == retrievalSearchGeneration, !Task.isCancelled else { return .success([]) }
             return .failure("The local search index will be rebuilt. \(error.localizedDescription)")
         }
+    }
+
+    private func searchFingerprint(for items: [StowItem]) -> String {
+        var versionHasher = Hasher()
+        for item in items {
+            versionHasher.combine(item.id)
+            versionHasher.combine(item.updatedAt)
+        }
+        return "\(items.count):\(versionHasher.finalize())"
     }
 
     #if DEBUG
@@ -403,6 +454,29 @@ private extension Duration {
 enum RetrievalSearchOutcome: Equatable {
     case success([UUID])
     case failure(String)
+}
+
+enum SearchIndexRebuildState: Equatable {
+    case idle
+    case inProgress
+    case succeeded(documentCount: Int)
+    case failed(String)
+
+    var isInProgress: Bool {
+        if case .inProgress = self { true } else { false }
+    }
+}
+
+private enum SearchIndexRecoveryError: LocalizedError {
+    case libraryUnavailable
+    case indexUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .libraryUnavailable: "The library is not ready yet. Wait a moment, then try again."
+        case .indexUnavailable: "The search index is unavailable. Reopen Stow, then try again."
+        }
+    }
 }
 
 enum DateAddedFilter: String, CaseIterable, Identifiable {
