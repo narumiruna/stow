@@ -10,3 +10,5 @@
 ## TASTE
 
 - Prefer macOS release validation without VoiceOver and scope display behavior to a single display unless explicitly requested.
+- Treat clipped, obscured, or ambiguously truncated interface text as a release-blocking defect; adapt layout, wrapping, disclosure, or scrolling instead of hiding decision-relevant text.
+- Preserve the current macOS Quick Panel visual and interaction design when improving Library or Settings; protect it with regression verification rather than redesigning it.
