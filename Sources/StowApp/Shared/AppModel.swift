@@ -66,24 +66,29 @@ final class AppModel {
         runMaintenance()
     }
 
-    func create(_ draft: CaptureDraft) {
+    @discardableResult
+    func create(_ draft: CaptureDraft) -> Bool {
         let started = ContinuousClock.now
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
             let item = try repository.create(from: draft)
+            presentedError = nil
             try? metrics?.record(.captureSucceeded)
             try? metrics?.recordDuration(.captureDuration, seconds: started.duration(to: .now).secondsValue)
             isAdding = false
             if item.type == .link {
                 Task { await LinkMetadataEnricher().enrich(item: item, repository: repository) }
             }
+            return true
         } catch {
             try? metrics?.record(.captureFailed)
             presentedError = error.localizedDescription
+            return false
         }
     }
 
-    func createAttachment(_ draft: CaptureDraft, fileURL: URL) {
+    @discardableResult
+    func createAttachment(_ draft: CaptureDraft, fileURL: URL) -> Bool {
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
             let captureSpool = try spool ?? CaptureSpool(rootURL: StowEnvironment.sharedContainerURL().appendingPathComponent("CaptureSpool", isDirectory: true))
@@ -91,39 +96,110 @@ final class AppModel {
             try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
             let result = captureSpool.ingestAll(into: repository)
             if let failure = result.failures.first { throw NSError(domain: "StowCapture", code: 1, userInfo: [NSLocalizedDescriptionKey: failure]) }
+            presentedError = nil
             try? metrics?.record(.captureSucceeded)
             isAdding = false
+            return true
         } catch {
             try? metrics?.record(.captureFailed)
             presentedError = error.localizedDescription
+            return false
         }
     }
 
-    func save(_ item: StowItem, title: String, note: String?, text: String?, language: String?) {
+    @discardableResult
+    func save(_ item: StowItem, title: String, note: String?, text: String?, language: String?) -> Bool {
+        if let message = saveForPanel(item, title: title, note: note, text: text, language: language) {
+            presentedError = message
+            return false
+        }
+        presentedError = nil
+        return true
+    }
+
+    func saveForPanel(_ item: StowItem, title: String, note: String?, text: String?, language: String?) -> String? {
         do {
-            try repository?.update(item.id, title: title, note: note, textContent: text, language: language)
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing-fail-save") {
+                throw NSError(domain: "StowUITesting", code: 1, userInfo: [NSLocalizedDescriptionKey: "The test save could not be completed. Try again."])
+            }
+            #endif
+            guard let repository else { throw StowRepositoryError.itemNotFound }
+            try repository.update(item.id, title: title, note: note, textContent: text, language: language)
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    @discardableResult
+    func togglePin(_ item: StowItem) -> Bool { togglePin([item]) }
+
+    @discardableResult
+    func togglePin(_ items: [StowItem]) -> Bool {
+        guard let first = items.first else { return false }
+        do {
+            guard let repository else { throw StowRepositoryError.itemNotFound }
+            try repository.setPinned(items.map(\.id), pinned: !first.isPinned)
+            presentedError = nil
+            return true
         } catch {
             presentedError = error.localizedDescription
+            return false
         }
     }
 
-    func togglePin(_ item: StowItem) {
-        do { try repository?.setPinned(item.id, pinned: !item.isPinned) }
-        catch { presentedError = error.localizedDescription }
+    @discardableResult
+    func archiveOrRestore(_ item: StowItem) -> Bool { archiveOrRestore([item]) }
+
+    @discardableResult
+    func archiveOrRestore(_ items: [StowItem]) -> Bool {
+        guard let first = items.first else { return false }
+        do {
+            guard let repository else { throw StowRepositoryError.itemNotFound }
+            if first.status == .archived {
+                try repository.restoreFromArchive(items.map(\.id))
+            } else {
+                try repository.archive(items.map(\.id))
+                for _ in items { try? metrics?.record(.itemArchived) }
+            }
+            presentedError = nil
+            return true
+        } catch {
+            presentedError = error.localizedDescription
+            return false
+        }
     }
 
-    func archiveOrRestore(_ item: StowItem) {
-        do {
-            if item.status == .archived { try repository?.restoreFromArchive(item.id) }
-            else { try repository?.archive(item.id); try? metrics?.record(.itemArchived) }
-        } catch { presentedError = error.localizedDescription }
+    @discardableResult
+    func trashOrRestore(_ item: StowItem) -> Bool {
+        item.status == .trashed ? restoreFromTrash(ids: [item.id]) : moveToTrash([item])
     }
 
-    func trashOrRestore(_ item: StowItem) {
+    @discardableResult
+    func moveToTrash(_ items: [StowItem]) -> Bool {
         do {
-            if item.status == .trashed { try repository?.restoreFromTrash(item.id) }
-            else { try repository?.trash(item.id) }
-        } catch { presentedError = error.localizedDescription }
+            guard let repository else { throw StowRepositoryError.itemNotFound }
+            try repository.trash(items.map(\.id))
+            presentedError = nil
+            return true
+        } catch {
+            presentedError = error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func restoreFromTrash(ids: [UUID]) -> Bool {
+        do {
+            guard let repository else { throw StowRepositoryError.itemNotFound }
+            try repository.restoreFromTrash(ids)
+            presentedError = nil
+            return true
+        } catch {
+            presentedError = error.localizedDescription
+            return false
+        }
     }
 
     @discardableResult
@@ -131,6 +207,7 @@ final class AppModel {
         do {
             guard let actionService else { throw StowRepositoryError.itemNotFound }
             try actionService.perform(itemID: item.id, action: action, operation: operation)
+            presentedError = nil
             try? metrics?.record(metric)
             return true
         } catch {
@@ -206,13 +283,18 @@ final class AppModel {
         source: String?,
         date: DateAddedFilter,
         status: ItemStatus?
-    ) async -> [UUID] {
-        guard let searchIndex else { return [] }
+    ) async -> RetrievalSearchOutcome {
+        guard let searchIndex else { return .failure("The local search index is unavailable.") }
         retrievalSearchGeneration += 1
         let generation = retrievalSearchGeneration
         do {
             if !text.isEmpty { try await Task.sleep(for: .milliseconds(80)) }
-            guard generation == retrievalSearchGeneration, !Task.isCancelled else { return [] }
+            guard generation == retrievalSearchGeneration, !Task.isCancelled else { return .success([]) }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing-fail-retrieval-search") {
+                throw NSError(domain: "StowUITesting", code: 2, userInfo: [NSLocalizedDescriptionKey: "The test search index is unavailable."])
+            }
+            #endif
             var versionHasher = Hasher()
             for item in items { versionHasher.combine(item.id); versionHasher.combine(item.updatedAt) }
             let fingerprint = "\(items.count):\(versionHasher.finalize())"
@@ -238,12 +320,11 @@ final class AppModel {
                 limit: 10_000
             )
             let ids = try await searchIndex.search(query)
-            guard generation == retrievalSearchGeneration, !Task.isCancelled else { return [] }
-            return ids
+            guard generation == retrievalSearchGeneration, !Task.isCancelled else { return .success([]) }
+            return .success(ids)
         } catch {
-            guard generation == retrievalSearchGeneration, !Task.isCancelled else { return [] }
-            presentedError = "The local search index will be rebuilt. \(error.localizedDescription)"
-            return []
+            guard generation == retrievalSearchGeneration, !Task.isCancelled else { return .success([]) }
+            return .failure("The local search index will be rebuilt. \(error.localizedDescription)")
         }
     }
 
@@ -311,6 +392,11 @@ private extension Duration {
         let parts = components
         return Double(parts.seconds) + Double(parts.attoseconds) / 1_000_000_000_000_000_000
     }
+}
+
+enum RetrievalSearchOutcome: Equatable {
+    case success([UUID])
+    case failure(String)
 }
 
 enum DateAddedFilter: String, CaseIterable, Identifiable {

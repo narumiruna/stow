@@ -11,9 +11,11 @@ public enum StowEnvironment {
     @MainActor
     static func makeContainer() -> ModelContainer {
         currentContainerUsesCloud = false
+        #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             return try! StowContainerFactory.inMemory()
         }
+        #endif
         if hasCloudKitEntitlement() {
             do {
                 let container = try StowContainerFactory.sharedHost(

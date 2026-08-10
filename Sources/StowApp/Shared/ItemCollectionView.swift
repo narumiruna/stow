@@ -86,7 +86,7 @@ struct ItemCollectionView: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 if appModel.selection == .inbox && appModel.searchText.isEmpty {
-                    Button("Add Item") { appModel.isAdding = true }
+                    Button("Add Item") { showQuickAdd() }
                         .buttonStyle(.bordered)
                         .tint(.primary)
                         .controlSize(.large)
@@ -97,6 +97,14 @@ struct ItemCollectionView: View {
             .frame(maxWidth: .infinity)
         }
         .frame(maxHeight: .infinity)
+    }
+
+    private func showQuickAdd() {
+        #if os(macOS)
+        NotificationCenter.default.post(name: .stowShowQuickAdd, object: nil)
+        #else
+        appModel.isAdding = true
+        #endif
     }
 
     private var emptyTitle: String { appModel.searchText.isEmpty ? "No \(appModel.selection.rawValue) Items" : "No Results" }

@@ -5,7 +5,10 @@ import Carbon.HIToolbox
 @MainActor
 final class DirectPasteService {
     var canPasteDirectly: Bool {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-force-direct-paste") { return true }
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-disable-direct-paste") { return false }
+        #endif
         return AXIsProcessTrusted()
     }
 

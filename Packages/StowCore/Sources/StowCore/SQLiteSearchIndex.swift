@@ -154,7 +154,7 @@ public actor SQLiteSearchIndex {
 
         let fulltext = try prepare("INSERT INTO item_fts (id, content) VALUES (?, ?);")
         defer { sqlite3_finalize(fulltext) }
-        try bind([.text(document.id.uuidString), .text(document.content)], to: fulltext)
+        try bind([.text(document.id.uuidString), .text(Self.normalizedSearchText(document.content))], to: fulltext)
         guard sqlite3_step(fulltext) == SQLITE_DONE else { throw currentError("insert full text") }
     }
 
@@ -224,9 +224,16 @@ public actor SQLiteSearchIndex {
     }
 
     private static func matchExpression(_ text: String) -> String? {
-        let tokens = text.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+        let tokens = normalizedSearchText(text)
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
         guard !tokens.isEmpty else { return nil }
         return tokens.map { "\"\($0)\"*" }.joined(separator: " AND ")
+    }
+
+    private static func normalizedSearchText(_ text: String) -> String {
+        text.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? text
     }
 }
 

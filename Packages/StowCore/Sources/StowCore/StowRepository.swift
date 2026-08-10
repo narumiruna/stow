@@ -65,33 +65,43 @@ public final class StowRepository {
     }
 
     public func archive(_ id: UUID, at date: Date = Date()) throws {
-        let item = try requiredItem(id)
-        item.archive(at: date)
-        try modelContext.save()
+        try archive([id], at: date)
+    }
+
+    public func archive(_ ids: [UUID], at date: Date = Date()) throws {
+        try mutateItems(ids) { $0.archive(at: date) }
     }
 
     public func restoreFromArchive(_ id: UUID, at date: Date = Date()) throws {
-        let item = try requiredItem(id)
-        item.restoreFromArchive(at: date)
-        try modelContext.save()
+        try restoreFromArchive([id], at: date)
+    }
+
+    public func restoreFromArchive(_ ids: [UUID], at date: Date = Date()) throws {
+        try mutateItems(ids) { $0.restoreFromArchive(at: date) }
     }
 
     public func trash(_ id: UUID, at date: Date = Date()) throws {
-        let item = try requiredItem(id)
-        item.trash(at: date)
-        try modelContext.save()
+        try trash([id], at: date)
+    }
+
+    public func trash(_ ids: [UUID], at date: Date = Date()) throws {
+        try mutateItems(ids) { $0.trash(at: date) }
     }
 
     public func restoreFromTrash(_ id: UUID, at date: Date = Date()) throws {
-        let item = try requiredItem(id)
-        item.restoreFromTrash(at: date)
-        try modelContext.save()
+        try restoreFromTrash([id], at: date)
+    }
+
+    public func restoreFromTrash(_ ids: [UUID], at date: Date = Date()) throws {
+        try mutateItems(ids) { $0.restoreFromTrash(at: date) }
     }
 
     public func setPinned(_ id: UUID, pinned: Bool, at date: Date = Date()) throws {
-        let item = try requiredItem(id)
-        item.setPinned(pinned, at: date)
-        try modelContext.save()
+        try setPinned([id], pinned: pinned, at: date)
+    }
+
+    public func setPinned(_ ids: [UUID], pinned: Bool, at date: Date = Date()) throws {
+        try mutateItems(ids) { $0.setPinned(pinned, at: date) }
     }
 
     public func recordSuccessfulUse(_ id: UUID, at date: Date = Date()) throws {
@@ -103,16 +113,25 @@ public final class StowRepository {
     public func update(_ id: UUID, title: String, note: String?, textContent: String?, language: String?, at date: Date = Date()) throws {
         let item = try requiredItem(id)
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNote = note?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let updatesText = item.type == .text || item.type == .code
+        let cleanText = textContent?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let cleanLanguage = language?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased()
+        if updatesText, cleanText.isEmpty { throw CaptureValidationError.missingText }
+
         item.title = cleanTitle.isEmpty ? item.title : cleanTitle
-        item.note = note?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-        if item.type == .text || item.type == .code {
-            let cleanText = textContent?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            guard !cleanText.isEmpty else { throw CaptureValidationError.missingText }
+        item.note = cleanNote
+        if updatesText {
             item.textContent = cleanText
-            item.language = language?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased()
+            item.language = cleanLanguage
         }
         item.updatedAt = date
-        try modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
     }
 
     public func updateLinkMetadata(_ id: UUID, metadata: LinkMetadata, at date: Date = Date()) throws {
@@ -155,6 +174,21 @@ public final class StowRepository {
         for item in expired { modelContext.delete(item) }
         try modelContext.save()
         return expired.count
+    }
+
+    private func mutateItems(_ ids: [UUID], mutation: (StowItem) -> Void) throws {
+        let uniqueIDs = Array(Set(ids))
+        guard !uniqueIDs.isEmpty else { return }
+        let requestedIDs = Set(uniqueIDs)
+        let matches = try allItems().filter { requestedIDs.contains($0.id) }
+        guard matches.count == requestedIDs.count else { throw StowRepositoryError.itemNotFound }
+        for item in matches { mutation(item) }
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
     }
 
     private func requiredItem(_ id: UUID) throws -> StowItem {

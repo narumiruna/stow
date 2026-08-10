@@ -58,12 +58,14 @@ private struct StowMenuBarView: View {
         Text(model.privacyStorageText)
             .foregroundStyle(.secondary)
         Divider()
-        SettingsLink()
+        Button("Settings…") { NotificationCenter.default.post(name: .stowOpenSettings, object: nil) }
         Button("Quit Stow") { NSApp.terminate(nil) }
         .task {
             model.connect(modelContext)
             onReady()
+            #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--ui-testing") && !ProcessInfo.processInfo.arguments.contains("--ui-testing-utility-mode") { openLibrary() }
+            #endif
         }
         .onChange(of: clipboardMonitoringEnabled) { _, _ in
             NotificationCenter.default.post(name: .stowClipboardMonitoringChanged, object: nil)

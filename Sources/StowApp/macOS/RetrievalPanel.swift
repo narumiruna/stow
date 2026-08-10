@@ -37,18 +37,44 @@ private enum RetrievalPopoverKind {
     case rename
 }
 
+private enum RetrievalSearchPhase: Equatable {
+    case idle
+    case loading
+    case ready
+    case failed(String)
+
+    var isFailure: Bool {
+        if case .failed = self { return true }
+        return false
+    }
+}
+
+@MainActor
+private final class RetrievalEditorDirtyState {
+    var isDirty = false
+}
+
+private struct PanelActionFeedback: Identifiable {
+    let id = UUID()
+    let message: String
+    let actionTitle: String?
+    let action: (() -> Void)?
+}
+
 struct RetrievalPanelView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openSettings) private var openSettings
     @Query(sort: \StowItem.createdAt, order: .reverse) private var allItems: [StowItem]
     @Query private var allAttachments: [StowAttachment]
     @ObservedObject var session: RetrievalPanelSession
 
-    let onDismiss: (Bool) -> Void
+    let onRequestClose: (QuickPanelCloseRequest) -> Void
+    let onApproveClose: (UUID) -> Void
+    let onCancelClose: (UUID) -> Void
+    let onRegisterSettingsAction: (QuickPanelSettingsAction) -> Void
     let onResize: (CGFloat, Bool) -> Void
     let onUse: (StowItem, StowAttachment?, RetrievalUseKind) -> Void
-    let onOpenLibrary: () -> Void
-    let onQuickAdd: () -> Void
 
     @State private var mode: RetrievalPanelMode = .clipboard
     @State private var query = ""
@@ -63,12 +89,21 @@ struct RetrievalPanelView: View {
     @State private var selectionAnchor: UUID?
     @State private var popoverItemID: UUID?
     @State private var popoverKind: RetrievalPopoverKind?
+    @State private var editorDirtyState = RetrievalEditorDirtyState()
+    @State private var editorErrorMessage: String?
+    @State private var pendingDiscardScope: QuickPanelDiscardScope?
+    @State private var pendingDiscardCommandID: UUID?
     @State private var monitoringEnabled = UserDefaults.standard.object(forKey: "clipboardMonitoringEnabled") == nil || UserDefaults.standard.bool(forKey: "clipboardMonitoringEnabled")
     @State private var attachmentLookup: [UUID: StowAttachment] = [:]
+    @State private var searchPhase: RetrievalSearchPhase = .idle
+    @State private var searchRetryGeneration = 0
+    @State private var actionFeedback: PanelActionFeedback?
+    @State private var panelMenuPresented = false
     @FocusState private var searchFocused: Bool
     @FocusState private var timelineFocused: Bool
 
     private var isCompact: Bool { session.panelHeight < 275 }
+    private var isNarrow: Bool { session.panelWidth < 700 }
 
     private var attachments: [UUID: StowAttachment] { attachmentLookup }
 
@@ -85,7 +120,8 @@ struct RetrievalPanelView: View {
 
     private var items: [StowItem] {
         let base = modeItems
-        if let searchResultIDs, resolvedSearchToken == searchToken {
+        if let searchResultIDs,
+           resolvedSearchToken == searchToken || searchPhase == .loading || searchPhase.isFailure {
             let byID = Dictionary(base.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             return searchResultIDs.compactMap { byID[$0] }
         }
@@ -118,7 +154,21 @@ struct RetrievalPanelView: View {
                 if let feedback = session.feedback {
                     feedbackPill(feedback)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else if let actionFeedback {
+                    feedbackPill(actionFeedback)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+                if case .failed(let message) = searchPhase {
+                    searchFailureBanner(message)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .padding(.top, isCompact ? 52 : 62)
+                } else if popoverItemID == nil, let message = appModel.presentedError {
+                    actionErrorBanner(message)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .padding(.top, isCompact ? 52 : 62)
+                }
+                if panelMenuPresented { panelMenuOverlay }
+                popoverOverlay(availableSize: geometry.size)
             }
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).strokeBorder(.white.opacity(0.32), lineWidth: 1))
@@ -134,8 +184,10 @@ struct RetrievalPanelView: View {
     private var observedPanel: some View {
         panelSurface
             .overlay { keyboardCommands }
-            .task(id: searchToken) { await updateSearch() }
+            .task(id: searchTaskToken) { await updateSearch() }
+            .task(id: actionFeedback?.id) { await expireActionFeedback() }
             .onAppear {
+                onRegisterSettingsAction(QuickPanelSettingsAction { openSettings() })
                 rebuildAttachmentLookup()
                 repairSelection()
                 timelineFocused = true
@@ -149,8 +201,11 @@ struct RetrievalPanelView: View {
                 repairSelection()
             }
             .onChange(of: session.previewGeneration) { _, _ in previewSelected() }
-            .onChange(of: session.escapeGeneration) { _, _ in handleEscape() }
-            .onChange(of: searchFocused) { _, focused in session.acceptsPreviewShortcut = !focused }
+            .onChange(of: session.closeCommand?.id) { _, _ in handleCloseCommand() }
+            .onChange(of: searchFocused) { _, focused in
+                session.acceptsPreviewShortcut = !focused && popoverItemID == nil
+            }
+            .onDisappear { session.isDragging = false }
     }
 
     private var keyboardObservedPanel: some View {
@@ -172,52 +227,103 @@ struct RetrievalPanelView: View {
                 return .handled
             }
             .onKeyPress { press in handleTypedKey(press) }
-            .alert("Stow couldn't complete that action", isPresented: Binding(
-                get: { appModel.presentedError != nil },
-                set: { if !$0 { appModel.presentedError = nil } }
-            )) {
-                Button("OK", role: .cancel) { appModel.presentedError = nil }
-            } message: {
-                Text(appModel.presentedError ?? "Unknown error")
-            }
     }
 
     private var toolbar: some View {
-        HStack(spacing: isCompact ? 8 : 11) {
+        HStack(spacing: isCompact ? 7 : 10) {
             if searchActive {
                 searchBar
-                compactModeDots
-            } else {
-                Spacer(minLength: 0)
-                Button { activateSearch() } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 34, height: 34)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Search")
-                .accessibilityIdentifier("panel-search")
-
-                ForEach(RetrievalPanelMode.allCases.filter { $0 != .archive }) { toolbarMode in
-                    modeChip(toolbarMode)
-                }
-
-                Button(action: onQuickAdd) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 34, height: 34)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Quick Add")
-
+                    .layoutPriority(1)
+                modePickerMenu
+                statusIndicators(compact: true)
                 panelMenu
-                Spacer(minLength: 0)
+                closeButton
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: isCompact ? 7 : 10) {
+                        searchButton
+                        ForEach(RetrievalPanelMode.allCases.filter { $0 != .archive }) { toolbarMode in
+                            modeChip(toolbarMode)
+                        }
+                        Spacer(minLength: 4)
+                        statusIndicators(compact: false)
+                        quickAddButton
+                        panelMenu
+                        closeButton
+                    }
+                    HStack(spacing: 7) {
+                        searchButton
+                        modePickerMenu
+                        Spacer(minLength: 2)
+                        statusIndicators(compact: true)
+                        panelMenu
+                        closeButton
+                    }
+                }
             }
         }
-        .padding(.horizontal, isCompact ? 14 : 18)
+        .padding(.horizontal, isCompact ? 12 : 16)
         .frame(height: isCompact ? 48 : 58)
         .background(.ultraThinMaterial.opacity(0.42))
         .overlay(alignment: .bottom) { Divider().opacity(0.35) }
+    }
+
+    private var searchButton: some View {
+        Button { activateSearch() } label: {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 17, weight: .semibold))
+                .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Search")
+        .accessibilityIdentifier("panel-search")
+    }
+
+    private var quickAddButton: some View {
+        Button { onRequestClose(.destination(.quickAdd)) } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 17, weight: .semibold))
+                .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Quick Add")
+    }
+
+    private var closeButton: some View {
+        Button { onRequestClose(.explicit) } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 13, weight: .bold))
+                .frame(width: 34, height: 34)
+                .background(.quaternary, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .help("Close Quick Panel (Esc)")
+        .accessibilityLabel("Close Quick Panel")
+        .accessibilityHint("Returns focus to the app you were using")
+        .accessibilityIdentifier("panel-close")
+    }
+
+    private func statusIndicators(compact: Bool) -> some View {
+        HStack(spacing: 6) {
+            Label(
+                session.directPasteAvailable ? (compact ? "Direct" : "Paste: Direct") : (compact ? "Copy only" : "Paste: Copy only"),
+                systemImage: session.directPasteAvailable ? "arrow.right.doc.on.clipboard" : "doc.on.doc"
+            )
+            .accessibilityLabel(session.directPasteAvailable ? "Paste mode: Direct" : "Paste mode: Copy only")
+            if !monitoringEnabled {
+                Label(compact ? "Paused" : "Monitoring paused", systemImage: "pause.circle.fill")
+                    .foregroundStyle(.orange)
+                    .accessibilityLabel("Clipboard monitoring paused")
+            }
+        }
+        .font(.caption.weight(.semibold))
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, compact ? 7 : 9)
+        .frame(height: 28)
+        .background(.quaternary, in: Capsule())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("panel-status")
     }
 
     private var searchBar: some View {
@@ -225,36 +331,35 @@ struct RetrievalPanelView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.secondary)
-            if let typeFilter {
-                filterToken(typeFilter.singularPanelName, color: typeFilter.panelColor) { self.typeFilter = nil }
-            }
-            if let sourceFilter {
-                filterToken(sourceFilter, color: .blue) { self.sourceFilter = nil }
-            }
-            if dateFilter != .anytime {
-                filterToken(dateFilter.rawValue, color: .orange) { dateFilter = .anytime }
-            }
-            TextField("Search Stow", text: $query)
-                .textFieldStyle(.plain)
-                .font(.system(size: isCompact ? 14 : 16, weight: .medium))
-                .focused($searchFocused)
-                .onSubmit { performDefault() }
-                .onKeyPress(.tab) {
-                    searchFocused = false
-                    timelineFocused = true
-                    return .handled
+            if isNarrow, activeFilterCount > 0 {
+                Label("\(activeFilterCount) filters", systemImage: "line.3.horizontal.decrease.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                    .accessibilityLabel("\(activeFilterCount) search filters applied")
+            } else {
+                if let typeFilter {
+                    filterToken(typeFilter.singularPanelName, color: typeFilter.panelColor) { self.typeFilter = nil }
                 }
-                .onKeyPress(.downArrow) {
-                    searchFocused = false
-                    timelineFocused = true
-                    return .handled
+                if let sourceFilter {
+                    filterToken(sourceFilter, color: .blue) { self.sourceFilter = nil }
                 }
-                .accessibilityIdentifier("Search Stow")
+                if dateFilter != .anytime {
+                    filterToken(dateFilter.rawValue, color: .orange) { dateFilter = .anytime }
+                }
+            }
+            searchTextField
+            if searchPhase == .loading {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel("Searching")
+            }
             if !query.isEmpty {
                 Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
                     .accessibilityLabel("Clear Search")
+                    .accessibilityIdentifier("panel-clear-search")
             }
             filterMenu
         }
@@ -265,20 +370,48 @@ struct RetrievalPanelView: View {
         .overlay(Capsule().strokeBorder(Color.accentColor.opacity(searchFocused ? 0.9 : 0.35), lineWidth: searchFocused ? 2 : 1))
     }
 
-    private var compactModeDots: some View {
-        HStack(spacing: 8) {
+    private var searchTextField: some View {
+        TextField("Search Stow", text: $query)
+            .textFieldStyle(.plain)
+            .font(.system(size: isCompact ? 14 : 16, weight: .medium))
+            .focused($searchFocused)
+            .disabled(popoverItemID != nil)
+            .onSubmit { performDefault() }
+            .onKeyPress(.tab) {
+                searchFocused = false
+                timelineFocused = true
+                return .handled
+            }
+            .onKeyPress(.downArrow) {
+                searchFocused = false
+                timelineFocused = true
+                return .handled
+            }
+            .accessibilityIdentifier("Search Stow")
+    }
+
+    private var activeFilterCount: Int {
+        (typeFilter == nil ? 0 : 1) + (sourceFilter == nil ? 0 : 1) + (dateFilter == .anytime ? 0 : 1)
+    }
+
+    private var modePickerMenu: some View {
+        Menu {
             ForEach(RetrievalPanelMode.allCases.filter { $0 != .archive }) { toolbarMode in
                 Button { mode = toolbarMode } label: {
-                    Circle()
-                        .fill(toolbarMode == mode ? Color.accentColor : toolbarMode.color)
-                        .frame(width: toolbarMode == mode ? 13 : 10, height: toolbarMode == mode ? 13 : 10)
-                        .padding(5)
+                    Label(toolbarMode.rawValue, systemImage: toolbarMode.icon)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(toolbarMode.rawValue)
             }
-            panelMenu
+        } label: {
+            Label(mode.rawValue, systemImage: mode.icon)
+                .font(.system(size: 13, weight: .semibold))
+                .padding(.horizontal, 9)
+                .frame(height: 32)
+                .background(.regularMaterial, in: Capsule())
         }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .accessibilityLabel("Collection: \(mode.rawValue)")
+        .accessibilityIdentifier("panel-active-mode")
     }
 
     private func modeChip(_ toolbarMode: RetrievalPanelMode) -> some View {
@@ -303,25 +436,59 @@ struct RetrievalPanelView: View {
     }
 
     private var panelMenu: some View {
-        Menu {
-            Button { mode = .archive } label: { Label("Archive", systemImage: "archivebox") }
-            Button(action: onQuickAdd) { Label("Quick Add", systemImage: "plus") }
-            Button(action: onOpenLibrary) { Label("Open Library", systemImage: "macwindow") }
-            Divider()
-            Toggle("Monitor Clipboard", isOn: $monitoringEnabled)
-            SettingsLink { Label("Settings", systemImage: "gear") }
-        } label: {
+        Button { panelMenuPresented.toggle() } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 16, weight: .semibold))
                 .frame(width: 34, height: 34)
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
+        .buttonStyle(.plain)
         .accessibilityLabel("More")
         .onChange(of: monitoringEnabled) { _, enabled in
             UserDefaults.standard.set(enabled, forKey: "clipboardMonitoringEnabled")
             NotificationCenter.default.post(name: .stowClipboardMonitoringChanged, object: nil)
         }
+    }
+
+    private var panelMenuOverlay: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture { panelMenuPresented = false }
+            VStack(alignment: .leading, spacing: 2) {
+                panelMenuButton("Archive", systemImage: "archivebox") { mode = .archive }
+                panelMenuButton("Quick Add", systemImage: "plus") { onRequestClose(.destination(.quickAdd)) }
+                panelMenuButton("Open Library", systemImage: "macwindow") { onRequestClose(.destination(.library)) }
+                panelMenuButton("Settings", systemImage: "gear") { onRequestClose(.destination(.settings)) }
+                Divider().padding(.vertical, 3)
+                Toggle("Monitor Clipboard", isOn: $monitoringEnabled)
+                    .toggleStyle(.checkbox)
+                    .padding(.horizontal, 9)
+                    .frame(height: 28)
+                Divider().padding(.vertical, 3)
+                panelMenuButton("Close Quick Panel", systemImage: "xmark") { onRequestClose(.explicit) }
+            }
+            .padding(7)
+            .frame(width: 194)
+            .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.white.opacity(0.35)))
+            .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
+            .padding(.top, isCompact ? 44 : 52)
+            .padding(.trailing, 42)
+        }
+    }
+
+    private func panelMenuButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button {
+            panelMenuPresented = false
+            action()
+        } label: {
+            Label(title, systemImage: systemImage)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 9)
+                .frame(height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var filterMenu: some View {
@@ -376,16 +543,27 @@ struct RetrievalPanelView: View {
         return GeometryReader { geometry in
             if items.isEmpty {
                 VStack(spacing: 10) {
-                    Image(systemName: query.isEmpty ? mode.icon : "magnifyingglass")
+                    Image(systemName: hasActiveSearch ? "magnifyingglass" : mode.icon)
                         .font(.system(size: isCompact ? 25 : 32, weight: .medium))
                         .foregroundStyle(.secondary)
-                    Text(query.isEmpty ? "Nothing in \(mode.rawValue)" : "No Results")
+                    Text(hasActiveSearch ? "No Results" : "Nothing in \(mode.rawValue)")
                         .font(.headline)
-                    if !query.isEmpty || hasFilters {
+                    Text(emptyStateMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    if hasActiveSearch {
                         Button("Clear Search and Filters") { clearSearch() }
+                            .buttonStyle(.bordered)
+                    } else if mode == .archive {
+                        Button("Open Library") { onRequestClose(.destination(.library)) }
+                            .buttonStyle(.bordered)
+                    } else {
+                        Button("Quick Add") { onRequestClose(.destination(.quickAdd)) }
                             .buttonStyle(.bordered)
                     }
                 }
+                .padding(.horizontal, 24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
@@ -415,40 +593,67 @@ struct RetrievalPanelView: View {
 
     private func clipButton(_ item: StowItem, attachment: StowAttachment?, availableHeight: CGFloat) -> some View {
         let selected = selectedIDs.contains(item.id)
-        return Button { select(item) } label: {
-            StowTimelineCard(
-                item: item,
-                attachment: attachment,
-                isSelected: selected,
-                isCompact: isCompact
-            )
-            .frame(width: isCompact ? 176 : 224, height: max(128, availableHeight - (isCompact ? 21 : 28)))
-        }
-        .buttonStyle(.plain)
-        .simultaneousGesture(TapGesture(count: 2).onEnded {
-            select(item, ignoringModifiers: true)
-            onUse(item, attachment, .defaultPaste)
-        })
+        return PanelCardDragSource(
+            content: AnyView(
+                StowTimelineCard(
+                    item: item,
+                    attachment: attachment,
+                    isSelected: selected,
+                    isCompact: isCompact
+                )
+                .frame(width: isCompact ? 176 : 224, height: max(128, availableHeight - (isCompact ? 21 : 28)))
+            ),
+            accessibilityLabel: "\(item.type.singularPanelName), \(item.title)",
+            accessibilityIdentifier: "panel-item-\(item.id.uuidString)",
+            material: { dragMaterial(item, attachment: attachment) },
+            onSelect: { select(item) },
+            onDoubleClick: {
+                select(item, ignoringModifiers: true)
+                onUse(item, attachment, .defaultPaste)
+            },
+            onDragStateChanged: { session.isDragging = $0 },
+            onDragCompleted: {
+                appModel.markUsed(item, metric: .itemDragged)
+                onRequestClose(.completedUse)
+            }
+        )
         .contextMenu { cardContextMenu(item, attachment: attachment) }
-        .onDrag { dragProvider(item, attachment: attachment) }
-        .popover(isPresented: popoverBinding(for: item.id), arrowEdge: .top) {
-            RetrievalItemPopover(
-                item: item,
-                attachment: attachment,
-                kind: popoverKind ?? .preview,
-                onSave: { title, note, text, language in
-                    appModel.save(item, title: title, note: note, text: text, language: language)
-                    popoverItemID = nil
-                    popoverKind = nil
-                },
-                onCancel: {
-                    popoverItemID = nil
-                    popoverKind = nil
-                },
-                onOpen: { onUse(item, attachment, .open) }
-            )
+    }
+
+    @ViewBuilder
+    private func popoverOverlay(availableSize: CGSize) -> some View {
+        if let item = allItems.first(where: { $0.id == popoverItemID }), let popoverKind {
+            ZStack {
+                Color.black.opacity(0.16)
+                    .contentShape(Rectangle())
+                    .onTapGesture { onRequestClose(.outsideClick) }
+                RetrievalItemPopover(
+                    item: item,
+                    attachment: attachments[item.id],
+                    kind: popoverKind,
+                    errorMessage: editorErrorMessage,
+                    discardScope: pendingDiscardScope,
+                    availableSize: availableSize,
+                    onSave: { title, note, text, language in
+                        if let message = appModel.saveForPanel(item, title: title, note: note, text: text, language: language) {
+                            editorErrorMessage = message
+                            return false
+                        }
+                        editorErrorMessage = nil
+                        closePopover()
+                        return true
+                    },
+                    onCancel: { closePopover() },
+                    onOpen: { onUse(item, attachments[item.id], .open) },
+                    onDirtyChange: { editorDirtyState.isDirty = $0 },
+                    onDismissError: { editorErrorMessage = nil },
+                    onConfirmDiscard: { confirmDiscard() },
+                    onKeepEditing: { cancelDiscard() }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
+            .accessibilityElement(children: .contain)
         }
-        .accessibilityIdentifier("panel-item-\(item.id.uuidString)")
     }
 
     @ViewBuilder
@@ -464,15 +669,15 @@ struct RetrievalPanelView: View {
         }
         Button { showPopover(.rename, for: item) } label: { Label("Rename", systemImage: "text.cursor") }
         Divider()
-        Button { appModel.togglePin(item) } label: { Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.slash" : "pin") }
-        Button { appModel.archiveOrRestore(item) } label: { Label(item.status == .archived ? "Restore to Inbox" : "Archive", systemImage: "archivebox") }
-        Button(role: .destructive) { appModel.trashOrRestore(item) } label: { Label("Move to Trash", systemImage: "trash") }
+        Button { togglePin(item) } label: { Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.slash" : "pin") }
+        Button { archiveOrRestore(item) } label: { Label(item.status == .archived ? "Restore to Inbox" : "Archive", systemImage: "archivebox") }
+        Button(role: .destructive) { moveToTrash(item) } label: { Label("Move to Trash", systemImage: "trash") }
     }
 
     private var keyboardCommands: some View {
         let attachmentMap = attachments
         return ZStack {
-            Button("") { handleEscape() }.keyboardShortcut(.cancelAction).hidden()
+            Button("") { onRequestClose(.escape) }.keyboardShortcut(.cancelAction).hidden()
             Button("") { performDefault() }.keyboardShortcut(.return, modifiers: []).hidden()
             Button("") { copySelected() }.keyboardShortcut("c", modifiers: .command).hidden()
             Button("") { openSelected() }.keyboardShortcut("o", modifiers: .command).hidden()
@@ -511,6 +716,81 @@ struct RetrievalPanelView: View {
             .accessibilityAddTraits(.isStaticText)
     }
 
+    private func feedbackPill(_ feedback: PanelActionFeedback) -> some View {
+        HStack(spacing: 10) {
+            Text(feedback.message)
+            if let actionTitle = feedback.actionTitle, let action = feedback.action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.borderless)
+                    .fontWeight(.bold)
+            }
+        }
+        .font(.subheadline.weight(.semibold))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(.thickMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(.white.opacity(0.28)))
+        .shadow(radius: 10, y: 4)
+        .frame(maxHeight: .infinity, alignment: .bottom)
+        .padding(.bottom, 18)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func actionErrorBanner(_ message: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(message)
+                .font(.caption.weight(.semibold))
+                .lineLimit(2)
+            Button("Dismiss") { appModel.presentedError = nil }
+                .buttonStyle(.borderless)
+                .font(.caption.weight(.bold))
+        }
+        .padding(.horizontal, 11)
+        .frame(minHeight: 32)
+        .background(.thickMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(.orange.opacity(0.45)))
+        .accessibilityElement(children: .contain)
+    }
+
+    private func searchFailureBanner(_ message: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(searchResultIDs == nil ? "Search unavailable — showing local matches" : "Search unavailable — showing previous results")
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+            Button("Retry") { searchRetryGeneration += 1 }
+                .buttonStyle(.borderless)
+                .font(.caption.weight(.bold))
+            Button { searchPhase = .idle } label: { Image(systemName: "xmark") }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss search error")
+        }
+        .help(message)
+        .padding(.horizontal, 11)
+        .frame(height: 32)
+        .background(.thickMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(.orange.opacity(0.45)))
+        .accessibilityElement(children: .contain)
+    }
+
+    private func showActionFeedback(
+        _ message: String,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
+    ) {
+        actionFeedback = PanelActionFeedback(message: message, actionTitle: actionTitle, action: action)
+    }
+
+    private func expireActionFeedback() async {
+        guard let id = actionFeedback?.id else { return }
+        try? await Task.sleep(for: .seconds(4))
+        guard !Task.isCancelled, actionFeedback?.id == id else { return }
+        actionFeedback = nil
+    }
+
     private func activateSearch(initialText: String = "") {
         session.acceptsPreviewShortcut = false
         searchActive = true
@@ -530,23 +810,70 @@ struct RetrievalPanelView: View {
         resolvedSearchToken = nil
     }
 
-    private func handleEscape() {
-        if popoverItemID != nil {
-            popoverItemID = nil
-            popoverKind = nil
-        } else if searchActive && (hasFilters || !query.isEmpty) {
+    private func handleCloseCommand() {
+        guard let command = session.closeCommand else { return }
+        let layer: QuickPanelPresentedLayer
+        if panelMenuPresented {
+            layer = .menu
+        } else if popoverItemID == nil {
+            layer = .none
+        } else if popoverKind == .preview {
+            layer = .preview
+        } else {
+            layer = .editor(isDirty: editorDirtyState.isDirty)
+        }
+        let state = QuickPanelCloseState(
+            searchIsActive: searchActive,
+            hasSearchCriteria: hasActiveSearch,
+            presentedLayer: layer
+        )
+        switch QuickPanelClosePolicy.decision(for: command.request, state: state) {
+        case .closePanel:
+            onApproveClose(command.id)
+        case .closePresentedLayer:
+            if panelMenuPresented { panelMenuPresented = false }
+            else { closePopover() }
+            onCancelClose(command.id)
+        case .clearSearch:
             clearSearch()
-        } else if searchActive {
+            onCancelClose(command.id)
+        case .collapseSearch:
             searchFocused = false
             searchActive = false
             timelineFocused = true
-        } else {
-            onDismiss(true)
+            onCancelClose(command.id)
+        case .confirmDiscard(let scope):
+            pendingDiscardCommandID = command.id
+            pendingDiscardScope = scope
         }
     }
 
+    private func confirmDiscard() {
+        guard let scope = pendingDiscardScope, let commandID = pendingDiscardCommandID else { return }
+        pendingDiscardScope = nil
+        pendingDiscardCommandID = nil
+        closePopover()
+        switch scope {
+        case .layerOnly:
+            onCancelClose(commandID)
+        case .panel:
+            onApproveClose(commandID)
+        }
+    }
+
+    private func cancelDiscard() {
+        guard let commandID = pendingDiscardCommandID else {
+            pendingDiscardScope = nil
+            return
+        }
+        pendingDiscardScope = nil
+        pendingDiscardCommandID = nil
+        onCancelClose(commandID)
+    }
+
     private func handleTypedKey(_ press: KeyPress) -> KeyPress.Result {
-        guard !searchFocused,
+        guard popoverItemID == nil,
+              !searchFocused,
               press.modifiers.intersection([.command, .control, .option]).isEmpty,
               press.characters.count == 1,
               let scalar = press.characters.unicodeScalars.first,
@@ -619,15 +946,45 @@ struct RetrievalPanelView: View {
     }
 
     private func archiveSelected() {
-        for item in items where selectedIDs.contains(item.id) { appModel.archiveOrRestore(item) }
+        let selected = items.filter { selectedIDs.contains($0.id) }
+        guard !selected.isEmpty, appModel.archiveOrRestore(selected) else { return }
+        let restored = selected.allSatisfy { $0.status == .inbox }
+        showActionFeedback(restored ? "Restored to Inbox" : "Archived")
     }
 
     private func trashSelected() {
-        for item in items where selectedIDs.contains(item.id) { appModel.trashOrRestore(item) }
+        let selected = items.filter { selectedIDs.contains($0.id) }
+        let ids = selected.map(\.id)
+        guard !ids.isEmpty, appModel.moveToTrash(selected) else { return }
+        showActionFeedback(ids.count == 1 ? "Moved to Trash" : "Moved \(ids.count) items to Trash", actionTitle: "Undo") {
+            if appModel.restoreFromTrash(ids: ids) {
+                showActionFeedback(ids.count == 1 ? "Restored from Trash" : "Restored \(ids.count) items")
+            }
+        }
     }
 
     private func pinSelected() {
-        for item in items where selectedIDs.contains(item.id) { appModel.togglePin(item) }
+        let selected = items.filter { selectedIDs.contains($0.id) }
+        guard !selected.isEmpty, appModel.togglePin(selected) else { return }
+        showActionFeedback(selected.allSatisfy(\.isPinned) ? "Pinned" : "Unpinned")
+    }
+
+    private func togglePin(_ item: StowItem) {
+        guard appModel.togglePin(item) else { return }
+        showActionFeedback(item.isPinned ? "Pinned" : "Unpinned")
+    }
+
+    private func archiveOrRestore(_ item: StowItem) {
+        guard appModel.archiveOrRestore(item) else { return }
+        showActionFeedback(item.status == .inbox ? "Restored to Inbox" : "Archived")
+    }
+
+    private func moveToTrash(_ item: StowItem) {
+        let id = item.id
+        guard appModel.moveToTrash([item]) else { return }
+        showActionFeedback("Moved to Trash", actionTitle: "Undo") {
+            if appModel.restoreFromTrash(ids: [id]) { showActionFeedback("Restored from Trash") }
+        }
     }
 
     private func previewSelected() {
@@ -646,31 +1003,81 @@ struct RetrievalPanelView: View {
     }
 
     private func showPopover(_ kind: RetrievalPopoverKind, for item: StowItem) {
+        session.acceptsPreviewShortcut = false
+        searchFocused = false
+        timelineFocused = false
+        editorErrorMessage = nil
+        editorDirtyState.isDirty = false
         popoverKind = kind
         popoverItemID = item.id
     }
 
-    private func popoverBinding(for id: UUID) -> Binding<Bool> {
-        Binding(
-            get: { popoverItemID == id },
-            set: { presented in if !presented && popoverItemID == id { popoverItemID = nil; popoverKind = nil } }
-        )
+    private func closePopover() {
+        popoverItemID = nil
+        popoverKind = nil
+        editorDirtyState.isDirty = false
+        editorErrorMessage = nil
+        session.acceptsPreviewShortcut = true
+        if searchActive {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(40))
+                searchFocused = true
+            }
+        } else {
+            timelineFocused = true
+        }
     }
 
-    private func dragProvider(_ item: StowItem, attachment: StowAttachment?) -> NSItemProvider {
-        let token = PanelDragSuccessToken { appModel.markUsed(item, metric: .itemDragged) }
-        let provider = NSItemProvider()
-        let payload = DragPayload(item: item, attachment: attachment)
-        provider.suggestedName = payload.suggestedName
-        provider.registerDataRepresentation(forTypeIdentifier: payload.typeIdentifier, visibility: .all) { completion in
-            completion(payload.data, nil)
-            token.record()
-            return nil
+    private func dragMaterial(_ item: StowItem, attachment: StowAttachment?) -> PanelDragMaterial? {
+        switch item.type {
+        case .text, .code:
+            let value = item.textContent ?? item.title
+            let pasteboardItem = NSPasteboardItem()
+            pasteboardItem.setString(value, forType: .string)
+            if let rtf = try? NSAttributedString(string: value).data(
+                from: NSRange(location: 0, length: (value as NSString).length),
+                documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
+            ) {
+                pasteboardItem.setData(rtf, forType: .rtf)
+            }
+            return PanelDragMaterial(writer: pasteboardItem)
+        case .link:
+            guard let value = item.urlString, let url = URL(string: value) else { return nil }
+            return PanelDragMaterial(writer: url as NSURL)
+        case .image:
+            guard let data = attachment?.data, let image = NSImage(data: data) else { return nil }
+            return PanelDragMaterial(writer: image)
+        case .file:
+            guard let data = attachment?.data else { return nil }
+            do {
+                let directory = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("StowTransfers", isDirectory: true)
+                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                let rawName = ((item.fileName ?? item.title) as NSString).lastPathComponent
+                let name = rawName.isEmpty || rawName == "." || rawName == ".." ? "Stow Item" : rawName
+                let fileURL = directory.appendingPathComponent(name)
+                try data.write(to: fileURL, options: .atomic)
+                return PanelDragMaterial(writer: fileURL as NSURL, cleanupDirectory: directory)
+            } catch {
+                appModel.presentedError = "The item could not be prepared for dragging. \(error.localizedDescription)"
+                return nil
+            }
         }
-        return provider
     }
 
     private var hasFilters: Bool { typeFilter != nil || sourceFilter != nil || dateFilter != .anytime }
+    private var hasActiveSearch: Bool { !query.isEmpty || hasFilters }
+
+    private var emptyStateMessage: String {
+        if hasActiveSearch { return "Try a different search or remove a filter." }
+        switch mode {
+        case .clipboard: return "Copied items will appear here while clipboard monitoring is on."
+        case .inbox: return "New captures that need attention will appear here."
+        case .pinned: return "Pin an item to keep it easy to reach."
+        case .archive: return "Archived items remain available in your Library."
+        }
+    }
 
     private var attachmentToken: String {
         allAttachments.map { "\($0.id.uuidString):\($0.itemID.uuidString):\($0.byteCount)" }.joined(separator: "|")
@@ -686,14 +1093,18 @@ struct RetrievalPanelView: View {
         return [mode.rawValue, query, typeFilter?.rawValue ?? "", sourceFilter ?? "", dateFilter.rawValue, "\(hasher.finalize())"].joined(separator: "¦")
     }
 
+    private var searchTaskToken: String { "\(searchToken)¦retry:\(searchRetryGeneration)" }
+
     private func updateSearch() async {
         let requestedToken = searchToken
-        guard !query.isEmpty || hasFilters else {
+        guard hasActiveSearch else {
             searchResultIDs = nil
             resolvedSearchToken = nil
+            searchPhase = .idle
             return
         }
-        let ids = await appModel.searchForRetrieval(
+        searchPhase = .loading
+        let outcome = await appModel.searchForRetrieval(
             items: allItems,
             text: query,
             type: typeFilter,
@@ -702,8 +1113,14 @@ struct RetrievalPanelView: View {
             status: mode == .inbox ? .inbox : (mode == .archive ? .archived : nil)
         )
         guard !Task.isCancelled, requestedToken == searchToken else { return }
-        searchResultIDs = ids
-        resolvedSearchToken = requestedToken
+        switch outcome {
+        case .success(let ids):
+            searchResultIDs = ids
+            resolvedSearchToken = requestedToken
+            searchPhase = .ready
+        case .failure(let message):
+            searchPhase = .failed(message)
+        }
     }
 
     private func localSearchIncludes(_ item: StowItem) -> Bool {
@@ -711,9 +1128,10 @@ struct RetrievalPanelView: View {
               sourceFilter == nil || item.sourceApp == sourceFilter,
               dateFilter.includes(item.createdAt) else { return false }
         guard !query.isEmpty else { return true }
+        let normalizedQuery = query.panelSearchNormalized
         return [item.title, item.textContent, item.urlString, item.sourceDomain, item.note, item.fileName]
             .compactMap { $0 }
-            .contains { $0.localizedCaseInsensitiveContains(query) }
+            .contains { $0.panelSearchNormalized.localizedCaseInsensitiveContains(normalizedQuery) }
     }
 
     private func panelSort(_ lhs: StowItem, _ rhs: StowItem) -> Bool {
@@ -969,29 +1387,61 @@ private struct RetrievalItemPopover: View {
     let item: StowItem
     let attachment: StowAttachment?
     let kind: RetrievalPopoverKind
-    let onSave: (String, String?, String?, String?) -> Void
+    let errorMessage: String?
+    let discardScope: QuickPanelDiscardScope?
+    let availableSize: CGSize
+    let onSave: (String, String?, String?, String?) -> Bool
     let onCancel: () -> Void
     let onOpen: () -> Void
+    let onDirtyChange: (Bool) -> Void
+    let onDismissError: () -> Void
+    let onConfirmDiscard: () -> Void
+    let onKeepEditing: () -> Void
+
+    private let originalTitle: String
+    private let originalNote: String
+    private let originalText: String
+    private let originalLanguage: String
 
     @State private var title: String
     @State private var note: String
     @State private var text: String
     @State private var language: String
+    @FocusState private var titleFocused: Bool
+    @FocusState private var confirmationFocused: Bool
 
     init(
         item: StowItem,
         attachment: StowAttachment?,
         kind: RetrievalPopoverKind,
-        onSave: @escaping (String, String?, String?, String?) -> Void,
+        errorMessage: String?,
+        discardScope: QuickPanelDiscardScope?,
+        availableSize: CGSize,
+        onSave: @escaping (String, String?, String?, String?) -> Bool,
         onCancel: @escaping () -> Void,
-        onOpen: @escaping () -> Void
+        onOpen: @escaping () -> Void,
+        onDirtyChange: @escaping (Bool) -> Void,
+        onDismissError: @escaping () -> Void,
+        onConfirmDiscard: @escaping () -> Void,
+        onKeepEditing: @escaping () -> Void
     ) {
         self.item = item
         self.attachment = attachment
         self.kind = kind
+        self.errorMessage = errorMessage
+        self.discardScope = discardScope
+        self.availableSize = availableSize
         self.onSave = onSave
         self.onCancel = onCancel
         self.onOpen = onOpen
+        self.onDirtyChange = onDirtyChange
+        self.onDismissError = onDismissError
+        self.onConfirmDiscard = onConfirmDiscard
+        self.onKeepEditing = onKeepEditing
+        originalTitle = item.title
+        originalNote = item.note ?? ""
+        originalText = item.textContent ?? ""
+        originalLanguage = item.language ?? ""
         _title = State(initialValue: item.title)
         _note = State(initialValue: item.note ?? "")
         _text = State(initialValue: item.textContent ?? "")
@@ -999,30 +1449,98 @@ private struct RetrievalItemPopover: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button("Cancel", action: onCancel).buttonStyle(.borderless)
-                Spacer()
-                Text(popoverTitle).font(.headline)
-                Spacer()
-                if kind == .preview {
-                    if item.type == .link || item.type == .file { Button("Open", action: onOpen).buttonStyle(.borderedProminent) }
-                    else { Button("Done", action: onCancel).buttonStyle(.borderedProminent) }
-                } else {
-                    Button("Save") { save() }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        ZStack {
+            VStack(spacing: 0) {
+                HStack {
+                    if kind == .preview {
+                        if item.type == .link || item.type == .file {
+                            Button("Done", action: onCancel).buttonStyle(.borderless)
+                        } else {
+                            Color.clear.frame(width: 36, height: 1)
+                        }
+                    } else {
+                        Button("Cancel", action: onCancel).buttonStyle(.borderless)
+                    }
+                    Spacer()
+                    Text(popoverTitle).font(.headline)
+                    Spacer()
+                    if kind == .preview {
+                        if item.type == .link || item.type == .file {
+                            Button("Open", action: onOpen).buttonStyle(.borderedProminent)
+                        } else {
+                            Button("Done", action: onCancel).buttonStyle(.borderedProminent)
+                        }
+                    } else {
+                        Button("Save") { save() }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
                 }
+                .padding(14)
+                .background(.ultraThinMaterial)
+                Divider()
+                if kind == .preview { preview }
+                else { editor }
             }
-            .padding(14)
-            .background(.ultraThinMaterial)
-            Divider()
-            if kind == .preview { preview }
-            else { editor }
+            if discardScope != nil { discardConfirmation }
         }
-        .frame(width: 520, height: kind == .rename ? 170 : 390)
+        .frame(
+            width: min(520, max(320, availableSize.width - 32)),
+            height: kind == .rename
+                ? min(errorMessage == nil ? 170 : 220, max(160, availableSize.height - 24))
+                : max(176, availableSize.height - 28)
+        )
         .background(.regularMaterial)
         .accessibilityElement(children: .contain)
+        .onAppear {
+            onDirtyChange(isDirty)
+            if discardScope != nil { confirmationFocused = true }
+            else if kind != .preview { titleFocused = true }
+        }
+        .onChange(of: title) { _, _ in onDirtyChange(isDirty) }
+        .onChange(of: text) { _, _ in onDirtyChange(isDirty) }
+        .onChange(of: language) { _, _ in onDirtyChange(isDirty) }
+        .onChange(of: note) { _, _ in onDirtyChange(isDirty) }
+        .onChange(of: discardScope != nil) { _, isPresented in
+            if isPresented { confirmationFocused = true }
+            else if kind != .preview { titleFocused = true }
+        }
+    }
+
+    private var discardConfirmation: some View {
+        ZStack {
+            Color.black.opacity(0.18)
+            VStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+                Text("Discard unsaved changes?")
+                    .font(.headline)
+                Text("Your saved item will remain unchanged.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    Button("Keep Editing", action: onKeepEditing)
+                        .keyboardShortcut(.cancelAction)
+                        .focused($confirmationFocused)
+                        .accessibilityIdentifier("panel-keep-editing")
+                    Button(closesPanelAfterDiscard ? "Discard Changes and Close" : "Discard Changes", role: .destructive, action: onConfirmDiscard)
+                        .accessibilityIdentifier("panel-confirm-discard")
+                }
+            }
+            .padding(22)
+            .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.white.opacity(0.3)))
+            .shadow(radius: 18, y: 8)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Discard unsaved changes?")
+    }
+
+    private var closesPanelAfterDiscard: Bool {
+        guard let discardScope else { return false }
+        if case .panel = discardScope { return true }
+        return false
     }
 
     private var popoverTitle: String {
@@ -1031,17 +1549,34 @@ private struct RetrievalItemPopover: View {
 
     private var editor: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let errorMessage {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text(errorMessage)
+                        .font(.caption)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("panel-editor-error")
+                    Button("Dismiss", action: onDismissError).buttonStyle(.borderless)
+                }
+                .accessibilityElement(children: .contain)
+            }
             TextField("Title", text: $title)
                 .textFieldStyle(.roundedBorder)
+                .focused($titleFocused)
+                .accessibilityIdentifier("panel-editor-title")
             if kind == .edit {
                 TextEditor(text: $text)
                     .font(item.type == .code ? .system(.body, design: .monospaced) : .body)
                     .scrollContentBackground(.hidden)
                     .padding(8)
                     .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 9))
+                    .accessibilityIdentifier("panel-editor-content")
                 HStack {
-                    TextField("Language", text: $language).textFieldStyle(.roundedBorder).frame(maxWidth: 180)
-                    TextField("Note", text: $note).textFieldStyle(.roundedBorder)
+                    TextField("Language", text: $language)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 180)
+                    TextField("Note", text: $note)
+                        .textFieldStyle(.roundedBorder)
                 }
             }
         }
@@ -1077,9 +1612,13 @@ private struct RetrievalItemPopover: View {
         }
     }
 
+    private var isDirty: Bool {
+        title != originalTitle || note != originalNote || text != originalText || language != originalLanguage
+    }
+
     private func save() {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        onSave(
+        _ = onSave(
             cleanTitle,
             note.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             kind == .edit ? text : item.textContent,
@@ -1123,10 +1662,132 @@ private final class SourceAppIconProvider {
     }
 }
 
-private final class PanelDragSuccessToken: @unchecked Sendable {
-    private let success: @MainActor () -> Void
-    init(success: @escaping @MainActor () -> Void) { self.success = success }
-    nonisolated func record() { Task { @MainActor in success() } }
+private struct PanelDragMaterial {
+    let writer: any NSPasteboardWriting
+    let cleanupDirectory: URL?
+
+    init(writer: any NSPasteboardWriting, cleanupDirectory: URL? = nil) {
+        self.writer = writer
+        self.cleanupDirectory = cleanupDirectory
+    }
+}
+
+private struct PanelCardDragSource: NSViewRepresentable {
+    let content: AnyView
+    let accessibilityLabel: String
+    let accessibilityIdentifier: String
+    let material: () -> PanelDragMaterial?
+    let onSelect: () -> Void
+    let onDoubleClick: () -> Void
+    let onDragStateChanged: (Bool) -> Void
+    let onDragCompleted: () -> Void
+
+    func makeNSView(context: Context) -> PanelCardDragSourceView {
+        let view = PanelCardDragSourceView()
+        update(view)
+        return view
+    }
+
+    func updateNSView(_ nsView: PanelCardDragSourceView, context: Context) { update(nsView) }
+
+    private func update(_ view: PanelCardDragSourceView) {
+        view.hostingView.rootView = content
+        view.invalidateIntrinsicContentSize()
+        view.setAccessibilityLabel(accessibilityLabel)
+        view.setAccessibilityIdentifier(accessibilityIdentifier)
+        view.material = material
+        view.onSelect = onSelect
+        view.onDoubleClick = onDoubleClick
+        view.onDragStateChanged = onDragStateChanged
+        view.onDragCompleted = onDragCompleted
+    }
+}
+
+@MainActor
+private final class PanelCardDragSourceView: NSView, NSDraggingSource {
+    let hostingView = NSHostingView(rootView: AnyView(EmptyView()))
+    var material: (() -> PanelDragMaterial?)?
+    var onSelect: (() -> Void)?
+    var onDoubleClick: (() -> Void)?
+    var onDragStateChanged: ((Bool) -> Void)?
+    var onDragCompleted: (() -> Void)?
+    private var cleanupDirectory: URL?
+    private var dragStarted = false
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(hostingView)
+        NSLayoutConstraint.activate([
+            hostingView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            hostingView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            hostingView.topAnchor.constraint(equalTo: topAnchor),
+            hostingView.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        switch NSApp.currentEvent?.type {
+        case .rightMouseDown, .rightMouseUp, .rightMouseDragged:
+            return nil
+        default:
+            return bounds.contains(point) ? self : nil
+        }
+    }
+
+    override var intrinsicContentSize: NSSize { hostingView.fittingSize }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        dragStarted = false
+        onSelect?()
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard !dragStarted, let material = material?() else { return }
+        dragStarted = true
+        onDragStateChanged?(true)
+        cleanupDirectory = material.cleanupDirectory
+        let item = NSDraggingItem(pasteboardWriter: material.writer)
+        let location = convert(event.locationInWindow, from: nil)
+        item.setDraggingFrame(NSRect(x: location.x - 32, y: location.y - 32, width: 64, height: 64), contents: dragImage())
+        beginDraggingSession(with: [item], event: event, source: self)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard !dragStarted, event.clickCount >= 2 else { return }
+        onDoubleClick?()
+    }
+
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { .copy }
+    func ignoreModifierKeys(for session: NSDraggingSession) -> Bool { false }
+
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        let directory = cleanupDirectory
+        cleanupDirectory = nil
+        dragStarted = false
+        onDragStateChanged?(false)
+        if operation != [] {
+            if let directory {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(60))
+                    try? FileManager.default.removeItem(at: directory)
+                }
+            }
+            onDragCompleted?()
+        } else if let directory {
+            try? FileManager.default.removeItem(at: directory)
+        }
+    }
+
+    private func dragImage() -> NSImage {
+        NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Stow item") ?? NSImage()
+    }
 }
 
 private extension ItemType {
@@ -1167,4 +1828,5 @@ private extension Date {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+    var panelSearchNormalized: String { applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? self }
 }

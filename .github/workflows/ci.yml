@@ -10,11 +10,12 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode 26.6
+      - name: Select Xcode 26.3
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "26.6"
+          xcode-version: "26.3"
       - name: Build and test
         env:
-          RUN_UI_TESTS: "1"
+          EXPECTED_XCODE_VERSION: "26.3"
+          EXPECTED_SWIFT_VERSION_PREFIX: "6.2"
         run: Scripts/ci.sh

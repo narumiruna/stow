@@ -32,6 +32,9 @@ final class StowMacUITests: XCTestCase {
         }
         XCTAssertFalse(panel.staticTexts["Settings"].exists)
         XCTAssertTrue(panel.buttons["Quick Add"].exists)
+        XCTAssertTrue(panel.buttons["Close Quick Panel"].exists)
+        XCTAssertTrue(panel.descendants(matching: .any).matching(identifier: "panel-status").firstMatch.exists)
+        XCTAssertTrue(panel.staticTexts["Paste mode: Copy only"].exists)
         attach(panel.screenshot(), named: "stow-panel-normal")
 
         let searchButton = panel.buttons["Search"]
@@ -39,6 +42,7 @@ final class StowMacUITests: XCTestCase {
         searchButton.click()
         var search = panel.textFields["Search Stow"]
         XCTAssertTrue(search.waitForExistence(timeout: 3))
+        XCTAssertTrue(panel.descendants(matching: .any).matching(identifier: "panel-active-mode").firstMatch.exists)
         attach(panel.screenshot(), named: "stow-panel-search")
         let filters = panel.menuButtons["Search Filters"]
         XCTAssertTrue(filters.waitForExistence(timeout: 2))
@@ -47,10 +51,15 @@ final class StowMacUITests: XCTestCase {
         XCTAssertTrue(panel.buttons["Remove Image filter"].waitForExistence(timeout: 2))
         attach(panel.screenshot(), named: "stow-panel-filter-token")
         panel.buttons["Remove Image filter"].click()
+        search = panel.textFields["Search Stow"]
+        XCTAssertTrue(search.waitForExistence(timeout: 2))
 
-        replaceSearch(search, with: "Panel Text")
-        search.typeKey(.return, modifierFlags: [])
+        replaceSearch(search, with: "Ｐａｎｅｌ　Ｔｅｘｔ")
+        XCTAssertTrue(panel.buttons["Clear Search"].waitForExistence(timeout: 2))
+        XCTAssertTrue(panel.buttons["Close Quick Panel"].exists, "Clear Search and Close must remain distinct")
+        app.typeKey(.return, modifierFlags: [])
         XCTAssertEqual(NSPasteboard.general.string(forType: .string), "panel text payload")
+        XCTAssertTrue(panel.staticTexts["Copied — paste with Command-V"].waitForExistence(timeout: 2))
         XCTAssertTrue(panel.waitForNonExistence(timeout: 3), "Return should close the panel after the copy fallback")
 
         showPanel(in: app)
@@ -67,9 +76,14 @@ final class StowMacUITests: XCTestCase {
         attach(XCUIScreen.main.screenshot(), named: "stow-panel-edit-screen")
         panel.buttons["Cancel"].click()
         app.typeKey("a", modifierFlags: [.command, .shift])
-        panel.menuButtons["More"].click()
-        app.menuItems["Archive"].firstMatch.click()
+        panel.buttons["More"].click()
+        panel.buttons["Archive"].click()
         XCTAssertTrue(panel.buttons["Code, Panel Code"].waitForExistence(timeout: 3))
+        if !panel.buttons["Clipboard"].exists {
+            showPanel(in: app)
+            if !panel.waitForExistence(timeout: 1) { showPanel(in: app) }
+        }
+        XCTAssertTrue(panel.buttons["Clipboard"].waitForExistence(timeout: 3))
         panel.buttons["Clipboard"].click()
 
         showPanel(in: app)
@@ -98,14 +112,185 @@ final class StowMacUITests: XCTestCase {
         app.typeKey(.escape, modifierFlags: [])
         XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
 
-        showQuickAdd(in: app)
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        panel.buttons["Quick Add"].click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Quick Add"].waitForExistence(timeout: 3) || app.textViews["Content"].waitForExistence(timeout: 3))
+        XCTAssertEqual(app.sheets.count, 0, "Dedicated Quick Add must not also open a Library sheet")
         textEdit.terminate()
         app.terminate()
     }
 
+    func testVisibleCloseOutsideDismissAndDestinationHandoffs() {
+        let app = launchApp()
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
+        let panel = app.windows["Stow Quick Panel"]
+
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        XCTAssertTrue(panel.buttons["Close Quick Panel"].waitForExistence(timeout: 2))
+        panel.buttons["Close Quick Panel"].click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
+
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        let library = app.windows.matching(identifier: "stow-library-window").firstMatch
+        XCTAssertTrue(library.waitForExistence(timeout: 3))
+        library.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3), "A click in another Stow window should dismiss the panel")
+
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        textEdit.launch()
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        textEdit.activate()
+        XCTAssertTrue(textEdit.windows.firstMatch.waitForExistence(timeout: 3))
+        textEdit.windows.firstMatch.click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3), "An outside click should dismiss a clean panel")
+
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        panel.buttons["More"].click()
+        XCTAssertTrue(panel.buttons["Archive"].waitForExistence(timeout: 2))
+        for action in ["Quick Add", "Open Library", "Settings", "Close Quick Panel"] {
+            XCTAssertTrue(panel.buttons[action].exists, "More must expose \(action) in its flat action group")
+        }
+        XCTAssertTrue(panel.checkBoxes["Monitor Clipboard"].exists)
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(panel.waitForExistence(timeout: 2), "Escape should dismiss More before the panel")
+        XCTAssertTrue(panel.buttons["Archive"].waitForNonExistence(timeout: 2))
+
+        panel.buttons["More"].click()
+        panel.buttons["Open Library"].click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.windows.matching(identifier: "stow-library-window").firstMatch.exists || app.staticTexts["Inbox"].exists)
+
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        panel.buttons["More"].click()
+        panel.buttons["Settings"].click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Direct Paste"].waitForExistence(timeout: 5))
+
+        textEdit.terminate()
+        app.terminate()
+    }
+
+    func testDirtyEditorCancellationAndExplicitCloseConfirmation() {
+        let app = launchApp()
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
+        let panel = app.windows["Stow Quick Panel"]
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        openCodeEditor(in: panel, app: app)
+
+        let title = app.textFields["panel-editor-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 3))
+        replaceSearch(title, with: "Unsaved Panel Code")
+
+        requestQuickAdd(in: app)
+        let destinationDiscard = confirmationButton("Discard Changes and Close", in: app)
+        XCTAssertTrue(destinationDiscard.waitForExistence(timeout: 3), "A destination handoff must wait for dirty-edit confirmation")
+        XCTAssertEqual(destinationDiscard.label, "Discard Changes and Close")
+        confirmationButton("Keep Editing", in: app).click()
+        XCTAssertTrue(app.staticTexts["Edit Item"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.textViews["Content"].exists, "Keeping the draft must cancel the destination handoff")
+
+        app.typeKey(.escape, modifierFlags: [])
+        let escapeDiscard = confirmationButton("Discard Changes", in: app)
+        XCTAssertTrue(escapeDiscard.waitForExistence(timeout: 3))
+        XCTAssertEqual(escapeDiscard.label, "Discard Changes")
+        confirmationButton("Keep Editing", in: app).click()
+        XCTAssertTrue(app.staticTexts["Edit Item"].waitForExistence(timeout: 2))
+
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        textEdit.launch()
+        XCTAssertTrue(textEdit.windows.firstMatch.waitForExistence(timeout: 3))
+        textEdit.windows.firstMatch.click()
+        let outsideDiscard = confirmationButton("Discard Changes and Close", in: app)
+        XCTAssertTrue(outsideDiscard.waitForExistence(timeout: 3), "Outside dismissal must protect a dirty draft")
+        XCTAssertEqual(outsideDiscard.label, "Discard Changes and Close")
+        confirmationButton("Keep Editing", in: app).click()
+        XCTAssertTrue(app.staticTexts["Edit Item"].waitForExistence(timeout: 2))
+
+        Thread.sleep(forTimeInterval: 0.5)
+        app.typeKey("v", modifierFlags: [.command, .shift])
+        let shortcutDiscard = confirmationButton("Discard Changes and Close", in: app)
+        XCTAssertTrue(shortcutDiscard.waitForExistence(timeout: 3))
+        XCTAssertEqual(shortcutDiscard.label, "Discard Changes and Close")
+        attach(panel.screenshot(), named: "stow-panel-dirty-confirmation")
+        shortcutDiscard.click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
+
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        panel.buttons["Search"].click()
+        let search = panel.textFields["Search Stow"]
+        replaceSearch(search, with: "Panel Code")
+        XCTAssertTrue(panel.buttons["Code, Panel Code"].waitForExistence(timeout: 3), "Discarding must not persist the draft title")
+        textEdit.terminate()
+        app.terminate()
+    }
+
+    func testSuccessfulDragClosesOnlyAfterDestinationAcceptsItem() {
+        let app = launchApp(extraArguments: ["--ui-testing-drop-target"])
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
+        let dropTarget = app.staticTexts["panel-drop-target"]
+        XCTAssertTrue(dropTarget.waitForExistence(timeout: 3))
+
+        showPanel(in: app)
+        let panel = app.windows["Stow Quick Panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        panel.buttons["Search"].click()
+        replaceSearch(panel.textFields["Search Stow"], with: "Panel Text")
+        let card = panel.buttons["Text, Panel Text"]
+        XCTAssertTrue(card.waitForExistence(timeout: 3))
+        card.press(forDuration: 0.7, thenDragTo: dropTarget, withVelocity: .slow, thenHoldForDuration: 1.0)
+
+        XCTAssertTrue(app.staticTexts["Drop accepted"].waitForExistence(timeout: 3), "The destination should accept the dragged text")
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 5), "The panel should close only after the destination accepts the drag")
+        app.terminate()
+    }
+
+    func testFailedSaveAndSearchPreserveUsableState() {
+        let saveFailureApp = launchApp(extraArguments: ["--ui-testing-fail-save"])
+        XCTAssertTrue(saveFailureApp.windows.firstMatch.waitForExistence(timeout: 15))
+        let savePanel = saveFailureApp.windows["Stow Quick Panel"]
+        showPanel(in: saveFailureApp)
+        XCTAssertTrue(savePanel.waitForExistence(timeout: 3))
+        openCodeEditor(in: savePanel, app: saveFailureApp)
+        let title = saveFailureApp.textFields["panel-editor-title"]
+        replaceSelectedText(in: title, with: "Failed Save Draft")
+        XCTAssertEqual(title.value as? String, "Failed Save Draft")
+        XCTAssertTrue(saveFailureApp.buttons["Save"].isEnabled)
+        saveFailureApp.buttons["Save"].click()
+        XCTAssertTrue(saveFailureApp.staticTexts["panel-editor-error"].waitForExistence(timeout: 3))
+        let retainedTitle = saveFailureApp.textFields["panel-editor-title"]
+        XCTAssertTrue(retainedTitle.waitForExistence(timeout: 3), "A failed save must preserve the editor and editable draft")
+        XCTAssertEqual(retainedTitle.value as? String, "Failed Save Draft", "A failed save must preserve the draft")
+        attach(saveFailureApp.screenshot(), named: "stow-panel-save-error")
+        saveFailureApp.terminate()
+
+        let searchFailureApp = launchApp(extraArguments: ["--ui-testing-fail-retrieval-search", "--ui-testing-panel-width=480"])
+        XCTAssertTrue(searchFailureApp.windows.firstMatch.waitForExistence(timeout: 15))
+        let searchPanel = searchFailureApp.windows["Stow Quick Panel"]
+        showPanel(in: searchFailureApp)
+        XCTAssertTrue(searchPanel.waitForExistence(timeout: 3))
+        XCTAssertLessThanOrEqual(searchPanel.frame.width, 520)
+        XCTAssertTrue(searchPanel.buttons["Close Quick Panel"].exists)
+        searchPanel.buttons["Search"].click()
+        XCTAssertTrue(searchPanel.descendants(matching: .any).matching(identifier: "panel-active-mode").firstMatch.exists, "Narrow Search must retain the active collection")
+        let search = searchPanel.textFields["Search Stow"]
+        replaceSearch(search, with: "Ｐａｎｅｌ　Ｔｅｘｔ")
+        XCTAssertTrue(searchFailureApp.staticTexts["Search unavailable — showing local matches"].waitForExistence(timeout: 3))
+        XCTAssertTrue(searchPanel.buttons["Text, Panel Text"].exists, "Search failure should retain local matches")
+        attach(searchPanel.screenshot(), named: "stow-panel-narrow-search-error")
+        searchFailureApp.terminate()
+    }
+
     func testGlobalQuickPanelShortcutFromAnotherApp() {
-        let app = launchApp(extraArguments: ["--ui-testing-utility-mode"])
+        let app = launchApp(extraArguments: ["--ui-testing-utility-mode", "--ui-testing-preserve-frontmost-application"])
         XCTAssertNotEqual(app.state, .notRunning)
         Thread.sleep(forTimeInterval: 0.6)
         XCTAssertFalse(app.windows.firstMatch.exists, "Utility launch must not force the Library in front")
@@ -120,6 +305,9 @@ final class StowMacUITests: XCTestCase {
         }
         XCTAssertTrue(panel.exists, "The registered global shortcut must show Stow from another app")
         XCTAssertTrue(panel.buttons["Clipboard"].exists)
+        XCTAssertEqual(NSWorkspace.shared.frontmostApplication?.bundleIdentifier, "com.apple.TextEdit", "The nonactivating panel must preserve the originating app")
+        textEdit.windows.firstMatch.click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3), "A click in the already-active originating app must dismiss the panel")
 
         textEdit.terminate()
         app.terminate()
@@ -153,14 +341,39 @@ final class StowMacUITests: XCTestCase {
         app.terminate()
     }
 
-    private func launchApp(extraArguments: [String] = []) -> XCUIApplication {
+    func testQuickPanelIncreaseContrastAndStatusSemantics() {
+        let app = launchApp(
+            extraArguments: ["--ui-testing-force-direct-paste", "-AppleIncreaseContrast", "YES"],
+            monitoringEnabled: false
+        )
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        textEdit.launch()
+        textEdit.activate()
+
+        let panel = app.windows["Stow Quick Panel"]
+        for _ in 0..<3 where !panel.exists {
+            textEdit.typeKey("v", modifierFlags: [.command, .shift])
+            _ = panel.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(panel.exists)
+        XCTAssertTrue(panel.staticTexts["Paste mode: Direct"].waitForExistence(timeout: 2))
+        XCTAssertTrue(panel.staticTexts["Clipboard monitoring paused"].exists)
+        XCTAssertTrue(panel.buttons["Close Quick Panel"].exists)
+        attach(panel.screenshot(), named: "stow-panel-increase-contrast-direct-paused")
+
+        textEdit.terminate()
+        app.terminate()
+    }
+
+    private func launchApp(extraArguments: [String] = [], monitoringEnabled: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-testing",
             "--ui-testing-seed-panel",
             "--ui-testing-disable-direct-paste",
             "-ApplePersistenceIgnoreState", "YES",
-            "-clipboardMonitoringEnabled", "YES"
+            "-clipboardMonitoringEnabled", monitoringEnabled ? "YES" : "NO"
         ] + extraArguments
         app.launch()
         return app
@@ -173,11 +386,28 @@ final class StowMacUITests: XCTestCase {
         fileMenu.menus.menuItems["Quick Panel…"].click()
     }
 
-    private func showQuickAdd(in app: XCUIApplication) {
+    private func requestQuickAdd(in app: XCUIApplication) {
         app.activate()
         let fileMenu = app.menuBars.menuBarItems["File"]
         fileMenu.click()
         fileMenu.menus.menuItems["Quick Add…"].click()
+    }
+
+    private func confirmationButton(_ title: String, in app: XCUIApplication) -> XCUIElement {
+        let identifier = title == "Keep Editing" ? "panel-keep-editing" : "panel-confirm-discard"
+        return app.buttons.matching(identifier: identifier).firstMatch
+    }
+
+    private func openCodeEditor(in panel: XCUIElement, app: XCUIApplication) {
+        panel.buttons["Search"].click()
+        let search = panel.textFields["Search Stow"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        replaceSearch(search, with: "Panel Code")
+        let codeCard = panel.buttons["Code, Panel Code"]
+        XCTAssertTrue(codeCard.waitForExistence(timeout: 3))
+        codeCard.click()
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(app.staticTexts["Edit Item"].waitForExistence(timeout: 3))
     }
 
     private func replaceSearch(_ search: XCUIElement, with value: String) {
@@ -185,6 +415,12 @@ final class StowMacUITests: XCTestCase {
         search.typeKey("a", modifierFlags: .command)
         search.typeKey(.delete, modifierFlags: [])
         search.typeText(value)
+    }
+
+    private func replaceSelectedText(in field: XCUIElement, with value: String) {
+        field.click()
+        field.typeKey("a", modifierFlags: .command)
+        field.typeText(value)
     }
 
     private func attach(_ screenshot: XCUIScreenshot, named name: String) {

@@ -44,6 +44,61 @@ final class StowRepositoryTests: XCTestCase {
         withExtendedLifetime(container) {}
     }
 
+    func testBatchLifecycleMutationsApplyTogether() throws {
+        let (container, repository) = try makeRepository()
+        let first = try repository.create(from: CaptureDraft(type: .text, title: "First", textContent: "1"), at: start)
+        let second = try repository.create(from: CaptureDraft(type: .text, title: "Second", textContent: "2"), at: start)
+
+        try repository.setPinned([first.id, second.id], pinned: true, at: start.addingTimeInterval(1))
+        try repository.archive([first.id, second.id], at: start.addingTimeInterval(2))
+        XCTAssertTrue(first.isPinned)
+        XCTAssertTrue(second.isPinned)
+        XCTAssertEqual(first.status, .archived)
+        XCTAssertEqual(second.status, .archived)
+
+        try repository.trash([first.id, second.id], at: start.addingTimeInterval(3))
+        XCTAssertEqual(first.status, .trashed)
+        XCTAssertEqual(second.status, .trashed)
+        try repository.restoreFromTrash([first.id, second.id], at: start.addingTimeInterval(4))
+        XCTAssertEqual(first.status, .archived)
+        XCTAssertEqual(second.status, .archived)
+        withExtendedLifetime(container) {}
+    }
+
+    func testBatchMutationValidatesEveryIDBeforeChangingAnyItem() throws {
+        let (container, repository) = try makeRepository()
+        let first = try repository.create(from: CaptureDraft(type: .text, title: "First", textContent: "1"), at: start)
+
+        XCTAssertThrowsError(try repository.trash([first.id, UUID()])) { error in
+            XCTAssertEqual(error as? StowRepositoryError, .itemNotFound)
+        }
+        XCTAssertEqual(first.status, .inbox)
+        XCTAssertNil(first.trashedAt)
+        withExtendedLifetime(container) {}
+    }
+
+    func testFailedUpdateValidationDoesNotLeakPartialFieldChanges() throws {
+        let (container, repository) = try makeRepository()
+        let item = try repository.create(from: CaptureDraft(type: .text, title: "Original", textContent: "Body", note: "Saved"), at: start)
+        let originalUpdatedAt = item.updatedAt
+
+        XCTAssertThrowsError(try repository.update(
+            item.id,
+            title: "Leaked title",
+            note: "Leaked note",
+            textContent: "   ",
+            language: nil,
+            at: start.addingTimeInterval(20)
+        )) { error in
+            XCTAssertEqual(error as? CaptureValidationError, .missingText)
+        }
+        XCTAssertEqual(item.title, "Original")
+        XCTAssertEqual(item.note, "Saved")
+        XCTAssertEqual(item.textContent, "Body")
+        XCTAssertEqual(item.updatedAt, originalUpdatedAt)
+        withExtendedLifetime(container) {}
+    }
+
     func testLinkMetadataEnrichmentUpdatesExistingItemWithoutDuplicatingIt() throws {
         let (container, repository) = try makeRepository()
         let item = try repository.create(from: CaptureDraft(type: .link, title: "", urlString: "https://swift.org"), at: start)

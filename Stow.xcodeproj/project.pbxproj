@@ -18,6 +18,8 @@
 		24A6C16C5756143CB75C1398 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9A590461A6D73DA7472391EE /* StowCore */; };
 		2B188252D7CBD57378C6693D /* StowMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE33F1FD23AA1DDF553AA272 /* StowMacApp.swift */; };
 		2BE21797CA7F443F3DE3B621 /* StowAppSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A59906C8AF0E46FAAE32D843 /* StowAppSmokeTests.swift */; };
+		A10000000000000000000001 /* QuickPanelClosePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* QuickPanelClosePolicy.swift */; };
+		A30000000000000000000003 /* QuickPanelClosePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A40000000000000000000004 /* QuickPanelClosePolicyTests.swift */; };
 		2D1A0D61F86E222E00CFF0F2 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5202479D4598B4424E370B43 /* Foundation.framework */; };
 		314F6FC63E768A3BB7468E8A /* StowIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C2A4F76DCB363F2CD88FB5 /* StowIOSApp.swift */; };
 		393ADACC9D00D2BCD37C49E0 /* StowRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8143CDF3DC32C009B7A15B73 /* StowRootView.swift */; };
@@ -96,6 +98,13 @@
 			remoteGlobalIDString = C9D9265A63CE63E89F343630;
 			remoteInfo = "Stow-macOS";
 		};
+		A50000000000000000000005 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F53E3539BCF63C4428E6F12F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C9D9265A63CE63E89F343630;
+			remoteInfo = "Stow-macOS";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -164,6 +173,8 @@
 		920C3F0F08F55AECECCD6510 /* StowShare-macOS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "StowShare-macOS.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9CCB6C93DF69610D40596AF0 /* ShareViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		A59906C8AF0E46FAAE32D843 /* StowAppSmokeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAppSmokeTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* QuickPanelClosePolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelClosePolicy.swift; sourceTree = "<group>"; };
+		A40000000000000000000004 /* QuickPanelClosePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelClosePolicyTests.swift; sourceTree = "<group>"; };
 		AD37BCEEB327CE181B9346F9 /* StowItemDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowItemDetailView.swift; sourceTree = "<group>"; };
 		AE33F1FD23AA1DDF553AA272 /* StowMacApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowMacApp.swift; sourceTree = "<group>"; };
 		B6B8D752A7585DCDE6FA0E43 /* iOS-App-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "iOS-App-Info.plist"; sourceTree = "<group>"; };
@@ -313,6 +324,7 @@
 		98E21AE596E0156ADE9251C6 /* StowAppTests */ = {
 			isa = PBXGroup;
 			children = (
+				A40000000000000000000004 /* QuickPanelClosePolicyTests.swift */,
 				A59906C8AF0E46FAAE32D843 /* StowAppSmokeTests.swift */,
 			);
 			path = StowAppTests;
@@ -413,6 +425,7 @@
 			isa = PBXGroup;
 			children = (
 				E0DB4AC4F98D08AAE838D888 /* GlobalHotKeyService.swift */,
+				A20000000000000000000002 /* QuickPanelClosePolicy.swift */,
 				D5E846AB696FB4C386879886 /* MacAppCoordinator.swift */,
 				49E1F8A66053805A4C4E8BD4 /* RetrievalPanel.swift */,
 				AE33F1FD23AA1DDF553AA272 /* StowMacApp.swift */,
@@ -607,6 +620,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				A60000000000000000000006 /* PBXTargetDependency */,
 			);
 			name = StowAppTests;
 			packageProductDependencies = (
@@ -753,6 +767,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				42DC667A4C591DCB6AAE3721 /* AppModel.swift in Sources */,
+				A10000000000000000000001 /* QuickPanelClosePolicy.swift in Sources */,
 				BAC394F5547FED768116442F /* CloudSyncMonitor.swift in Sources */,
 				C5DAD1ADD38CA5825F075F09 /* ItemCollectionView.swift in Sources */,
 				EA77BEEA658D532BAF8C98F9 /* LinkMetadataEnricher.swift in Sources */,
@@ -776,6 +791,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A30000000000000000000003 /* QuickPanelClosePolicyTests.swift in Sources */,
 				2BE21797CA7F443F3DE3B621 /* StowAppSmokeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -825,6 +841,12 @@
 			target = 977D0490AE3D47D84F701049 /* StowShare-macOS */;
 			targetProxy = E850FEA49B327F832303EA9E /* PBXContainerItemProxy */;
 		};
+		A60000000000000000000006 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "Stow-macOS";
+			target = C9D9265A63CE63E89F343630 /* Stow-macOS */;
+			targetProxy = A50000000000000000000005 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -856,6 +878,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A4YQL6FFTK;
@@ -869,6 +892,7 @@
 				SDKROOT = macosx;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Stow-macOS.app/Contents/MacOS/Stow-macOS";
 			};
 			name = Release;
 		};
@@ -962,6 +986,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -976,6 +1001,7 @@
 				SDKROOT = macosx;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Stow-macOS.app/Contents/MacOS/Stow-macOS";
 			};
 			name = Debug;
 		};

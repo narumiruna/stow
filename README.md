@@ -36,24 +36,31 @@ Generate the Xcode project after adding targets or source files:
 ruby Scripts/generate_project.rb
 ```
 
-Run the local quality gate:
+Run the non-interactive quality gate used by CI:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ci.sh
 ```
 
-Run the full UI suite only on the newest available iPhone simulator and the current macOS host:
+`Scripts/ci.sh` never runs UI tests. Run the full interactive UI suite locally, on the current macOS host and newest available iPhone simulator, through its separate entry point:
 
 ```sh
-RUN_UI_TESTS=1 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ci.sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh
 ```
 
-Focused commands:
+`Scripts/ui_tests.sh` is local-only and exits without running tests when a CI environment is detected.
+
+Focused non-interactive commands:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --package-path Packages/StowCore
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-macOS CODE_SIGNING_ALLOWED=NO build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-iOS -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
+```
+
+Focused local macOS UI test command:
+
+```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme StowMacUITests CODE_SIGN_ENTITLEMENTS='' CODE_SIGN_IDENTITY='-' test
 ```
 
@@ -65,7 +72,9 @@ Signing team selection and CloudKit credentials are kept in local Xcode settings
 
 Press **Command-Shift-V** from any app to open Stow as a translucent bar along the bottom of the active display. The panel provides a single horizontal clipboard timeline, Clipboard/Inbox/Pinned modes, inline search filters, compact mode when resized, and full keyboard navigation. Use the arrow keys to select, Return to paste, Space to preview, Command-C to copy, Command-O to open, Command-E to edit, and Command-Shift-A to archive.
 
-Stow requests Accessibility access only for pasting directly back into the app you were using. Without access, Return safely copies the item and displays a copy-only fallback. Configure this under **Stow → Settings → Direct Paste**.
+Close the panel with its always-visible **Close** button, by pressing **Command-Shift-V** again, or by clicking outside it. Escape works from the inside out: it closes a preview/editor, clears active search criteria, collapses Search, and then closes the panel. Unsaved edits are never discarded by an exit request without confirmation. Successful paste/open/drag actions close automatically; Command-C deliberately keeps the panel open for repeated copying. Opening Quick Add, Library, or Settings closes the panel first so Stow surfaces do not stack.
+
+The toolbar shows whether Return will use **Direct paste** or the **Copy only** fallback, and reports when clipboard monitoring is paused. Search treats fullwidth and halfwidth Latin letters, numbers, punctuation, and spaces as equivalent, so an accidental input-mode switch does not hide matching items. Stow requests Accessibility access only for pasting directly back into the app you were using. Without access, Return safely copies the item, tells you to press Command-V, and returns focus to the originating app. Configure this under **Stow → Settings → Direct Paste**.
 
 The menu bar item opens the quick panel, Quick Add, the management Library, monitoring controls, and Settings. The Library remains the place for Inbox processing, Archive, Trash, and detailed metadata work.
 

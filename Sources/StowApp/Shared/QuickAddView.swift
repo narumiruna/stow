@@ -10,6 +10,7 @@ import AppKit
 struct QuickAddView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppModel.self) private var appModel
+    private let onFinished: (() -> Void)?
     @State private var content = ""
     @State private var title = ""
     @State private var note = ""
@@ -20,13 +21,17 @@ struct QuickAddView: View {
     @State private var attachmentURL: URL?
     @State private var dropTargeted = false
 
+    init(onFinished: (() -> Void)? = nil) {
+        self.onFinished = onFinished
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Content") {
                     if let attachmentURL {
                         Label(attachmentURL.lastPathComponent, systemImage: attachmentType(for: attachmentURL) == .image ? "photo" : "doc")
-                        Button("Remove Attachment", role: .destructive) { self.attachmentURL = nil }
+                        Button("Remove Attachment", role: .destructive) { removeAttachment() }
                     } else {
                         TextEditor(text: $content)
                             .frame(minHeight: 160)
@@ -48,7 +53,7 @@ struct QuickAddView: View {
             }
             .navigationTitle("Quick Add")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { appModel.isAdding = false; dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: finish) }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(attachmentURL == nil && content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -58,6 +63,7 @@ struct QuickAddView: View {
             }
         }
         .frame(minWidth: 420, minHeight: 520)
+        .onDisappear { removeAttachment() }
     }
 
     private var dropZone: some View {
@@ -72,10 +78,11 @@ struct QuickAddView: View {
     }
 
     private func save() {
+        let saved: Bool
         if let attachmentURL {
             let values = try? attachmentURL.resourceValues(forKeys: [.fileSizeKey, .contentTypeKey])
             let type = attachmentType(for: attachmentURL)
-            appModel.createAttachment(CaptureDraft(
+            saved = appModel.createAttachment(CaptureDraft(
                 type: type,
                 title: title.isEmpty ? attachmentURL.lastPathComponent : title,
                 stagedAttachmentName: attachmentURL.lastPathComponent,
@@ -89,7 +96,7 @@ struct QuickAddView: View {
         } else {
             let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
             let looksLikeURL = URL(string: trimmed).map { ["http", "https"].contains($0.scheme?.lowercased() ?? "") } ?? false
-            appModel.create(CaptureDraft(
+            saved = appModel.create(CaptureDraft(
                 type: saveAsCode ? .code : (looksLikeURL ? .link : .text),
                 title: title,
                 textContent: looksLikeURL ? nil : content,
@@ -100,6 +107,29 @@ struct QuickAddView: View {
                 directlyArchive: directlyArchive
             ))
         }
+        if saved { finish() }
+    }
+
+    private func finish() {
+        appModel.isAdding = false
+        removeAttachment()
+        if let onFinished { onFinished() }
+        else { dismiss() }
+    }
+
+    private func removeAttachment() {
+        guard let attachmentURL else { return }
+        self.attachmentURL = nil
+        removeOwnedStagingDirectory(for: attachmentURL)
+    }
+
+    private func removeOwnedStagingDirectory(for url: URL) {
+        let importsRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("StowImports", isDirectory: true)
+            .standardizedFileURL
+        let parent = url.deletingLastPathComponent().standardizedFileURL
+        guard parent.path.hasPrefix(importsRoot.path + "/") else { return }
+        try? FileManager.default.removeItem(at: parent)
     }
 
     private func attachmentType(for url: URL) -> ItemType {
@@ -107,16 +137,21 @@ struct QuickAddView: View {
     }
 
     private func adoptFile(_ source: URL) {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("StowImports/\(UUID().uuidString)", isDirectory: true)
         do {
             let accessed = source.startAccessingSecurityScopedResource()
             defer { if accessed { source.stopAccessingSecurityScopedResource() } }
-            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("StowImports/\(UUID().uuidString)", isDirectory: true)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let destination = directory.appendingPathComponent(source.lastPathComponent)
             try FileManager.default.copyItem(at: source, to: destination)
+            let previous = attachmentURL
             attachmentURL = destination
+            if let previous { removeOwnedStagingDirectory(for: previous) }
             if title.isEmpty { title = source.deletingPathExtension().lastPathComponent }
-        } catch { appModel.presentedError = error.localizedDescription }
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            appModel.presentedError = error.localizedDescription
+        }
     }
 
     private func pasteClipboard() {
@@ -131,14 +166,19 @@ struct QuickAddView: View {
     }
 
     private func adoptData(_ data: Data, extension fileExtension: String) {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("StowImports/\(UUID().uuidString)", isDirectory: true)
         do {
-            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("StowImports/\(UUID().uuidString)", isDirectory: true)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let url = directory.appendingPathComponent("Pasted Image.\(fileExtension)")
             try data.write(to: url, options: .atomic)
+            let previous = attachmentURL
             attachmentURL = url
+            if let previous { removeOwnedStagingDirectory(for: previous) }
             if title.isEmpty { title = "Pasted Image" }
-        } catch { appModel.presentedError = error.localizedDescription }
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            appModel.presentedError = error.localizedDescription
+        }
     }
 }
 
