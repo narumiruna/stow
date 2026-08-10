@@ -2,6 +2,9 @@
 
 Stow is a local-first universal content inbox for iOS, iPadOS, and macOS.
 
+> [!WARNING]
+> Stow is still under active development. Features may be incomplete or change without notice.
+
 ## Requirements
 
 - Xcode 26.6 (build 17F113)
