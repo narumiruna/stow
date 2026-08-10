@@ -63,3 +63,8 @@ fastlane/test_output
 
 # Project
 docs/plans/archived/
+
+# Raster images
+*.[pP][nN][gG]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
