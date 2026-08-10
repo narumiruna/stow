@@ -528,10 +528,9 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         guard let dependencies = MacAppCoordinator.dependencies else { return }
         let model = dependencies.model
         self.model = model
-        let root = StowRootView()
+        let root = MacLibraryView()
             .environment(model)
             .modelContainer(dependencies.container)
-            .frame(minWidth: 840, minHeight: 560)
         let hosting = NSHostingController(rootView: root)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1_080, height: 720),

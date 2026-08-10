@@ -138,9 +138,15 @@ final class AppModel {
     @discardableResult
     func togglePin(_ items: [StowItem]) -> Bool {
         guard let first = items.first else { return false }
+        return setPinned(items, pinned: !first.isPinned)
+    }
+
+    @discardableResult
+    func setPinned(_ items: [StowItem], pinned: Bool) -> Bool {
+        guard !items.isEmpty else { return false }
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
-            try repository.setPinned(items.map(\.id), pinned: !first.isPinned)
+            try repository.setPinned(items.map(\.id), pinned: pinned)
             presentedError = nil
             return true
         } catch {
