@@ -51,6 +51,9 @@ struct MacSettingsView: View {
             NotificationCenter.default.post(name: .stowClipboardMonitoringChanged, object: nil)
             refreshClipboardStatus()
         }
+        #if DEBUG
+        .background(MacSettingsWindowConfigurator())
+        #endif
     }
 
     private var capturePage: some View {
@@ -58,7 +61,7 @@ struct MacSettingsView: View {
             settingsGroup("Clipboard Monitoring") {
                 Toggle("Automatically save copied items", isOn: $clipboardMonitoringEnabled)
                     .accessibilityIdentifier("settings-clipboard-monitoring-toggle")
-                statusRow(title: "Access", value: model.clipboardMonitoringStatus)
+                statusRow(title: "Access", value: displayedClipboardMonitoringStatus)
                 guidance("While Stow is running, new text, links, images, and files copied to the clipboard are saved to Inbox. Clipboard contents that existed before monitoring started are ignored.")
                 if #available(macOS 15.4, *) {
                     guidance("For reliable background capture, set Stow to Always Allow in Privacy & Security › Paste from Other Apps.")
@@ -84,7 +87,7 @@ struct MacSettingsView: View {
             }
 
             settingsGroup("Keyboard Shortcuts") {
-                statusRow(title: "Global registration", value: model.globalShortcutStatus)
+                statusRow(title: "Global registration", value: displayedGlobalShortcutStatus)
                 Picker("Quick Add", selection: $shortcutDraft.quickAdd) {
                     Text("⌥⇧S").tag("optionShiftS")
                     Text("⌃⌥S").tag("controlOptionS")
@@ -272,7 +275,15 @@ struct MacSettingsView: View {
     }
 
     private func refreshPermissionStatuses() {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-settings-accessibility-denied") {
+            directPasteGranted = false
+        } else {
+            directPasteGranted = AXIsProcessTrusted()
+        }
+        #else
         directPasteGranted = AXIsProcessTrusted()
+        #endif
         refreshClipboardStatus()
     }
 
@@ -314,7 +325,53 @@ struct MacSettingsView: View {
         NSWorkspace.shared.open(url)
     }
 
+    private var displayedClipboardMonitoringStatus: String {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-settings-long-status") {
+            return "Clipboard access needs attention in System Settings before automatic background capture can resume reliably."
+        }
+        #endif
+        return model.clipboardMonitoringStatus
+    }
+
+    private var displayedGlobalShortcutStatus: String {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-settings-long-status") {
+            return "The selected shortcut is already used by another application; the previous working shortcuts remain registered until a replacement succeeds."
+        }
+        #endif
+        return model.globalShortcutStatus
+    }
+
     private var storageBytes: Int64 {
         attachments.reduce(0) { $0 + Int64($1.byteCount) }
     }
 }
+
+#if DEBUG
+private struct MacSettingsWindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { configure(view.window) }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { configure(nsView.window) }
+    }
+
+    private func configure(_ window: NSWindow?) {
+        guard let window,
+              ProcessInfo.processInfo.arguments.contains("--ui-testing") else { return }
+        window.identifier = NSUserInterfaceItemIdentifier("stow-settings-window")
+        guard let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--ui-testing-settings-size=") }) else { return }
+        let rawSize = argument.replacingOccurrences(of: "--ui-testing-settings-size=", with: "")
+        let components = rawSize.split(separator: "x").compactMap { Double($0) }
+        guard components.count == 2 else { return }
+        let size = NSSize(width: max(620, components[0]), height: max(440, components[1]))
+        guard window.contentLayoutRect.size != size else { return }
+        window.setContentSize(size)
+        window.center()
+    }
+}
+#endif

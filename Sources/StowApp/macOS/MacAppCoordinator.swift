@@ -68,6 +68,13 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     @objc private func openSettings() { retrievalPanel.openSettings() }
 
     func applyShortcutConfiguration(_ candidate: MacShortcutConfiguration) -> MacShortcutApplyResult {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-fail-shortcut-registration") {
+            let message = "The selected test shortcut is already used by another app. Your previous shortcuts remain registered."
+            model?.globalShortcutStatus = message
+            return .failure(message)
+        }
+        #endif
         let result = MacShortcutTransaction.apply(candidate, using: hotKeys)
         switch result {
         case .success:

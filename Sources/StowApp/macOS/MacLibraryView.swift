@@ -53,6 +53,9 @@ struct MacLibraryView: View {
             if phase == .active { appModel.runMaintenance() }
         }
         .privacySensitive()
+        #if DEBUG
+        .background(MacLibraryWindowConfigurator())
+        #endif
     }
 
     private var sidebar: some View {
@@ -508,6 +511,7 @@ private struct MacLibraryRow: View {
         }
         .padding(.vertical, 5)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .help(item.title)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(item.title)
         .accessibilityValue(accessibilityValue)
@@ -944,3 +948,31 @@ private extension String {
         return value.isEmpty ? nil : value
     }
 }
+
+#if DEBUG
+private struct MacLibraryWindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { configure(view.window) }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { configure(nsView.window) }
+    }
+
+    private func configure(_ window: NSWindow?) {
+        guard let window,
+              ProcessInfo.processInfo.arguments.contains("--ui-testing") else { return }
+        window.identifier = NSUserInterfaceItemIdentifier("stow-library-window")
+        guard let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--ui-testing-library-size=") }) else { return }
+        let rawSize = argument.replacingOccurrences(of: "--ui-testing-library-size=", with: "")
+        let components = rawSize.split(separator: "x").compactMap { Double($0) }
+        guard components.count == 2 else { return }
+        let size = NSSize(width: max(840, components[0]), height: max(560, components[1]))
+        guard window.contentLayoutRect.size != size else { return }
+        window.setContentSize(size)
+        window.center()
+    }
+}
+#endif

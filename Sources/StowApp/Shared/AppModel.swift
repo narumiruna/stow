@@ -59,6 +59,11 @@ final class AppModel {
         if !StowEnvironment.currentContainerUsesCloud {
             syncStatus = .paused("This build has no iCloud entitlement; your library remains local.")
         }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-settings-sync-paused") {
+            syncStatus = .paused("A deliberately long synchronization status verifies that recovery guidance wraps completely without hiding the action people need next.")
+        }
+        #endif
         repository = StowRepository(modelContext: context)
         actionService = repository.map(ItemActionService.init(repository:))
         #if DEBUG
@@ -245,6 +250,11 @@ final class AppModel {
         guard !searchIndexRebuildState.isInProgress else { return }
         searchIndexRebuildState = .inProgress
         do {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing-fail-search-index-rebuild") {
+                throw NSError(domain: "StowUITesting", code: 3, userInfo: [NSLocalizedDescriptionKey: "The test replacement index could not be written. Try again."])
+            }
+            #endif
             let documents: [SearchDocument]
             let replacementFingerprint: String?
             if let searchDocumentsOverride {
@@ -398,6 +408,14 @@ final class AppModel {
             try repository.addAttachment(StowAttachment(itemID: image.id, data: imageData, contentType: "image/png", fileName: "panel.png"))
             let file = try repository.create(from: CaptureDraft(type: .file, title: "Panel File", stagedAttachmentName: "panel.txt", attachmentByteCount: 10, contentType: "text/plain", fileName: "panel.txt", sourceApp: "Finder"), at: base.addingTimeInterval(4))
             try repository.addAttachment(StowAttachment(itemID: file.id, data: Data("panel file".utf8), contentType: "text/plain", fileName: "panel.txt"))
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing-library-long-content") {
+                _ = try repository.create(from: CaptureDraft(
+                    type: .text,
+                    title: "A deliberately long Library title that must remain understandable at the minimum supported window width",
+                    textContent: "Long content verifies wrapping, adaptive filters, complete accessibility values, and a stable detail layout.",
+                    sourceApp: "An Extremely Long Source Application Name Used to Verify Adaptive Layout"
+                ), at: base.addingTimeInterval(5))
+            }
         } catch { presentedError = error.localizedDescription }
     }
     #endif
