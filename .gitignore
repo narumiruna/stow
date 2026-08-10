@@ -62,4 +62,4 @@ fastlane/screenshots/**/*.png
 fastlane/test_output
 
 # Project
-docs/plans/
+docs/plans/archived/
