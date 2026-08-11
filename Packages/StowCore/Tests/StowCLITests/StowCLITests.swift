@@ -59,17 +59,32 @@ final class StowCLIArgumentsTests: XCTestCase {
     func testExportParsesAttachmentAndSafeOverwriteIntent() throws {
         let itemID = UUID()
         let attachmentID = UUID()
+        let requestID = UUID()
         var parser = StowCLIArguments(arguments: [
             "export", itemID.uuidString, "--attachment", attachmentID.uuidString,
-            "--output", "/tmp/image.png", "--force", "--json",
+            "--output", "/tmp/image.png", "--force", "--request-id", requestID.uuidString, "--json",
         ])
 
         guard case .remote(let request, let json, _, let export) = try parser.parse() else {
             return XCTFail("Expected remote invocation")
         }
+        XCTAssertEqual(request.requestID, requestID)
         XCTAssertEqual(request.export, StowAutomationExportPayload(itemID: itemID, attachmentID: attachmentID))
         XCTAssertEqual(export, StowCLIExportOptions(outputPath: "/tmp/image.png", force: true))
         XCTAssertTrue(json)
+    }
+
+    func testExportRejectsInvalidRequestID() {
+        var parser = StowCLIArguments(arguments: [
+            "export", UUID().uuidString, "--request-id", "not-a-uuid",
+        ])
+
+        XCTAssertThrowsError(try parser.parse()) { error in
+            XCTAssertEqual(
+                error as? StowCLIParseError,
+                StowCLIParseError(message: "Invalid request ID: not-a-uuid")
+            )
+        }
     }
 }
 
@@ -91,7 +106,45 @@ final class StowCLIClientTests: XCTestCase {
         XCTAssertFalse(launched)
     }
 
-    func testTimeoutIsStructuredAndRetainsRequestIDForRetry() throws {
+    func testCachedExportRetryReturnsWithoutRepeatingHostWork() throws {
+        let spool = try StowAutomationSpool(rootURL: temporaryRoot())
+        let itemID = UUID()
+        let request = StowAutomationRequest(
+            requestID: UUID(),
+            command: .export,
+            export: .init(itemID: itemID)
+        )
+        try spool.submit(request)
+        let claim = try XCTUnwrap(spool.claimNext())
+        let expected = StowAutomationResponse(
+            requestID: request.requestID,
+            data: StowAutomationResult(export: .init(
+                itemID: itemID,
+                attachment: StowAutomationAttachment(
+                    id: UUID(),
+                    contentType: "image/png",
+                    fileName: "image.png",
+                    byteCount: 3,
+                    createdAt: Date()
+                ),
+                path: "/tmp/image.png"
+            ))
+        )
+        try spool.complete(claim, with: expected)
+        var launched = false
+        let client = StowCLIClient(spool: spool, launchHost: { launched = true })
+
+        let actual = client.send(request, timeout: 1)
+
+        XCTAssertEqual(actual.requestID, expected.requestID)
+        XCTAssertEqual(actual.data?.export?.itemID, itemID)
+        XCTAssertEqual(actual.data?.export?.attachment.id, expected.data?.export?.attachment.id)
+        XCTAssertEqual(actual.data?.export?.path, "/tmp/image.png")
+        XCTAssertTrue(actual.ok)
+        XCTAssertFalse(launched)
+    }
+
+    func testReadTimeoutIsStructuredAndUsesSafeRetryGuidance() throws {
         let spool = try StowAutomationSpool(rootURL: temporaryRoot())
         let request = StowAutomationRequest(command: .status)
         var current = Date(timeIntervalSince1970: 100)
@@ -106,7 +159,28 @@ final class StowCLIClientTests: XCTestCase {
 
         XCTAssertEqual(response.requestID, request.requestID)
         XCTAssertEqual(response.error?.code, .timeout)
+        XCTAssertEqual(response.error?.message, "Stow did not respond before the timeout; retry the command.")
         XCTAssertTrue(response.error?.retryable == true)
+    }
+
+    func testMutatingTimeoutRequiresSameRequestIDRetry() throws {
+        let spool = try StowAutomationSpool(rootURL: temporaryRoot())
+        let request = StowAutomationRequest(command: .export, export: .init(itemID: UUID()))
+        var current = Date(timeIntervalSince1970: 100)
+        let client = StowCLIClient(
+            spool: spool,
+            launchHost: {},
+            now: { current },
+            sleep: { current = current.addingTimeInterval($0) }
+        )
+
+        let response = client.send(request, timeout: 0.1)
+
+        XCTAssertEqual(response.requestID, request.requestID)
+        XCTAssertEqual(
+            response.error?.message,
+            "Stow did not respond before the timeout; retry with the same request ID."
+        )
     }
 
     func testExportCopyRefusesReplacementWithoutForce() throws {

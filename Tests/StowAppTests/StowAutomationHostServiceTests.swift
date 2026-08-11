@@ -103,12 +103,72 @@ final class StowAutomationHostServiceTests: XCTestCase {
         XCTAssertEqual(try repository.item(id: item.id)?.useCount, 0)
     }
 
+    func testControllerPeriodicallyRemovesExpiredArtifactsWithoutRestart() async throws {
+        let container = try StowContainerFactory.inMemory()
+        let model = AppModel()
+        model.connect(ModelContext(container))
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("StowAutomationControllerTests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let controller = try StowAutomationController(
+            model: model,
+            rootURL: root,
+            maintenanceInterval: .milliseconds(25)
+        )
+        controller.start()
+        defer {
+            controller.stop()
+            try? FileManager.default.removeItem(at: root)
+        }
+        let spool = try StowAutomationSpool(rootURL: root)
+        let expiredDate = Date().addingTimeInterval(-86_401)
+
+        let response = StowAutomationResponse(requestID: UUID(), data: StowAutomationResult())
+        let responseURL = spool.responsesDirectoryURL
+            .appendingPathComponent("\(response.requestID.uuidString).json")
+        try StowAutomationProtocol.encoder().encode(response).write(to: responseURL, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.modificationDate: expiredDate],
+            ofItemAtPath: responseURL.path
+        )
+        let responseWasRemoved = try await waitUntilMissing(responseURL)
+        XCTAssertTrue(
+            responseWasRemoved,
+            "Expired responses should be removed during the host's lifetime"
+        )
+
+        let exportURL = try spool.writeExport(
+            Data("private attachment".utf8),
+            fileName: "item.txt",
+            requestID: UUID()
+        )
+        let exportDirectory = exportURL.deletingLastPathComponent()
+        try FileManager.default.setAttributes(
+            [.modificationDate: expiredDate],
+            ofItemAtPath: exportDirectory.path
+        )
+        let exportWasRemoved = try await waitUntilMissing(exportDirectory)
+        XCTAssertTrue(
+            exportWasRemoved,
+            "Expired exports created after one maintenance pass should also be removed"
+        )
+    }
+
     func testUnsupportedProtocolVersionFailsWithoutExecutingCommand() async throws {
         let setup = try makeService()
         let response = await setup.service.execute(StowAutomationRequest(command: .status, schemaVersion: 99))
 
         XCTAssertEqual(response.error?.code, .unsupportedVersion)
         XCTAssertTrue(try setup.model.repository?.allItems().isEmpty == true)
+    }
+
+    private func waitUntilMissing(_ url: URL) async throws -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while FileManager.default.fileExists(atPath: url.path), clock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        return !FileManager.default.fileExists(atPath: url.path)
     }
 
     private func makeService() throws -> (service: StowAutomationHostService, model: AppModel) {

@@ -108,7 +108,7 @@ struct StowCLIClient {
                 requestID: request.requestID,
                 error: StowAutomationError(
                     code: .timeout,
-                    message: "Stow did not respond before the timeout; retry with the same request ID.",
+                    message: timeoutMessage(for: request.command),
                     retryable: true
                 )
             )
@@ -119,6 +119,15 @@ struct StowCLIClient {
                 requestID: request.requestID,
                 error: StowAutomationError(code: .ioFailure, message: error.localizedDescription, retryable: true)
             )
+        }
+    }
+
+    private func timeoutMessage(for command: StowAutomationCommand) -> String {
+        switch command {
+        case .add, .export:
+            "Stow did not respond before the timeout; retry with the same request ID."
+        case .status, .search, .get:
+            "Stow did not respond before the timeout; retry the command."
         }
     }
 

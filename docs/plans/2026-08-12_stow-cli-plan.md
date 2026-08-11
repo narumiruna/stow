@@ -53,7 +53,7 @@ stow status [--json]
 stow search [QUERY] [--status inbox|archived|trashed|all] [--type TYPE] [--limit N] [--json]
 stow get ITEM_ID [--json]
 stow add --type text|code|link [--title TITLE] [--language LANGUAGE] [--note NOTE] [--url URL] [--text TEXT|--stdin] [--request-id UUID] [--json]
-stow export ITEM_ID [--attachment ATTACHMENT_ID] [--output PATH] [--force] [--json]
+stow export ITEM_ID [--attachment ATTACHMENT_ID] [--output PATH] [--force] [--request-id UUID] [--json]
 stow help
 stow version [--json]
 ```
@@ -68,7 +68,7 @@ JSON mode will emit one JSON document on standard output, diagnostics will go to
 
 Usage errors, missing items, unavailable app installations, protocol failures, and retryable timeouts will use documented nonzero exit codes, and a timeout response will include the request ID needed to retry or recover the completed response.
 
-`list`, `search`, and `get` will not change Recently Used state, while a successful `export` will count as explicit use consistently with the existing Library behavior.
+`search` and `get` will not change Recently Used state, while a successful `export` will count as explicit use consistently with the existing Library behavior.
 
 ## Tech Stack
 
@@ -138,12 +138,13 @@ Usage errors, missing items, unavailable app installations, protocol failures, a
 
 ## Verification Evidence
 
-- Package verification passed 78 tests with zero failures on 2026-08-12.
-- `StowAppTests` passed 29 tests with zero failures, and `Scripts/ci.sh` completed both platform builds plus entitlement and privacy checks.
+- Package verification passed 81 tests with zero failures on 2026-08-12.
+- `StowAppTests` passed 30 tests with zero failures, and `Scripts/ci.sh` completed both platform builds plus entitlement and privacy checks.
 - Two consecutive generator runs produced the same committed `Stow.xcodeproj` bytes.
 - Temporary-HOME installation repaired a stale managed symlink to an absolute helper path and remained idempotent on the next install.
 - Live helper smoke verification returned stable IDs for a retried add, found and fetched the code item, exported a 347,662-byte PNG, refused overwrite with exit 74 and a readable `fallback_path`, preserved the destination, and succeeded with `--force`.
 - Concurrent hidden CLI and manual app launches returned a successful status, one Stow process, and `Hidden=true` from Launch Services.
+- Review follow-up tests prove that periodic host maintenance removes expired responses and exports across multiple cycles, and cached export retries reuse an explicit request ID without relaunching the host.
 - The final XCTest UI batch is pending because `DevToolsSecurity -status` reports Developer Mode disabled, and XCTest timed out before running a scenario while its automation writer awaited authentication.
 
 ## Completion Checklist

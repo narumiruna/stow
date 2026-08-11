@@ -24,7 +24,7 @@ struct StowCLIArguments {
       stow search [QUERY] [--status inbox|archived|trashed|all] [--type TYPE] [--limit N] [--json]
       stow get ITEM_ID [--json]
       stow add --type text|code|link [--title TITLE] [--language LANGUAGE] [--note NOTE] [--url URL] [--text TEXT|--stdin] [--request-id UUID] [--json]
-      stow export ITEM_ID [--attachment ATTACHMENT_ID] [--output PATH] [--force] [--json]
+      stow export ITEM_ID [--attachment ATTACHMENT_ID] [--output PATH] [--force] [--request-id UUID] [--json]
       stow help
       stow version [--json]
     """
@@ -179,6 +179,7 @@ struct StowCLIArguments {
         var attachmentID: UUID?
         var outputPath: String?
         var force = false
+        var requestID = UUID()
         while let option = arguments.first {
             arguments.removeFirst()
             guard option.hasPrefix("-") else { throw StowCLIParseError(message: "Unexpected argument: \(option)") }
@@ -190,11 +191,21 @@ struct StowCLIArguments {
                 attachmentID = id
             case "--output": outputPath = try requireValue(after: option)
             case "--force": force = true
+            case "--request-id":
+                let value = try requireValue(after: option)
+                guard let id = UUID(uuidString: value) else {
+                    throw StowCLIParseError(message: "Invalid request ID: \(value)")
+                }
+                requestID = id
             default: throw StowCLIParseError(message: "Unknown option: \(option)")
             }
         }
         return .remote(
-            request: StowAutomationRequest(command: .export, export: .init(itemID: itemID, attachmentID: attachmentID)),
+            request: StowAutomationRequest(
+                requestID: requestID,
+                command: .export,
+                export: .init(itemID: itemID, attachmentID: attachmentID)
+            ),
             json: common.json,
             timeout: common.timeout,
             export: StowCLIExportOptions(outputPath: outputPath, force: force)

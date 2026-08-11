@@ -96,13 +96,18 @@ printf 'let answer = 42\n' | \
   stow add --type code --title 'Answer' --language swift --stdin --json
 ```
 
-Reuse an explicit request ID when a timed-out write must be retried:
+Reuse an explicit request ID when a timed-out mutation must be retried:
 
 ```sh
 request_id="$(uuidgen)"
 printf 'idempotent body\n' | \
   stow add --type text --stdin --request-id "$request_id" --json
+
+export_request_id="$(uuidgen)"
+stow export ITEM_UUID --request-id "$export_request_id" --json
 ```
+
+Retry either command with its original request ID to recover a response that completed after the caller timed out without repeating host-side mutation work.
 
 Search returns compact metadata and bounded snippets, while `get` returns the complete text fields and attachment metadata:
 

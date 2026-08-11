@@ -41,7 +41,7 @@ A live helper smoke check confirmed that host launch remains hidden and preserve
 
 Protocol version 1 uses snake-case keys, ISO 8601 dates, lowercase enum values, and a response envelope containing `ok`, `data`, or a structured `error`.
 
-Requests move atomically through `Pending` and `Processing`, malformed requests move to `Quarantine`, and completed responses and exports are removed after 24 hours by host maintenance.
+Requests move atomically through `Pending` and `Processing`, malformed requests move to `Quarantine`, and completed responses and exports are removed after 24 hours by periodic maintenance throughout the host lifetime.
 
 A host restart returns interrupted processing files to pending, and an existing response always wins over a duplicate request.
 
