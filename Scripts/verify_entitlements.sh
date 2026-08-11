@@ -34,10 +34,17 @@ PY
 
 sign_and_verify() {
   local source_app="$1" host_entitlements="$2" extension_entitlements="$3" extension_relative_path="$4" label="$5"
+  local helper_entitlements="${6:-}" helper_relative_path="${7:-}"
   local copy="$temporary/$label.app"
   cp -R "$source_app" "$copy"
   local extension="$copy/$extension_relative_path"
   codesign --force --sign - --entitlements "$extension_entitlements" "$extension" >/dev/null
+  if [[ -n "$helper_entitlements" ]]; then
+    local helper="$copy/$helper_relative_path"
+    [[ -x "$helper" ]] || { echo "Missing embedded helper: $helper" >&2; exit 1; }
+    codesign --force --sign - --entitlements "$helper_entitlements" "$helper" >/dev/null
+    assert_entitlements "$helper" "$helper_entitlements" "$label-helper"
+  fi
   codesign --force --sign - --entitlements "$host_entitlements" "$copy" >/dev/null
   assert_entitlements "$extension" "$extension_entitlements" "$label-extension"
   assert_entitlements "$copy" "$host_entitlements" "$label-host"
@@ -51,7 +58,9 @@ ios_app="$(product_path Stow-iOS iphonesimulator)"
 sign_and_verify "$mac_app" \
   "$root/Configuration/Stow-macOS.entitlements" \
   "$root/Configuration/StowShare-macOS.entitlements" \
-  "Contents/PlugIns/StowShare-macOS.appex" macOS
+  "Contents/PlugIns/StowShare-macOS.appex" macOS \
+  "$root/Configuration/StowCLI.entitlements" \
+  "Contents/Helpers/stow"
 sign_and_verify "$ios_app" \
   "$root/Configuration/Stow-iOS.entitlements" \
   "$root/Configuration/StowShare-iOS.entitlements" \

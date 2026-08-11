@@ -27,7 +27,7 @@ final class AppModel {
     }
 
     @ObservationIgnored private let launchStartedAt = ContinuousClock.now
-    private var repository: StowRepository?
+    private(set) var repository: StowRepository?
     private var actionService: ItemActionService?
     private var spool: CaptureSpool?
     private var metrics: OnDeviceMetricsClient?
@@ -84,22 +84,31 @@ final class AppModel {
 
     @discardableResult
     func create(_ draft: CaptureDraft) -> Bool {
+        do {
+            _ = try createForAutomation(draft)
+            presentedError = nil
+            isAdding = false
+            return true
+        } catch {
+            presentedError = error.localizedDescription
+            return false
+        }
+    }
+
+    func createForAutomation(_ draft: CaptureDraft) throws -> StowItem {
         let started = ContinuousClock.now
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
             let item = try repository.create(from: draft)
-            presentedError = nil
             try? metrics?.record(.captureSucceeded)
             try? metrics?.recordDuration(.captureDuration, seconds: started.duration(to: .now).secondsValue)
-            isAdding = false
             if item.type == .link {
                 Task { await LinkMetadataEnricher().enrich(item: item, repository: repository) }
             }
-            return true
+            return item
         } catch {
             try? metrics?.record(.captureFailed)
-            presentedError = error.localizedDescription
-            return false
+            throw error
         }
     }
 
@@ -334,6 +343,24 @@ final class AppModel {
             searchResultIDs = nil
             presentedError = "The local search index will be rebuilt. \(error.localizedDescription)"
         }
+    }
+
+    func searchForAutomation(items: [StowItem], payload: StowAutomationSearchPayload) async throws -> [UUID] {
+        guard let searchIndex else { throw SearchIndexRecoveryError.indexUnavailable }
+        let fingerprint = searchFingerprint(for: items)
+        if fingerprint != indexedFingerprint {
+            try await searchIndex.rebuild(items.map(SearchDocument.init(item:)))
+            indexedFingerprint = fingerprint
+        }
+        let status = payload.status?.itemStatus
+        let query = SearchQuery(
+            text: payload.query,
+            type: payload.type,
+            status: status,
+            includeTrashed: payload.status == .all,
+            limit: payload.limit
+        )
+        return try await searchIndex.search(query)
     }
 
     func searchForRetrieval(

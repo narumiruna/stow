@@ -2,6 +2,8 @@
 
 Stow is local-first. Captured links, text, code, images, files, notes, and metadata are stored on your devices and, when configured, in your private iCloud database. The developer does not operate a service that receives this content.
 
+On macOS, an explicitly invoked local `stow` command can search, retrieve, add, or export content for processes running under the same user account. The command communicates through Stow's private App Group and does not provide a network or remote automation service.
+
 On macOS, Stow can monitor clipboard changes while the app is running and automatically save newly copied text, links, images, and files. Monitoring can be disabled at any time in Settings. On supported macOS versions, clipboard access is controlled by Privacy & Security › Paste from Other Apps. Content already on the clipboard when monitoring starts is ignored, and clipboard content is never sent to the developer.
 
 Stow does not include advertising, cross-app tracking, or third-party analytics. Optional product counters are aggregate, remain on device, and can be disabled in Settings.

@@ -159,8 +159,12 @@ public final class StowRepository {
         }
     }
 
+    public func allAttachments() throws -> [StowAttachment] {
+        try modelContext.fetch(FetchDescriptor<StowAttachment>())
+    }
+
     public func attachments(itemID: UUID) throws -> [StowAttachment] {
-        try modelContext.fetch(FetchDescriptor<StowAttachment>()).filter { $0.itemID == itemID }
+        try allAttachments().filter { $0.itemID == itemID }
     }
 
     @discardableResult

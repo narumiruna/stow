@@ -2,14 +2,28 @@
 # frozen_string_literal: true
 
 require "xcodeproj"
+require "digest"
 require "fileutils"
 require "pathname"
+
+class StowXcodeProject < Xcodeproj::Project
+  def generate_available_uuid_list(count = 100)
+    @stow_uuid_counter ||= 0
+    new_uuids = (0..count).map do
+      @stow_uuid_counter += 1
+      Digest::SHA256.hexdigest("stow-xcodeproj-#{@stow_uuid_counter}")[0, 24].upcase
+    end
+    uniques = new_uuids - (@generated_uuids + uuids)
+    @generated_uuids += uniques
+    @available_uuids += uniques
+  end
+end
 
 ROOT = File.expand_path("..", __dir__)
 PROJECT_PATH = File.join(ROOT, "Stow.xcodeproj")
 FileUtils.rm_rf(PROJECT_PATH)
 
-project = Xcodeproj::Project.new(PROJECT_PATH)
+project = StowXcodeProject.new(PROJECT_PATH)
 project.root_object.attributes["LastSwiftUpdateCheck"] = "2660"
 project.root_object.attributes["LastUpgradeCheck"] = "2660"
 
@@ -36,12 +50,24 @@ def add_sources(group, target, root, relative_directories, source_root: "Sources
   relative_directories.each do |relative_directory|
     absolute_directory = File.join(root, source_root, relative_directory)
     next unless Dir.exist?(absolute_directory)
-    subgroup = group.new_group(File.basename(relative_directory), relative_directory)
+    subgroup = group.groups.find { |candidate| candidate.path == relative_directory }
+    subgroup ||= group.new_group(File.basename(relative_directory), relative_directory)
     Dir.glob(File.join(absolute_directory, "**", "*.swift")).sort.each do |path|
       relative = Pathname.new(path).relative_path_from(Pathname.new(File.join(root, source_root))).to_s
-      reference = subgroup.new_file(relative.sub(%r{^#{Regexp.escape(relative_directory)}/?}, ""))
+      file_path = relative.sub(%r{^#{Regexp.escape(relative_directory)}/?}, "")
+      reference = subgroup.files.find { |candidate| candidate.path == file_path }
+      reference ||= subgroup.new_file(file_path)
       target.add_file_references([reference])
     end
+  end
+end
+
+def add_external_sources(project, target, root, relative_directory, group_name)
+  absolute_directory = File.join(root, relative_directory)
+  group = project.main_group.new_group(group_name, relative_directory)
+  Dir.glob(File.join(absolute_directory, "**", "*.swift")).sort.each do |path|
+    relative = Pathname.new(path).relative_path_from(Pathname.new(absolute_directory)).to_s
+    target.add_file_references([group.new_file(relative)])
   end
 end
 
@@ -49,8 +75,13 @@ def configure_target(target, platform:, deployment:, bundle_id:, info_plist:, en
   target.build_configurations.each do |configuration|
     settings = configuration.build_settings
     settings["PRODUCT_BUNDLE_IDENTIFIER"] = bundle_id
-    settings["INFOPLIST_FILE"] = info_plist
-    settings["GENERATE_INFOPLIST_FILE"] = "NO"
+    if info_plist
+      settings["INFOPLIST_FILE"] = info_plist
+      settings["GENERATE_INFOPLIST_FILE"] = "NO"
+    else
+      settings.delete("INFOPLIST_FILE")
+      settings["GENERATE_INFOPLIST_FILE"] = "NO"
+    end
     settings["SWIFT_VERSION"] = "6.0"
     settings["SWIFT_STRICT_CONCURRENCY"] = "complete"
     settings["CODE_SIGN_STYLE"] = "Automatic"
@@ -81,6 +112,23 @@ mac_app = project.new_target(:application, "Stow-macOS", :osx, "14.0")
 configure_target(mac_app, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow", info_plist: "Configuration/macOS-App-Info.plist", entitlements: "Configuration/Stow-macOS.entitlements", module_name: "StowApp")
 add_sources(sources_group, mac_app, ROOT, ["StowApp/Shared", "StowApp/macOS"])
 add_package(project, mac_app, package_ref, "StowCore")
+
+cli = project.new_target(:command_line_tool, "StowCLI", :osx, "14.0")
+configure_target(cli, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow.cli", info_plist: nil, entitlements: "Configuration/StowCLI.entitlements", module_name: "StowCLI")
+cli.product_reference.name = "stow"
+cli.product_reference.path = "stow"
+cli.build_configurations.each do |configuration|
+  configuration.build_settings["PRODUCT_NAME"] = "stow"
+  configuration.build_settings["SKIP_INSTALL"] = "YES"
+end
+add_external_sources(project, cli, ROOT, "Packages/StowCore/Sources/StowCLI", "StowCLI")
+add_package(project, cli, package_ref, "StowCore")
+mac_app.add_dependency(cli)
+cli_copy_phase = mac_app.new_copy_files_build_phase("Embed Stow CLI")
+cli_copy_phase.symbol_dst_subfolder_spec = :wrapper
+cli_copy_phase.dst_path = "Contents/Helpers"
+cli_build_file = cli_copy_phase.add_file_reference(cli.product_reference, true)
+cli_build_file.settings = { "ATTRIBUTES" => ["CodeSignOnCopy"] }
 
 assets = resources_group.new_file("Assets.xcassets")
 [ios_app, mac_app].each do |target|
@@ -135,7 +183,7 @@ project.build_configurations.each do |configuration|
 end
 
 ["iOS-App-Info.plist", "macOS-App-Info.plist", "iOS-Share-Info.plist", "macOS-Share-Info.plist", "Test-Info.plist",
- "Stow-iOS.entitlements", "Stow-macOS.entitlements", "StowShare-iOS.entitlements", "StowShare-macOS.entitlements"].each do |name|
+ "Stow-iOS.entitlements", "Stow-macOS.entitlements", "StowCLI.entitlements", "StowShare-iOS.entitlements", "StowShare-macOS.entitlements"].each do |name|
   config_group.new_file(name)
 end
 privacy_manifest = config_group.new_file("PrivacyInfo.xcprivacy")

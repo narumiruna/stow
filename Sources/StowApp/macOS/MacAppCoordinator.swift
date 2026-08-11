@@ -16,6 +16,7 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     private let quickCapturePanel = QuickCapturePanelController()
     private let clipboardMonitor = ClipboardMonitor()
     private weak var model: AppModel?
+    private var automationController: StowAutomationController?
     private var container: ModelContainer?
     private var pendingAction: GlobalHotKeyService.Action?
     private var pendingRegistrationError: String?
@@ -46,6 +47,7 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
         }
         registerHotKeys()
         configureClipboardMonitoring()
+        configureAutomationIfNeeded()
         #if DEBUG
         let hidesLibraryOnLaunch = ProcessInfo.processInfo.arguments.contains("--ui-testing-utility-mode")
         #else
@@ -88,8 +90,13 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if automationController?.hasPendingRequests == true { return false }
         if !flag { retrievalPanel.openLibrary() }
         return true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        automationController?.stop()
     }
 
     private func registerHotKeys() {
@@ -109,10 +116,23 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
         self.container = container
         registerHotKeys()
         configureClipboardMonitoring()
+        configureAutomationIfNeeded()
         if let pendingRegistrationError { model.presentedError = pendingRegistrationError }
         if let pendingAction {
             self.pendingAction = nil
             handle(pendingAction)
+        }
+    }
+
+    private func configureAutomationIfNeeded() {
+        guard automationController == nil, let model else { return }
+        do {
+            let root = StowEnvironment.sharedContainerURL().appendingPathComponent("Automation", isDirectory: true)
+            let controller = try StowAutomationController(model: model, rootURL: root)
+            automationController = controller
+            controller.start()
+        } catch {
+            fputs("Stow automation setup failed.\n", stderr)
         }
     }
 
