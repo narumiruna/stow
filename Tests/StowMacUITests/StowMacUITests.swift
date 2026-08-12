@@ -312,6 +312,57 @@ final class StowMacUITests: XCTestCase {
         app.terminate()
     }
 
+    func testImmediateSearchAndPasteFromTextEdit() {
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        textEdit.launch()
+        let editor = textEdit.textViews.firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        clear(editor)
+
+        let fallbackApp = launchApp(extraArguments: [
+            "--ui-testing-utility-mode",
+            "--ui-testing-preserve-frontmost-application",
+        ])
+        let fallbackPanel = fallbackApp.windows["Stow Quick Panel"]
+        showPanel(from: textEdit, panel: fallbackPanel)
+        XCTAssertTrue(fallbackPanel.staticTexts["Paste mode: Copy only"].waitForExistence(timeout: 2))
+        fallbackApp.typeText("Panel Text")
+        let fallbackSearch = fallbackPanel.textFields["Search Stow"]
+        XCTAssertTrue(fallbackSearch.waitForExistence(timeout: 3), "Typing must open Search without a click")
+        XCTAssertEqual(fallbackSearch.value as? String, "Panel Text", "The first typed character must be preserved exactly once")
+        XCTAssertTrue(fallbackPanel.buttons["Text, Panel Text"].waitForExistence(timeout: 3))
+        fallbackApp.typeKey(.return, modifierFlags: [])
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "panel text payload")
+        XCTAssertTrue(fallbackPanel.staticTexts["Copied — paste with Command-V"].waitForExistence(timeout: 2))
+        XCTAssertTrue(fallbackPanel.waitForNonExistence(timeout: 3))
+        XCTAssertEqual(NSWorkspace.shared.frontmostApplication?.bundleIdentifier, "com.apple.TextEdit")
+        fallbackApp.terminate()
+
+        clear(editor)
+        let directApp = launchApp(extraArguments: [
+            "--ui-testing-utility-mode",
+            "--ui-testing-preserve-frontmost-application",
+            "--ui-testing-force-direct-paste",
+        ])
+        let directPanel = directApp.windows["Stow Quick Panel"]
+        showPanel(from: textEdit, panel: directPanel)
+        XCTAssertTrue(directPanel.staticTexts["Paste mode: Direct"].waitForExistence(timeout: 2))
+        directApp.typeText("Panel Text")
+        let directSearch = directPanel.textFields["Search Stow"]
+        XCTAssertTrue(directSearch.waitForExistence(timeout: 3))
+        XCTAssertEqual(directSearch.value as? String, "Panel Text")
+        directApp.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(directPanel.waitForNonExistence(timeout: 3))
+        let pasted = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in (editor.value as? String)?.contains("panel text payload") == true },
+            object: editor
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [pasted], timeout: 5), .completed)
+
+        directApp.terminate()
+        textEdit.terminate()
+    }
+
     func testCLILaunchesHostWithoutWindowsAndCompletesAgentSmokeFlow() throws {
         let app = XCUIApplication()
         app.terminate()
@@ -610,6 +661,21 @@ final class StowMacUITests: XCTestCase {
         let fileMenu = app.menuBars.menuBarItems["File"]
         fileMenu.click()
         fileMenu.menus.menuItems["Quick Panel…"].click()
+    }
+
+    private func showPanel(from origin: XCUIApplication, panel: XCUIElement) {
+        origin.activate()
+        for _ in 0..<3 where !panel.exists {
+            origin.typeKey("v", modifierFlags: [.command, .shift])
+            _ = panel.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(panel.exists, "The global shortcut must open the panel from the originating app")
+    }
+
+    private func clear(_ textView: XCUIElement) {
+        textView.click()
+        textView.typeKey("a", modifierFlags: .command)
+        textView.typeKey(.delete, modifierFlags: [])
     }
 
     private func openSettings(in app: XCUIApplication) {

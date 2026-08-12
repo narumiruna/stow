@@ -1,6 +1,6 @@
 # Immediate Search and Paste Plan
 
-**Status:** Planned
+**Status:** Implementation complete; final accumulated UI verification pending
 
 **Date:** 2026-08-13
 
@@ -49,15 +49,15 @@ Keep `PlatformActions.copy` as the pasteboard-writing boundary and `ItemActionSe
 
 ## Plan
 
-- [ ] Add focused `StowAppTests` coverage for the input contract, including an ordinary printable character, Command/Control/Option-modified keys, Space, Return, empty results, and stale-selection repair; verify with `xcodebuild -project Stow.xcodeproj -scheme StowAppTests CODE_SIGNING_ALLOWED=NO test`.
-- [ ] Refactor the type-to-search routing in `Sources/StowApp/macOS/RetrievalPanel.swift` into a pure policy only if the tests cannot exercise it directly, while preserving the current collapsed toolbar and keyboard shortcuts; verify the policy tests pass and the view contains only one type-to-search entry point.
-- [ ] Make search-result selection deterministic so the first current result is selected, a surviving selection is retained, and zero results clear both `selection` and `selectedIDs`; verify with unit tests that Return cannot use an item excluded by the current query or filter.
-- [ ] Route Return from the Search field, timeline, double-click, numbered shortcuts, and the context-menu Use action through the same `performDefault`/controller path; verify with source inspection and tests that each successful use reaches `ItemActionService` exactly once.
-- [ ] Make the direct-paste decision an explicit outcome in `Sources/StowApp/macOS/RetrievalPanelController.swift`, with deterministic copy fallback when the target application is missing, terminated, or Accessibility permission is unavailable; verify with `StowAppTests` using injected paste capability and target-state doubles rather than the desktop UI.
-- [ ] Preserve the existing visible Direct/Copy-only status and concise fallback message without adding a modal permission prompt; verify the relevant accessibility labels and status strings in `Tests/StowAppTests`.
-- [ ] Extend the existing final macOS UI scenario to open Stow from TextEdit, type a query without clicking Search, press Return, and verify both forced direct-paste and forced copy-only outcomes; keep orchestration exclusively in `Scripts/ui_tests.sh` and do not run it until all four clipboard plans have passed non-interactive checks.
-- [ ] Update `README.md` and `docs/release/v0.1-test-matrix.md` to describe the no-click type-to-search contract and the copy fallback; verify the documentation matches the tested shortcuts and result states.
-- [ ] Run the non-interactive repository gate with `Scripts/ci.sh`; verify core tests, `StowAppTests`, macOS build, iOS build, and entitlement checks all pass before any interactive UI batch.
+- [x] Add focused `StowAppTests` coverage for the input contract, including an ordinary printable character, Command/Control/Option-modified keys, Space, Return, empty results, and stale-selection repair; verified by the passing `StowAppTests` scheme on 2026-08-13.
+- [x] Refactor the type-to-search routing in `Sources/StowApp/macOS/RetrievalPanel.swift` into a pure policy only if the tests cannot exercise it directly, while preserving the current collapsed toolbar and keyboard shortcuts; verified by passing `QuickPanelInteractionPolicyTests` and source inspection of the single `handleTypedKey` entry point.
+- [x] Make search-result selection deterministic so the first current result is selected, a surviving selection is retained, and zero results clear both `selection` and `selectedIDs`; verified by passing selection-policy tests, including stale and empty results.
+- [x] Route Return from the Search field, timeline, double-click, numbered shortcuts, and the context-menu Use action through the same `performDefault`/controller path; verified by source inspection and passing exactly-once `ItemActionServiceTests`.
+- [x] Make the direct-paste decision an explicit outcome in `Sources/StowApp/macOS/RetrievalPanelController.swift`, with deterministic copy fallback when the target application is missing, terminated, or Accessibility permission is unavailable; verified by passing `RetrievalPastePolicyTests` with injected capability and target doubles.
+- [x] Preserve the existing visible Direct/Copy-only status and concise fallback message without adding a modal permission prompt; verified by passing presentation assertions in `RetrievalPastePolicyTests`.
+- [x] Extend the existing final macOS UI scenario to open Stow from TextEdit, type a query without clicking Search, press Return, and verify both forced direct-paste and forced copy-only outcomes; `StowMacUITests` builds for testing, and execution remains deferred until all four plans pass non-interactive checks.
+- [x] Update `README.md` and `docs/release/v0.1-test-matrix.md` to describe the no-click type-to-search contract and the copy fallback; verified against the policy and UI assertions.
+- [x] Run the non-interactive repository gate with `Scripts/ci.sh`; core tests, `StowAppTests`, macOS build, iOS build, and entitlement checks passed on 2026-08-13.
 
 ## Risks
 
@@ -69,8 +69,8 @@ Keep `PlatformActions.copy` as the pasteboard-writing boundary and `ItemActionSe
 ## Completion Checklist
 
 - [ ] Opening the panel and typing immediately is verified by a focused macOS UI assertion that does not click Search first.
-- [ ] First-character preservation and modifier routing are verified by passing `StowAppTests`.
-- [ ] Return never uses a stale or absent result, as verified by selection-policy tests.
-- [ ] Direct paste and copy fallback each record one successful use, as verified by `ItemActionService` or controller tests.
-- [ ] The complete non-interactive gate passes with `Scripts/ci.sh`.
+- [x] First-character preservation and modifier routing are verified by passing `StowAppTests`.
+- [x] Return never uses a stale or absent result, as verified by passing selection-policy tests.
+- [x] Direct paste and copy fallback converge on one successful-use call before the explicit paste outcome, as verified by source inspection plus passing `RetrievalPastePolicyTests` and `ItemActionServiceTests`.
+- [x] The complete non-interactive gate passes with `Scripts/ci.sh` on 2026-08-13.
 - [ ] After all four plans are implemented, the accumulated interactive scenarios pass together in one final `Scripts/ui_tests.sh` batch.

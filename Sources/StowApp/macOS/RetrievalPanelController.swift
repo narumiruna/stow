@@ -148,7 +148,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         session.panelHeight = height
         session.panelWidth = frame.width
         session.feedback = nil
-        session.directPasteAvailable = directPasteService.canPasteDirectly && targetApplication != nil
+        session.directPasteAvailable = pasteOutcome == .directPaste
 
         if panel == nil {
             createPanel(model: model, container: container)
@@ -336,13 +336,14 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
                 try PlatformActions.copy(item, attachmentData: attachment?.data, attachment: attachment)
             }
             guard copied else { return }
-            if directPasteService.canPasteDirectly, targetApplication != nil {
+            switch pasteOutcome {
+            case .directPaste:
                 let target = targetApplication
                 enqueueClose(.completedUse, returnFocus: false) { [weak self] in
                     self?.directPasteService.paste(into: target)
                 }
-            } else {
-                showFeedback("Copied — paste with Command-V", thenDismiss: true)
+            case .copyFallback:
+                showFeedback(RetrievalPastePresentation.copyFallbackMessage, thenDismiss: true)
             }
         case .copy:
             let copied = model.performUse(item, action: .copy, metric: .itemCopied) {
@@ -439,6 +440,10 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
             self.session.feedback = nil
             if thenDismiss { self.requestClose(.completedUse) }
         }
+    }
+
+    private var pasteOutcome: RetrievalPasteOutcome {
+        RetrievalPastePolicy.outcome(capability: directPasteService, target: targetApplication)
     }
 
     private func previousApplication() -> NSRunningApplication? {

@@ -120,8 +120,7 @@ struct RetrievalPanelView: View {
 
     private var items: [StowItem] {
         let base = modeItems
-        if let searchResultIDs,
-           resolvedSearchToken == searchToken || searchPhase == .loading || searchPhase.isFailure {
+        if let searchResultIDs, resolvedSearchToken == searchToken {
             let byID = Dictionary(base.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             return searchResultIDs.compactMap { byID[$0] }
         }
@@ -306,10 +305,17 @@ struct RetrievalPanelView: View {
     private func statusIndicators(compact: Bool) -> some View {
         HStack(spacing: 6) {
             Label(
-                session.directPasteAvailable ? (compact ? "Direct" : "Paste: Direct") : (compact ? "Copy only" : "Paste: Copy only"),
+                RetrievalPastePresentation.statusLabel(
+                    directAvailable: session.directPasteAvailable,
+                    compact: compact
+                ),
                 systemImage: session.directPasteAvailable ? "arrow.right.doc.on.clipboard" : "doc.on.doc"
             )
-            .accessibilityLabel(session.directPasteAvailable ? "Paste mode: Direct" : "Paste mode: Copy only")
+            .accessibilityLabel(
+                RetrievalPastePresentation.statusAccessibilityLabel(
+                    directAvailable: session.directPasteAvailable
+                )
+            )
             if !monitoringEnabled {
                 Label(compact ? "Paused" : "Monitoring paused", systemImage: "pause.circle.fill")
                     .foregroundStyle(.orange)
@@ -609,7 +615,7 @@ struct RetrievalPanelView: View {
             onSelect: { select(item) },
             onDoubleClick: {
                 select(item, ignoringModifiers: true)
-                onUse(item, attachment, .defaultPaste)
+                performDefault(item)
             },
             onDragStateChanged: { session.isDragging = $0 },
             onDragCompleted: {
@@ -658,7 +664,7 @@ struct RetrievalPanelView: View {
 
     @ViewBuilder
     private func cardContextMenu(_ item: StowItem, attachment: StowAttachment?) -> some View {
-        Button { onUse(item, attachment, .defaultPaste) } label: { Label("Use", systemImage: "return") }
+        Button { performDefault(item) } label: { Label("Use", systemImage: "return") }
         Button { onUse(item, attachment, .copy) } label: { Label("Copy", systemImage: "doc.on.doc") }
         if item.type == .link || item.type == .file {
             Button { onUse(item, attachment, .open) } label: { Label("Open", systemImage: "arrow.up.forward.app") }
@@ -675,8 +681,7 @@ struct RetrievalPanelView: View {
     }
 
     private var keyboardCommands: some View {
-        let attachmentMap = attachments
-        return ZStack {
+        ZStack {
             Button("") { onRequestClose(.escape) }.keyboardShortcut(.cancelAction).hidden()
             Button("") { performDefault() }.keyboardShortcut(.return, modifiers: []).hidden()
             Button("") { copySelected() }.keyboardShortcut("c", modifiers: .command).hidden()
@@ -691,7 +696,7 @@ struct RetrievalPanelView: View {
             ForEach(Array(items.prefix(9).enumerated()), id: \.element.id) { index, item in
                 Button("") {
                     select(item, ignoringModifiers: true)
-                    onUse(item, attachmentMap[item.id], .defaultPaste)
+                    performDefault(item)
                 }
                 .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
                 .hidden()
@@ -758,7 +763,7 @@ struct RetrievalPanelView: View {
         HStack(spacing: 9) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-            Text(searchResultIDs == nil ? "Search unavailable — showing local matches" : "Search unavailable — showing previous results")
+            Text("Search unavailable — showing local matches")
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
             Button("Retry") { searchRetryGeneration += 1 }
@@ -872,14 +877,19 @@ struct RetrievalPanelView: View {
     }
 
     private func handleTypedKey(_ press: KeyPress) -> KeyPress.Result {
-        guard popoverItemID == nil,
-              !searchFocused,
-              press.modifiers.intersection([.command, .control, .option]).isEmpty,
-              press.characters.count == 1,
-              let scalar = press.characters.unicodeScalars.first,
-              !CharacterSet.controlCharacters.contains(scalar) else { return .ignored }
-        activateSearch(initialText: press.characters)
-        return .handled
+        guard popoverItemID == nil, !searchFocused else { return .ignored }
+        var modifiers: QuickPanelInputModifiers = []
+        if press.modifiers.contains(.command) { modifiers.insert(.command) }
+        if press.modifiers.contains(.control) { modifiers.insert(.control) }
+        if press.modifiers.contains(.option) { modifiers.insert(.option) }
+        if press.modifiers.contains(.shift) { modifiers.insert(.shift) }
+        switch QuickPanelInputPolicy.decision(characters: press.characters, modifiers: modifiers) {
+        case .beginSearch(let initialText):
+            activateSearch(initialText: initialText)
+            return .handled
+        case .ignored:
+            return .ignored
+        }
     }
 
     private func select(_ item: StowItem, ignoringModifiers: Bool = false) {
@@ -917,21 +927,35 @@ struct RetrievalPanelView: View {
     }
 
     private func repairSelection() {
-        let validIDs = Set(items.map(\.id))
-        selectedIDs.formIntersection(validIDs)
-        if let selection, validIDs.contains(selection) {
-            if selectedIDs.isEmpty { selectedIDs = [selection] }
-            return
-        }
-        selection = items.first?.id
-        selectedIDs = selection.map { [$0] } ?? []
-        selectionAnchor = selection
+        let state = QuickPanelSelectionPolicy.repair(
+            QuickPanelSelectionState(
+                selection: selection,
+                selectedIDs: selectedIDs,
+                selectionAnchor: selectionAnchor
+            ),
+            visibleIDs: items.map(\.id)
+        )
+        selection = state.selection
+        selectedIDs = state.selectedIDs
+        selectionAnchor = state.selectionAnchor
     }
 
-    private var selectedItem: StowItem? { items.first { $0.id == selection } ?? items.first }
+    private var selectedItem: StowItem? {
+        let visibleIDs = items.map(\.id)
+        guard let id = QuickPanelSelectionPolicy.actionableSelection(
+            in: QuickPanelSelectionState(
+                selection: selection,
+                selectedIDs: selectedIDs,
+                selectionAnchor: selectionAnchor
+            ),
+            visibleIDs: visibleIDs
+        ) else { return nil }
+        return items.first { $0.id == id }
+    }
 
-    private func performDefault() {
-        guard let item = selectedItem else { return }
+    private func performDefault(_ requestedItem: StowItem? = nil) {
+        let item = requestedItem.flatMap { requested in items.first { $0.id == requested.id } } ?? selectedItem
+        guard let item else { return }
         onUse(item, attachments[item.id], .defaultPaste)
     }
 
