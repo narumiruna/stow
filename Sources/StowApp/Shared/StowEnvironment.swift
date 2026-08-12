@@ -4,8 +4,8 @@ import SwiftData
 import StowCore
 
 public enum StowEnvironment {
-    public static let appGroupIdentifier = "group.dev.narumi.stow"
-    public static let cloudKitContainerIdentifier = "iCloud.dev.narumi.stow"
+    public static let appGroupIdentifier = StowSharedStorage.appGroupIdentifier
+    public static let cloudKitContainerIdentifier = StowSharedStorage.cloudKitContainerIdentifier
     @MainActor static private(set) var currentContainerUsesCloud = false
 
     @MainActor

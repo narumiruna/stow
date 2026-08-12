@@ -312,6 +312,63 @@ final class StowMacUITests: XCTestCase {
         app.terminate()
     }
 
+    func testCLILaunchesHostWithoutWindowsAndCompletesAgentSmokeFlow() throws {
+        let app = XCUIApplication()
+        app.terminate()
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        textEdit.launch()
+        textEdit.activate()
+        XCTAssertTrue(textEdit.windows.firstMatch.waitForExistence(timeout: 5))
+
+        let status = try runCLI(["status", "--json", "--timeout", "10"])
+        XCTAssertEqual(status["ok"] as? Bool, true)
+        XCTAssertNotEqual(app.state, .notRunning)
+        Thread.sleep(forTimeInterval: 0.8)
+        XCTAssertFalse(app.windows.firstMatch.exists, "CLI launch must not present a Stow window")
+        XCTAssertEqual(NSWorkspace.shared.frontmostApplication?.bundleIdentifier, "com.apple.TextEdit", "CLI launch must preserve the frontmost app")
+        app.terminate()
+
+        let utilityApp = launchApp(extraArguments: ["--ui-testing-utility-mode", "--ui-testing-preserve-frontmost-application"])
+        XCTAssertNotEqual(utilityApp.state, .notRunning)
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertFalse(utilityApp.windows.firstMatch.exists)
+        let requestID = UUID()
+        let token = "agent-smoke-\(requestID.uuidString)"
+        let addArguments = [
+            "add", "--type", "code", "--title", "Agent Smoke", "--language", "swift",
+            "--text", "let \(token) = true", "--request-id", requestID.uuidString, "--json",
+        ]
+        let firstAdd = try runCLI(addArguments)
+        let secondAdd = try runCLI(addArguments)
+        let firstItem = try XCTUnwrap((firstAdd["data"] as? [String: Any])?["item"] as? [String: Any])
+        let secondItem = try XCTUnwrap((secondAdd["data"] as? [String: Any])?["item"] as? [String: Any])
+        let itemID = try XCTUnwrap(firstItem["id"] as? String)
+        XCTAssertEqual(secondItem["id"] as? String, itemID, "Retrying one request ID must not duplicate the item")
+
+        let search = try runCLI(["search", token, "--type", "code", "--json"])
+        let matches = try XCTUnwrap((search["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertEqual(matches.compactMap { $0["id"] as? String }, [itemID])
+        let get = try runCLI(["get", itemID, "--json"])
+        let fetched = try XCTUnwrap((get["data"] as? [String: Any])?["item"] as? [String: Any])
+        XCTAssertEqual(fetched["text_content"] as? String, "let \(token) = true")
+
+        let imageSearch = try runCLI(["search", "Panel Image", "--type", "image", "--json"])
+        let imageMatches = try XCTUnwrap((imageSearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        let imageID = try XCTUnwrap(imageMatches.first?["id"] as? String)
+        let imageGet = try runCLI(["get", imageID, "--json"])
+        let imageItem = try XCTUnwrap((imageGet["data"] as? [String: Any])?["item"] as? [String: Any])
+        let attachments = try XCTUnwrap(imageItem["attachments"] as? [[String: Any]])
+        XCTAssertEqual(attachments.first?["content_type"] as? String, "image/png")
+        let exported = try runCLI(["export", imageID, "--json"])
+        let exportResult = try XCTUnwrap((exported["data"] as? [String: Any])?["export"] as? [String: Any])
+        let exportPath = try XCTUnwrap(exportResult["path"] as? String)
+        XCTAssertGreaterThan(try Data(contentsOf: URL(fileURLWithPath: exportPath)).count, 0)
+        XCTAssertEqual(NSWorkspace.shared.frontmostApplication?.bundleIdentifier, "com.apple.TextEdit")
+
+        textEdit.terminate()
+        utilityApp.terminate()
+    }
+
     func testQuickPanelCompactMode() {
         let app = launchApp(extraArguments: ["--ui-testing-panel-height=225"])
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
@@ -510,6 +567,42 @@ final class StowMacUITests: XCTestCase {
         ] + extraArguments
         app.launch()
         return app
+    }
+
+    private func cliHelperURL() throws -> URL {
+        var directory = Bundle(for: StowMacUITests.self).bundleURL
+        for _ in 0..<8 {
+            let candidate = directory.appendingPathComponent("Stow-macOS.app/Contents/Helpers/stow")
+            if FileManager.default.isExecutableFile(atPath: candidate.path) { return candidate }
+            directory.deleteLastPathComponent()
+        }
+        throw NSError(
+            domain: "StowMacUITests",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "Unable to locate the embedded Stow CLI helper."]
+        )
+    }
+
+    private func runCLI(_ arguments: [String]) throws -> [String: Any] {
+        let process = Process()
+        process.executableURL = try cliHelperURL()
+        process.arguments = arguments
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+        try process.run()
+        process.waitUntilExit()
+        let output = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let error = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        guard process.terminationStatus == 0 else {
+            throw NSError(
+                domain: "StowMacUITests",
+                code: Int(process.terminationStatus),
+                userInfo: [NSLocalizedDescriptionKey: String(decoding: error + output, as: UTF8.self)]
+            )
+        }
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: output) as? [String: Any])
     }
 
     private func showPanel(in app: XCUIApplication) {

@@ -8,6 +8,7 @@ public struct SearchQuery: Equatable, Sendable {
     public var addedAfter: Date?
     public var addedBefore: Date?
     public var status: ItemStatus?
+    public var includeTrashed: Bool
     public var limit: Int
 
     public init(
@@ -17,6 +18,7 @@ public struct SearchQuery: Equatable, Sendable {
         addedAfter: Date? = nil,
         addedBefore: Date? = nil,
         status: ItemStatus? = nil,
+        includeTrashed: Bool = false,
         limit: Int = 200
     ) {
         self.text = text
@@ -25,6 +27,7 @@ public struct SearchQuery: Equatable, Sendable {
         self.addedAfter = addedAfter
         self.addedBefore = addedBefore
         self.status = status
+        self.includeTrashed = includeTrashed
         self.limit = max(1, min(limit, 10_000))
     }
 }
@@ -111,7 +114,7 @@ public actor SQLiteSearchIndex {
         if let status = query.status {
             clauses.append("m.status = ?")
             values.append(.text(status.rawValue))
-        } else {
+        } else if !query.includeTrashed {
             clauses.append("m.status != ?")
             values.append(.text(ItemStatus.trashed.rawValue))
         }

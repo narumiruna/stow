@@ -48,8 +48,10 @@ final class SearchServiceTests: XCTestCase {
 
         let liveResults = try await index.search(SearchQuery(text: "receipt"))
         let trashResults = try await index.search(SearchQuery(text: "receipt", status: .trashed))
+        let allResults = try await index.search(SearchQuery(text: "receipt", includeTrashed: true))
         XCTAssertEqual(liveResults, [live.id])
         XCTAssertEqual(trashResults, [trashed.id])
+        XCTAssertEqual(Set(allResults), Set([live.id, trashed.id]))
     }
 
     func testDateFilterIsInclusiveAndEmptyQuerySortsNewestFirst() async throws {

@@ -67,6 +67,87 @@ Focused local macOS UI test command:
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme StowMacUITests CODE_SIGN_ENTITLEMENTS='' CODE_SIGN_IDENTITY='-' test
 ```
 
+## Agent-first macOS CLI
+
+The `stow` CLI lets a coding agent use the local Stow library without opening the SwiftData or CloudKit store itself.
+
+Build the macOS app and install a symlink for the current user:
+
+```sh
+just install-cli
+```
+
+The installer writes only `~/.local/bin/stow`, never requests administrator access, and never edits a shell profile.
+
+Add `~/.local/bin` to `PATH` yourself if it is not already present.
+
+Check the host and discover commands:
+
+```sh
+stow status --json
+stow help
+stow version --json
+```
+
+Add code safely through standard input:
+
+```sh
+printf 'let answer = 42\n' | \
+  stow add --type code --title 'Answer' --language swift --stdin --json
+```
+
+Reuse an explicit request ID when a timed-out mutation must be retried:
+
+```sh
+request_id="$(uuidgen)"
+printf 'idempotent body\n' | \
+  stow add --type text --stdin --request-id "$request_id" --json
+
+export_request_id="$(uuidgen)"
+stow export ITEM_UUID --request-id "$export_request_id" --json
+```
+
+Retry either command with its original request ID to recover a response that completed after the caller timed out without repeating host-side mutation work.
+
+Search returns compact metadata and bounded snippets, while `get` returns the complete text fields and attachment metadata:
+
+```sh
+stow search --status inbox --limit 20 --json
+stow search 'SwiftData migration' --type code --limit 10 --json
+stow get ITEM_UUID --json
+```
+
+`get` never inserts Base64 attachment bytes into JSON.
+
+Export an image or file to a private App Group path that a local coding agent can read:
+
+```sh
+stow export ITEM_UUID --json
+stow export ITEM_UUID --attachment ATTACHMENT_UUID --json
+```
+
+Request a separate destination copy when needed:
+
+```sh
+stow export ITEM_UUID --output /tmp/stow-image.png --json
+```
+
+An existing destination is preserved unless `--force` is explicit, and sandbox policy can reject an arbitrary destination while leaving the returned App Group export path available.
+
+JSON mode writes exactly one response document to standard output, writes diagnostics to standard error, uses ISO 8601 dates and lowercase enums, and never prompts or invokes a pager.
+
+Errors include a stable code, message, retryable flag, and request ID, while an export-copy error also includes `fallback_path` for the readable App Group copy.
+
+Exit codes are 64 for usage, 65 for validation, 66 for missing content, 69 for an unavailable host, 70 for protocol or internal failure, 74 for I/O failure, and 75 for timeout.
+
+The CLI supports coding agents on the same Mac and user account only, and it does not expose HTTP, remote, SSH, MCP, or iCloud automation access.
+
+Remove the symlink without changing saved Stow data:
+
+```sh
+just uninstall-cli
+```
+
 Release metadata, privacy/support copy, screenshots, and the current device matrix live in [`docs/release`](docs/release).
 
 Signing team selection and CloudKit credentials are kept in local Xcode settings and are never committed.
