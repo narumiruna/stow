@@ -3,7 +3,7 @@ import ApplicationServices
 import Carbon.HIToolbox
 
 @MainActor
-final class DirectPasteService {
+final class DirectPasteService: RetrievalDirectPasteCapability {
     var canPasteDirectly: Bool {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-force-direct-paste") { return true }

@@ -312,6 +312,208 @@ final class StowMacUITests: XCTestCase {
         app.terminate()
     }
 
+    func testSensitiveClipboardMarkersAreExcludedBeforePayloadCapture() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-utility-mode"])
+        XCTAssertNotEqual(app.state, .notRunning)
+        Thread.sleep(forTimeInterval: 0.6)
+
+        let token = "concealed-fixture-\(UUID().uuidString)"
+        writeClipboardFixture(
+            token,
+            marker: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
+        )
+        Thread.sleep(forTimeInterval: 0.8)
+
+        app.activate()
+        let fileMenu = app.menuBars.menuBarItems["File"]
+        fileMenu.click()
+        fileMenu.menus.menuItems["Quick Panel…"].click()
+        let panel = app.windows["Stow Quick Panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        app.typeText(token)
+        XCTAssertTrue(panel.staticTexts["No Results"].waitForExistence(timeout: 3))
+        XCTAssertTrue(panel.descendants(matching: .any).matching(identifier: "panel-active-mode").firstMatch.waitForExistence(timeout: 2))
+        panel.buttons["More"].click()
+        panel.buttons["Open Library"].click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
+
+        let library = app.windows.matching(identifier: "stow-library-window").firstMatch
+        XCTAssertTrue(library.waitForExistence(timeout: 3))
+        let search = app.searchFields["Search saved content"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        replaceSearch(search, with: token)
+        XCTAssertTrue(app.staticTexts["No Results"].waitForExistence(timeout: 3))
+
+        let concealedSearch = try runCLI(["search", token, "--json"])
+        let concealedMatches = try XCTUnwrap((concealedSearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertTrue(concealedMatches.isEmpty)
+
+        writeClipboardFixture(token)
+        XCTAssertTrue(app.staticTexts[token].waitForExistence(timeout: 5), "An ordinary fixture following the protected change must still be captured")
+        let ordinarySearch = try runCLI(["search", token, "--json"])
+        let ordinaryMatches = try XCTUnwrap((ordinarySearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertEqual(ordinaryMatches.count, 1)
+
+        app.terminate()
+    }
+
+    func testClipboardDuplicateCoalescingAndTrashIsolation() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-utility-mode"])
+        XCTAssertNotEqual(app.state, .notRunning)
+        Thread.sleep(forTimeInterval: 0.6)
+
+        let token = "duplicate-fixture-\(UUID().uuidString)"
+        writeClipboardFixture(token)
+        Thread.sleep(forTimeInterval: 0.8)
+        let firstSearch = try runCLI(["search", token, "--json"])
+        let firstMatches = try XCTUnwrap((firstSearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertEqual(firstMatches.count, 1)
+        let originalID = try XCTUnwrap(firstMatches.first?["id"] as? String)
+
+        writeClipboardFixture("older-\(token)")
+        Thread.sleep(forTimeInterval: 0.8)
+        writeClipboardFixture(token)
+        Thread.sleep(forTimeInterval: 0.8)
+        let recopySearch = try runCLI(["search", token, "--json"])
+        let recopyMatches = try XCTUnwrap((recopySearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertEqual(recopyMatches.filter { ($0["title"] as? String) == token }.count, 1)
+        XCTAssertEqual(recopyMatches.first { ($0["title"] as? String) == token }?["id"] as? String, originalID)
+
+        app.activate()
+        let fileMenu = app.menuBars.menuBarItems["File"]
+        fileMenu.click()
+        fileMenu.menus.menuItems["Quick Panel…"].click()
+        let panel = app.windows["Stow Quick Panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        XCTAssertTrue(panel.buttons["Text, \(token)"].waitForExistence(timeout: 3), "Recopy must move the existing card to the front")
+        panel.buttons["Text, \(token)"].click()
+        app.typeKey(.delete, modifierFlags: [])
+        XCTAssertTrue(panel.staticTexts["Moved to Trash"].waitForExistence(timeout: 3))
+        panel.buttons["Close Quick Panel"].click()
+
+        writeClipboardFixture(token)
+        Thread.sleep(forTimeInterval: 0.8)
+        let afterTrashSearch = try runCLI(["search", token, "--status", "all", "--json"])
+        let afterTrashMatches = try XCTUnwrap((afterTrashSearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertEqual(afterTrashMatches.filter { ($0["title"] as? String) == token }.count, 2, "Trash remains and a new Inbox item is created")
+        XCTAssertEqual(afterTrashMatches.filter { ($0["status"] as? String) == "trashed" }.count, 1)
+        XCTAssertEqual(afterTrashMatches.filter { ($0["status"] as? String) == "inbox" }.count, 1)
+
+        app.terminate()
+    }
+
+    func testOriginalRichTextPlainTextAndImageRoundTrips() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-utility-mode"])
+        XCTAssertNotEqual(app.state, .notRunning)
+        Thread.sleep(forTimeInterval: 0.6)
+
+        let richToken = "rich-fixture-\(UUID().uuidString)"
+        let richItem = NSPasteboardItem()
+        richItem.setString(richToken, forType: .string)
+        richItem.setData(Data("{\\rtf1\\b \(richToken)}".utf8), forType: .rtf)
+        richItem.setString("<b>\(richToken)</b>", forType: .html)
+        NSPasteboard.general.clearContents()
+        XCTAssertTrue(NSPasteboard.general.writeObjects([richItem]))
+        Thread.sleep(forTimeInterval: 0.8)
+
+        showPanel(in: app)
+        let panel = app.windows["Stow Quick Panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        panel.buttons["Search"].click()
+        var search = panel.textFields["Search Stow"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        replaceSearch(search, with: richToken)
+        XCTAssertTrue(panel.buttons["Text, \(richToken)"].waitForExistence(timeout: 3))
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), richToken)
+        XCTAssertEqual(NSPasteboard.general.data(forType: .rtf), Data("{\\rtf1\\b \(richToken)}".utf8))
+        XCTAssertEqual(NSPasteboard.general.string(forType: .html), "<b>\(richToken)</b>")
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 5))
+
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        panel.buttons["Search"].click()
+        search = panel.textFields["Search Stow"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        replaceSearch(search, with: richToken)
+        XCTAssertTrue(panel.buttons["Text, \(richToken)"].waitForExistence(timeout: 3))
+        search.typeKey(.return, modifierFlags: .shift)
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), richToken)
+        XCTAssertNil(NSPasteboard.general.data(forType: .rtf))
+        XCTAssertNil(NSPasteboard.general.data(forType: .html))
+
+        let png = try XCTUnwrap(NSImage(systemSymbolName: "star.fill", accessibilityDescription: nil)?.tiffRepresentation)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: png))
+        let originalPNG = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        let imageItem = NSPasteboardItem()
+        imageItem.setData(originalPNG, forType: .png)
+        NSPasteboard.general.clearContents()
+        XCTAssertTrue(NSPasteboard.general.writeObjects([imageItem]))
+        Thread.sleep(forTimeInterval: 0.8)
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        panel.buttons["Search"].click()
+        search = panel.textFields["Search Stow"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        replaceSearch(search, with: "Clipboard Image")
+        XCTAssertTrue(panel.buttons["Image, Clipboard Image"].waitForExistence(timeout: 3))
+        search.typeKey(.return, modifierFlags: [])
+        XCTAssertEqual(NSPasteboard.general.data(forType: .png), originalPNG)
+
+        app.terminate()
+    }
+
+    func testImmediateSearchAndPasteFromTextEdit() {
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        textEdit.launch()
+        let editor = textEdit.textViews.firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        clear(editor)
+
+        let fallbackApp = launchApp(extraArguments: [
+            "--ui-testing-utility-mode",
+            "--ui-testing-preserve-frontmost-application",
+        ])
+        let fallbackPanel = fallbackApp.windows["Stow Quick Panel"]
+        showPanel(from: textEdit, panel: fallbackPanel)
+        XCTAssertTrue(fallbackPanel.staticTexts["Paste mode: Copy only"].waitForExistence(timeout: 2))
+        fallbackApp.typeText("Panel Text")
+        let fallbackSearch = fallbackPanel.textFields["Search Stow"]
+        XCTAssertTrue(fallbackSearch.waitForExistence(timeout: 3), "Typing must open Search without a click")
+        XCTAssertEqual(fallbackSearch.value as? String, "Panel Text", "The first typed character must be preserved exactly once")
+        XCTAssertTrue(fallbackPanel.buttons["Text, Panel Text"].waitForExistence(timeout: 3))
+        fallbackApp.typeKey(.return, modifierFlags: [])
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "panel text payload")
+        XCTAssertTrue(fallbackPanel.staticTexts["Copied — paste with Command-V"].waitForExistence(timeout: 2))
+        XCTAssertTrue(fallbackPanel.waitForNonExistence(timeout: 3))
+        XCTAssertEqual(NSWorkspace.shared.frontmostApplication?.bundleIdentifier, "com.apple.TextEdit")
+        fallbackApp.terminate()
+
+        clear(editor)
+        let directApp = launchApp(extraArguments: [
+            "--ui-testing-utility-mode",
+            "--ui-testing-preserve-frontmost-application",
+            "--ui-testing-force-direct-paste",
+        ])
+        let directPanel = directApp.windows["Stow Quick Panel"]
+        showPanel(from: textEdit, panel: directPanel)
+        XCTAssertTrue(directPanel.staticTexts["Paste mode: Direct"].waitForExistence(timeout: 2))
+        directApp.typeText("Panel Text")
+        let directSearch = directPanel.textFields["Search Stow"]
+        XCTAssertTrue(directSearch.waitForExistence(timeout: 3))
+        XCTAssertEqual(directSearch.value as? String, "Panel Text")
+        directApp.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(directPanel.waitForNonExistence(timeout: 3))
+        let pasted = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in (editor.value as? String)?.contains("panel text payload") == true },
+            object: editor
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [pasted], timeout: 5), .completed)
+
+        directApp.terminate()
+        textEdit.terminate()
+    }
+
     func testCLILaunchesHostWithoutWindowsAndCompletesAgentSmokeFlow() throws {
         let app = XCUIApplication()
         app.terminate()
@@ -610,6 +812,32 @@ final class StowMacUITests: XCTestCase {
         let fileMenu = app.menuBars.menuBarItems["File"]
         fileMenu.click()
         fileMenu.menus.menuItems["Quick Panel…"].click()
+    }
+
+    private func showPanel(from origin: XCUIApplication, panel: XCUIElement) {
+        origin.activate()
+        for _ in 0..<3 where !panel.exists {
+            origin.typeKey("v", modifierFlags: [.command, .shift])
+            _ = panel.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(panel.exists, "The global shortcut must open the panel from the originating app")
+    }
+
+    private func clear(_ textView: XCUIElement) {
+        textView.click()
+        textView.typeKey("a", modifierFlags: .command)
+        textView.typeKey(.delete, modifierFlags: [])
+    }
+
+    private func writeClipboardFixture(
+        _ value: String,
+        marker: NSPasteboard.PasteboardType? = nil
+    ) {
+        let item = NSPasteboardItem()
+        item.setString(value, forType: .string)
+        if let marker { item.setString("1", forType: marker) }
+        NSPasteboard.general.clearContents()
+        XCTAssertTrue(NSPasteboard.general.writeObjects([item]))
     }
 
     private func openSettings(in app: XCUIApplication) {

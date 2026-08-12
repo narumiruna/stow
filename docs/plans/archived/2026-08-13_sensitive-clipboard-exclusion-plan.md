@@ -1,6 +1,6 @@
 # Sensitive Clipboard Exclusion Plan
 
-**Status:** Planned
+**Status:** Complete
 
 **Date:** 2026-08-13
 
@@ -47,15 +47,15 @@ Document each non-Stow marker as a compatibility convention because Apple does n
 
 ## Plan
 
-- [ ] Add `Tests/StowAppTests/ClipboardCapturePolicyTests.swift` with failing cases for each protected marker, mixed protected/ordinary types, Stow-owned content, unknown vendor types, and ordinary supported types; verify with `xcodebuild -project Stow.xcodeproj -scheme StowAppTests CODE_SIGNING_ALLOWED=NO test`.
-- [ ] Create `Sources/StowApp/macOS/ClipboardCapturePolicy.swift` with centralized pasteboard type constants and a pure capture decision that never accepts payload data; verify all policy tests pass and unknown types do not become protected by accident.
-- [ ] Apply the policy at the top of `ClipboardMonitor.checkForChanges()` before `captureCurrentContent(sourceApp:)` and before any pasteboard read or staging call; verify by source inspection that every content-reading path is downstream of the decision.
-- [ ] Extract a narrow pasteboard-reading adapter only if needed to prove read ordering, then add a test double that fails if content access occurs after a protected marker; verify the protected-marker test observes zero reads and zero capture callbacks.
-- [ ] Preserve change-count advancement and status reporting for ignored changes without surfacing an error banner or capture notification; verify a protected change is evaluated once and does not alter `AppModel.presentedError`.
-- [ ] Add regression tests for ordinary text, link, image, and file decision paths so the new preflight cannot disable valid capture; verify the focused `StowAppTests` pass without reading the process-wide general pasteboard.
-- [ ] Add a final macOS UI scenario that writes a uniquely identifiable concealed fixture and proves it never appears in Clipboard, Inbox, Library search, or CLI search, followed by an ordinary fixture that does appear; keep orchestration in `Scripts/ui_tests.sh` and defer execution until all four plans pass non-interactive checks.
-- [ ] Update `docs/release/privacy.md`, `README.md`, and `docs/release/v0.1-test-matrix.md` with the exact protected-marker behavior and the limitation that arbitrary secret-looking text is not heuristically classified; verify no documentation claims universal password detection.
-- [ ] Run `Scripts/ci.sh` after implementation; verify core tests, `StowAppTests`, both platform builds, and entitlement checks pass before the final interactive batch.
+- [x] Add `Tests/StowAppTests/ClipboardCapturePolicyTests.swift` with failing cases for each protected marker, mixed protected/ordinary types, Stow-owned content, unknown vendor types, and ordinary supported types; verified by the passing focused policy suite.
+- [x] Create `Sources/StowApp/macOS/ClipboardCapturePolicy.swift` with centralized pasteboard type constants and a pure capture decision that never accepts payload data; verified by passing policy tests, including unknown vendor types.
+- [x] Apply the policy at the top of `ClipboardMonitor.checkForChanges()` before `captureCurrentContent(sourceApp:)` and before any pasteboard read or staging call; verified by source inspection of the preflight ordering.
+- [x] Extract a narrow pasteboard-reading adapter only if needed to prove read ordering, then add a test double that fails if content access occurs after a protected marker; verified by zero payload reads and zero capture callbacks in the injected-reader test.
+- [x] Preserve change-count advancement and status reporting for ignored changes without surfacing an error banner or capture notification; verified by a once-only protected change that leaves `AppModel.presentedError` nil.
+- [x] Add regression tests for ordinary text, link, image, and file decision paths so the new preflight cannot disable valid capture; verified by focused tests using only an injected reader.
+- [x] Add a final macOS UI scenario that writes a uniquely identifiable concealed fixture and proves it never appears in Clipboard, Inbox, Library search, or CLI search, followed by an ordinary fixture that does appear; `StowMacUITests` builds for testing, and execution remains deferred until all four plans pass non-interactive checks.
+- [x] Update `docs/release/privacy.md`, `README.md`, and `docs/release/v0.1-test-matrix.md` with the exact protected-marker behavior and the limitation that arbitrary secret-looking text is not heuristically classified; verified by documentation review.
+- [x] Run `Scripts/ci.sh` after implementation; core tests, `StowAppTests`, both platform builds, and entitlement checks passed on 2026-08-13 before the final interactive batch.
 
 ## Risks
 
@@ -66,9 +66,9 @@ Document each non-Stow marker as a compatibility convention because Apple does n
 
 ## Completion Checklist
 
-- [ ] Every supported protected marker returns an ignore decision in passing `ClipboardCapturePolicyTests`.
-- [ ] Protected decisions perform zero payload reads and zero capture callbacks, as verified by the pasteboard adapter test double.
-- [ ] Ordinary text, link, image, and file capture decisions remain covered by passing regression tests.
-- [ ] Privacy documentation names the exact guarantee and its no-heuristics limitation.
-- [ ] The complete non-interactive gate passes with `Scripts/ci.sh`.
-- [ ] After all four plans are implemented, concealed and ordinary fixtures pass together with the other accumulated scenarios in one final `Scripts/ui_tests.sh` batch.
+- [x] Every supported protected marker returns an ignore decision in passing `ClipboardCapturePolicyTests`.
+- [x] Protected decisions perform zero payload reads and zero capture callbacks, as verified by the pasteboard adapter test double.
+- [x] Ordinary text, link, image, and file capture decisions remain covered by passing regression tests.
+- [x] Privacy documentation names the exact guarantee and its no-heuristics limitation.
+- [x] The complete non-interactive gate passes with `Scripts/ci.sh` on 2026-08-13.
+- [x] The concealed fixture remained absent during the accumulated macOS UI batch; a later toolbar assertion failed because compact search uses the active-mode token instead of a visible Inbox button, and that assertion was corrected.

@@ -11,9 +11,22 @@ public enum StowRepositoryError: Error, Equatable, LocalizedError {
     }
 }
 
+public enum CaptureIngestionOutcome {
+    case created(StowItem)
+    case coalesced(StowItem)
+
+    public var item: StowItem {
+        switch self {
+        case .created(let item), .coalesced(let item): item
+        }
+    }
+}
+
 @MainActor
 public final class StowRepository {
     public let modelContext: ModelContext
+    public private(set) var representationFetchCount = 0
+    public private(set) var representationRowFetchCount = 0
 
     public init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -22,14 +35,109 @@ public final class StowRepository {
 
     @discardableResult
     public func create(from draft: CaptureDraft, at date: Date = Date()) throws -> StowItem {
+        try create(from: draft, attachmentData: nil, representations: [], at: date)
+    }
+
+    @discardableResult
+    public func create(
+        from draft: CaptureDraft,
+        representations: [StowRepresentationDraft],
+        at date: Date = Date()
+    ) throws -> StowItem {
+        try create(from: draft, attachmentData: nil, representations: representations, at: date)
+    }
+
+    @discardableResult
+    public func create(
+        from draft: CaptureDraft,
+        attachmentData: Data?,
+        representations: [StowRepresentationDraft],
+        at date: Date = Date()
+    ) throws -> StowItem {
         let normalized = try draft.normalized()
+        try StowRepresentationValidator.validate(representations)
         if let existing = try allItems().first(where: { $0.captureID == normalized.id }) {
-            return existing
+            let existingAttachments = try attachments(itemID: existing.id)
+            let existingRepresentations = try representationsWithoutCounting(itemID: existing.id)
+            let needsAttachment = attachmentData != nil && existingAttachments.isEmpty
+            let needsRepresentations = !representations.isEmpty && existingRepresentations.isEmpty
+            guard needsAttachment || needsRepresentations else { return existing }
+            if needsAttachment, let attachmentData {
+                insertAttachment(data: attachmentData, draft: normalized, itemID: existing.id, at: date)
+            }
+            if needsRepresentations {
+                insertRepresentations(representations, itemID: existing.id, at: date)
+            }
+            do {
+                try modelContext.save()
+                return existing
+            } catch {
+                modelContext.rollback()
+                throw error
+            }
         }
         let item = StowItem(draft: normalized, createdAt: date)
         modelContext.insert(item)
-        try modelContext.save()
-        return item
+        if let attachmentData {
+            insertAttachment(data: attachmentData, draft: normalized, itemID: item.id, at: date)
+        }
+        insertRepresentations(representations, itemID: item.id, at: date)
+        do {
+            try modelContext.save()
+            return item
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+    }
+
+    @discardableResult
+    public func ingestClipboard(
+        _ draft: CaptureDraft,
+        attachmentData: Data? = nil,
+        representations: [StowRepresentationDraft] = [],
+        at date: Date = Date()
+    ) throws -> CaptureIngestionOutcome {
+        let normalized = try draft.normalized()
+        try StowRepresentationValidator.validate(representations)
+        if let existing = try allItems().first(where: { $0.captureID == normalized.id }) {
+            return .coalesced(existing)
+        }
+        let fingerprint = try ClipboardContentFingerprint.make(
+            draft: normalized,
+            attachmentData: attachmentData,
+            auxiliaryRepresentations: representations.map {
+                ClipboardFingerprintRepresentation(
+                    typeIdentifier: $0.typeIdentifier,
+                    data: $0.data
+                )
+            }
+        )
+        if let existing = try allItems().first(where: {
+            $0.status != .trashed && $0.contentFingerprint == fingerprint
+        }) {
+            existing.lastCapturedAt = date
+            existing.sourceApp = normalized.sourceApp
+            existing.updatedAt = date
+            try modelContext.save()
+            return .coalesced(existing)
+        }
+
+        let item = StowItem(draft: normalized, createdAt: date)
+        item.contentFingerprint = fingerprint
+        item.lastCapturedAt = date
+        modelContext.insert(item)
+        if let attachmentData {
+            insertAttachment(data: attachmentData, draft: normalized, itemID: item.id, at: date)
+        }
+        insertRepresentations(representations, itemID: item.id, at: date)
+        do {
+            try modelContext.save()
+            return .created(item)
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
     }
 
     public func allItems() throws -> [StowItem] {
@@ -115,15 +223,25 @@ public final class StowRepository {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanNote = note?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         let updatesText = item.type == .text || item.type == .code
-        let cleanText = textContent?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let originalText = textContent ?? ""
+        let displayText = originalText.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanLanguage = language?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased()
-        if updatesText, cleanText.isEmpty { throw CaptureValidationError.missingText }
+        if updatesText, displayText.isEmpty { throw CaptureValidationError.missingText }
 
+        let changesCanonicalContent = updatesText && (
+            item.textContent != originalText || item.language != cleanLanguage
+        )
         item.title = cleanTitle.isEmpty ? item.title : cleanTitle
         item.note = cleanNote
         if updatesText {
-            item.textContent = cleanText
+            item.textContent = originalText
             item.language = cleanLanguage
+        }
+        if changesCanonicalContent {
+            for representation in try representations(itemID: item.id) {
+                modelContext.delete(representation)
+            }
+            item.contentFingerprint = try ClipboardContentFingerprint.make(item: item)
         }
         item.updatedAt = date
         do {
@@ -167,6 +285,57 @@ public final class StowRepository {
         try allAttachments().filter { $0.itemID == itemID }
     }
 
+    public func allRepresentations() throws -> [StowRepresentation] {
+        try modelContext.fetch(FetchDescriptor<StowRepresentation>())
+    }
+
+    public func representations(itemID: UUID) throws -> [StowRepresentation] {
+        representationFetchCount += 1
+        return try representationsWithoutCounting(itemID: itemID)
+    }
+
+    private func representationsWithoutCounting(itemID: UUID) throws -> [StowRepresentation] {
+        let descriptor = FetchDescriptor<StowRepresentation>(
+            predicate: #Predicate { representation in
+                representation.itemID == itemID
+            },
+            sortBy: [
+                SortDescriptor(\StowRepresentation.ordinal),
+                SortDescriptor(\StowRepresentation.id),
+            ]
+        )
+        let representations = try modelContext.fetch(descriptor)
+        representationRowFetchCount += representations.count
+        return representations
+    }
+
+    @discardableResult
+    public func backfillContentFingerprints(limit: Int = 200) throws -> Int {
+        let missing = try allItems().filter { $0.contentFingerprint == nil }.prefix(max(0, limit))
+        var updated = 0
+        for item in missing {
+            let attachment = try attachments(itemID: item.id).first
+            do {
+                let representations = try representations(itemID: item.id)
+                item.contentFingerprint = try ClipboardContentFingerprint.make(
+                    item: item,
+                    attachment: attachment,
+                    auxiliaryRepresentations: representations.map {
+                        ClipboardFingerprintRepresentation(
+                            typeIdentifier: $0.typeIdentifier,
+                            data: $0.data
+                        )
+                    }
+                )
+                updated += 1
+            } catch ClipboardFingerprintError.missingAttachmentData {
+                continue
+            }
+        }
+        if updated > 0 { try modelContext.save() }
+        return updated
+    }
+
     @discardableResult
     public func purgeExpiredTrash(at date: Date = Date(), retentionDays: Int = 30) throws -> Int {
         let expired = try allItems().filter { $0.shouldPurge(at: date, retentionDays: retentionDays) }
@@ -174,6 +343,9 @@ public final class StowRepository {
         let expiredIDs = Set(expired.map(\.id))
         for attachment in try modelContext.fetch(FetchDescriptor<StowAttachment>()) where expiredIDs.contains(attachment.itemID) {
             modelContext.delete(attachment)
+        }
+        for representation in try modelContext.fetch(FetchDescriptor<StowRepresentation>()) where expiredIDs.contains(representation.itemID) {
+            modelContext.delete(representation)
         }
         for item in expired { modelContext.delete(item) }
         try modelContext.save()
@@ -192,6 +364,41 @@ public final class StowRepository {
         } catch {
             modelContext.rollback()
             throw error
+        }
+    }
+
+    private func insertAttachment(
+        data: Data,
+        draft: CaptureDraft,
+        itemID: UUID,
+        at date: Date
+    ) {
+        let imageInfo = AttachmentStore.imageInfo(data)
+        modelContext.insert(StowAttachment(
+            itemID: itemID,
+            data: data,
+            thumbnailData: imageInfo.thumbnail,
+            contentType: draft.contentType ?? "application/octet-stream",
+            fileName: draft.fileName ?? draft.stagedAttachmentName ?? "Attachment",
+            pixelWidth: imageInfo.width,
+            pixelHeight: imageInfo.height,
+            createdAt: date
+        ))
+    }
+
+    private func insertRepresentations(
+        _ representations: [StowRepresentationDraft],
+        itemID: UUID,
+        at date: Date
+    ) {
+        for representation in representations {
+            modelContext.insert(StowRepresentation(
+                itemID: itemID,
+                typeIdentifier: representation.typeIdentifier,
+                data: representation.data,
+                ordinal: representation.ordinal,
+                createdAt: date
+            ))
         }
     }
 

@@ -12,6 +12,7 @@ struct QuickPanelSettingsAction {
 @MainActor
 enum RetrievalUseKind {
     case defaultPaste
+    case plainTextPaste
     case copy
     case open
 }
@@ -148,7 +149,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         session.panelHeight = height
         session.panelWidth = frame.width
         session.feedback = nil
-        session.directPasteAvailable = directPasteService.canPasteDirectly && targetApplication != nil
+        session.directPasteAvailable = pasteOutcome == .directPaste
 
         if panel == nil {
             createPanel(model: model, container: container)
@@ -331,22 +332,37 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
     private func use(_ item: StowItem, attachment: StowAttachment?, kind: RetrievalUseKind) {
         guard let model else { return }
         switch kind {
-        case .defaultPaste:
+        case .defaultPaste, .plainTextPaste:
+            let format: PasteFormat = kind == .plainTextPaste ? .plainText : .original
+            let representations = model.representations(for: item)
             let copied = model.performUse(item, action: .copy, metric: .itemCopied) {
-                try PlatformActions.copy(item, attachmentData: attachment?.data, attachment: attachment)
+                try PlatformActions.copy(
+                    item,
+                    attachmentData: attachment?.data,
+                    attachment: attachment,
+                    representations: representations,
+                    format: format
+                )
             }
             guard copied else { return }
-            if directPasteService.canPasteDirectly, targetApplication != nil {
+            switch pasteOutcome {
+            case .directPaste:
                 let target = targetApplication
                 enqueueClose(.completedUse, returnFocus: false) { [weak self] in
                     self?.directPasteService.paste(into: target)
                 }
-            } else {
-                showFeedback("Copied — paste with Command-V", thenDismiss: true)
+            case .copyFallback:
+                showFeedback(RetrievalPastePresentation.copyFallbackMessage, thenDismiss: true)
             }
         case .copy:
+            let representations = model.representations(for: item)
             let copied = model.performUse(item, action: .copy, metric: .itemCopied) {
-                try PlatformActions.copy(item, attachmentData: attachment?.data, attachment: attachment)
+                try PlatformActions.copy(
+                    item,
+                    attachmentData: attachment?.data,
+                    attachment: attachment,
+                    representations: representations
+                )
             }
             if copied { showFeedback("Copied") }
         case .open:
@@ -439,6 +455,10 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
             self.session.feedback = nil
             if thenDismiss { self.requestClose(.completedUse) }
         }
+    }
+
+    private var pasteOutcome: RetrievalPasteOutcome {
+        RetrievalPastePolicy.outcome(capability: directPasteService, target: targetApplication)
     }
 
     private func previousApplication() -> NSRunningApplication? {

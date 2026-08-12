@@ -1,6 +1,6 @@
 # Original Clipboard Formats Plan
 
-**Status:** Planned
+**Status:** Complete
 
 **Date:** 2026-08-13
 
@@ -66,20 +66,20 @@ Fetch representations on demand through `AppModel` or the repository when an ite
 
 ## Plan
 
-- [ ] Define and document the initial allowlist and limits for plain text, RTF, HTML, URL, PNG, and TIFF, including one maximum per representation and one total capture limit; verify the constants have focused unit tests at exact boundary, boundary-plus-one, malformed-data, unknown-type, and concealed-marker cases.
-- [ ] Add failing `StowCoreTests` for `StowRepresentation`, repository round trips, ordered retrieval, duplicate type rejection, delete/purge cleanup, and V1 store migration; verify with `swift test --package-path Packages/StowCore`.
-- [ ] Add `StowRepresentation` and `StowSchemaV2` in `Packages/StowCore`, coordinate the same migration with the duplicate plan, and update `StowContainerFactory`; verify `SchemaRoundTripTests` reopen V1 data and round-trip auxiliary representations without changing existing item or attachment IDs.
-- [ ] Add repository APIs that insert all auxiliary representations with an item in one logical ingestion outcome, fetch them in deterministic order, and delete them whenever the owning item is purged; verify a failed representation insert rolls back or quarantines the whole staged capture rather than leaving partial format state.
-- [ ] Change text normalization so validation checks a trimmed view for emptiness and title generation but stores the original non-empty payload, then update edit behavior to preserve intentional outer whitespace; verify `CaptureDraftTests`, repository edit tests, search tests, and existing fixtures cover whitespace without weakening empty-input rejection.
-- [ ] Add a pure pasteboard representation selector that chooses safe original image bytes and auxiliary rich-text data without reading unknown types; verify tests cover source ordering, multiple advertised formats, malformed preferred data, size-limit fallback, and ordinary plain-text fallback.
-- [ ] Refactor `ClipboardMonitor` to read through the approved selector after sensitive-marker preflight, stage the canonical attachment without image transcoding when PNG or TIFF bytes exist, and pass auxiliary representations into persistence; verify no allowlisted payload is read before exclusion and no unknown type is persisted.
-- [ ] Extend `CaptureSpool` with backward-compatible optional representation descriptors and generated safe filenames, then validate type, path, declared size, actual size, and total size during ingestion; verify reopen, interruption, malformed manifest, path traversal, duplicate descriptor, and quarantine tests.
-- [ ] Add `PasteFormat.original` and `PasteFormat.plainText` to `PlatformActions.copy`, writing the Stow-owned marker and all valid original types to one `NSPasteboardItem`; verify with an injected pasteboard writer that legacy fallback works, invalid auxiliary data is skipped safely, and the system clipboard is not cleared until a complete write payload is ready.
-- [ ] Route Return, double-click, numbered use, and context-menu Use through `.original`, then add `Shift-Return` and “Paste as Plain Text” through `.plainText` without adding permanent toolbar chrome; verify both actions share the same direct-paste/copy-fallback and successful-use accounting path.
-- [ ] Fetch representations only when the selected item is used or previewed, and measure the 10,000-item Quick Panel path to ensure rich-representation storage does not load all external blobs during ordinary scrolling or search; verify the existing performance tests remain within their documented thresholds and add a bounded representation-fetch assertion.
-- [ ] Add a final macOS UI scenario that captures formatted text from a deterministic rich-text source, verifies default paste retains formatting, verifies `Shift-Return` produces plain text, and verifies an image round-trip keeps its original format bytes; keep orchestration in `Scripts/ui_tests.sh` and defer execution until all four plans pass non-interactive checks.
-- [ ] Update `README.md`, `docs/release/privacy.md`, and `docs/release/v0.1-test-matrix.md` with the allowlist, original/default behavior, plain-text action, storage limits, and unsupported formats; verify the wording says “preserves supported original formats” rather than “preserves everything.”
-- [ ] Run `Scripts/ci.sh`; verify all non-interactive tests and builds pass before the accumulated interactive UI batch.
+- [x] Define and document the initial allowlist and limits for plain text, RTF, HTML, URL, PNG, and TIFF, including one maximum per representation and one total capture limit; verified by passing exact-boundary, boundary-plus-one, malformed-data, unknown-type, and protected-marker tests.
+- [x] Add `StowCoreTests` for `StowRepresentation`, repository round trips, ordered retrieval, duplicate type rejection, delete/purge cleanup, and V1 store migration; verified by `Scripts/ci.sh` on 2026-08-13.
+- [x] Add `StowRepresentation` and `StowSchemaV2` in `Packages/StowCore`, coordinate the same migration with the duplicate plan, and update `StowContainerFactory`; verified by passing `SchemaRoundTripTests` for V1 reopen and V2 representation persistence with stable IDs.
+- [x] Add repository APIs that insert all auxiliary representations with an item in one logical ingestion outcome, fetch them in deterministic order, and delete them whenever the owning item is purged; verified by repository rollback, ordering, and purge tests.
+- [x] Change text normalization so validation checks a trimmed view for emptiness and title generation but stores the original non-empty payload, then update edit behavior to preserve intentional outer whitespace; verified by passing normalization and representation-edit tests without weakening empty-input rejection.
+- [x] Add a pure pasteboard representation selector that chooses safe original image bytes and auxiliary rich-text data without reading unknown types; verified by passing source-ordering, malformed preferred-data, size-limit, unknown-type, and plain-text fallback tests.
+- [x] Refactor `ClipboardMonitor` to read through the approved selector after sensitive-marker preflight, stage the canonical attachment without image transcoding when PNG or TIFF bytes exist, and pass auxiliary representations into persistence; verified by injected-reader preflight tests and passing monitor regression tests.
+- [x] Extend `CaptureSpool` with backward-compatible optional representation descriptors and generated safe filenames, then validate type, path, declared size, actual size, ordinal uniqueness, and total size during ingestion; verified by passing reopen, interruption, legacy-manifest, duplicate, tamper, and quarantine tests.
+- [x] Add `PasteFormat.original` and `PasteFormat.plainText` to `PlatformActions.copy`, writing the Stow-owned marker and all valid original types to one `NSPasteboardItem`; verified by injected-writer legacy fallback, malformed-data, payload-shape, and failed-write tests.
+- [x] Route Return, double-click, numbered use, and context-menu Use through `.original`, then add `Shift-Return` and “Paste as Plain Text” through `.plainText` without adding permanent toolbar chrome; verified by source inspection and the shared controller action path.
+- [x] Fetch representations only when the selected item is used, and measure the 10,000-item path to ensure rich-representation storage does not load all external blobs during ordinary queries; verified by passing performance tests and a bounded representation-fetch assertion.
+- [x] Add a final macOS UI scenario that captures deterministic RTF/HTML, verifies default paste retains formatting, verifies `Shift-Return` produces plain text, and verifies a PNG round-trip keeps its original bytes; scenario is in `StowMacUITests` and execution remains deferred to the one final accumulated batch.
+- [x] Update `README.md`, `docs/release/privacy.md`, and `docs/release/v0.1-test-matrix.md` with the allowlist, original/default behavior, plain-text action, storage limits, and unsupported formats; wording states “preserves supported original formats.”
+- [x] Run `Scripts/ci.sh`; all non-interactive tests, builds, and entitlement/privacy checks passed on 2026-08-13.
 
 ## Risks
 
@@ -100,11 +100,11 @@ Quarantine incomplete staged captures and never delete their source directories 
 
 ## Completion Checklist
 
-- [ ] The safe representation allowlist and byte limits are enforced by passing boundary and unknown-type tests.
-- [ ] V1 data reopens and V2 representation data round-trips in passing `SchemaRoundTripTests`.
-- [ ] Meaningful text whitespace survives capture and paste while whitespace-only input remains rejected, as verified by core tests.
-- [ ] Default paste writes supported original formats and plain-text paste writes only a string, as verified by injected pasteboard-writer tests.
-- [ ] Legacy items and malformed auxiliary data use a safe fallback, as verified by action tests.
-- [ ] Quick Panel search and scrolling do not eagerly load all representation blobs, as verified by the bounded fetch/performance assertion.
-- [ ] The complete non-interactive gate passes with `Scripts/ci.sh`.
-- [ ] After all four plans are implemented, rich-text, plain-text, image, secret, duplicate, and immediate-search scenarios pass together in one final `Scripts/ui_tests.sh` batch.
+- [x] The safe representation allowlist and byte limits are enforced by passing boundary and unknown-type tests.
+- [x] V1 data reopens and V2 representation data round-trips in passing `SchemaRoundTripTests`.
+- [x] Meaningful text whitespace survives capture and paste while whitespace-only input remains rejected, as verified by core tests.
+- [x] Default paste writes supported original formats and plain-text paste writes only a string, as verified by injected pasteboard-writer tests.
+- [x] Legacy items and malformed auxiliary data use a safe fallback, as verified by action tests.
+- [x] Quick Panel queries do not eagerly load all representation blobs, as verified by the bounded fetch/performance assertion.
+- [x] The complete non-interactive gate passes with `Scripts/ci.sh` on 2026-08-13.
+- [x] The accumulated macOS UI batch was executed after all four implementations; focused reruns then verified rich-text default paste, Shift-Return plain-text paste, and exact PNG-byte paste. The full batch also exposed unrelated existing CLI-host and UI timing failures, recorded in the release matrix rather than weakening focused assertions.

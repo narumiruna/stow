@@ -151,7 +151,17 @@ struct StowItemDetailView: View {
 
     private var actionBar: some View {
         HStack(spacing: 12) {
-            Button { appModel.performUse(item, action: .copy, metric: .itemCopied) { try PlatformActions.copy(item, attachmentData: attachments.first?.data) } } label: { Label("Copy", systemImage: "doc.on.doc") }
+            Button {
+                let representations = appModel.representations(for: item)
+                appModel.performUse(item, action: .copy, metric: .itemCopied) {
+                    try PlatformActions.copy(
+                        item,
+                        attachmentData: attachments.first?.data,
+                        attachment: attachments.first,
+                        representations: representations
+                    )
+                }
+            } label: { Label("Copy", systemImage: "doc.on.doc") }
                 .buttonStyle(.borderedProminent)
             if item.type == .link || item.type == .file {
                 Button { appModel.performUse(item, action: .open, metric: .itemOpened) { try PlatformActions.open(item, attachment: attachments.first) } } label: { Label(item.type == .link ? "Open Link" : "Open In", systemImage: "arrow.up.forward.app") }

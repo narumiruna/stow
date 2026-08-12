@@ -174,15 +174,20 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
 
     private func persist(_ content: ClipboardMonitor.CapturedContent, using model: AppModel) {
         switch content {
-        case .draft(let draft):
-            model.create(draft)
-        case .attachment(let draft, let fileURL):
-            model.createAttachment(draft, fileURL: fileURL)
+        case .draft(let draft, let representations):
+            model.ingestClipboard(draft, representations: representations)
+        case .attachment(let draft, let fileURL, let representations):
+            model.createAttachment(
+                draft,
+                fileURL: fileURL,
+                representations: representations,
+                intent: .coalesceClipboard
+            )
         }
     }
 
     private func discardPendingClipboardContents() {
-        for case .attachment(_, let fileURL) in pendingClipboardContents {
+        for case .attachment(_, let fileURL, _) in pendingClipboardContents {
             try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
         }
         pendingClipboardContents.removeAll()
@@ -232,10 +237,6 @@ extension Notification.Name {
     static let stowOpenSettings = Notification.Name("StowOpenSettings")
 }
 
-extension NSPasteboard.PasteboardType {
-    static let stowOwnedContent = NSPasteboard.PasteboardType("dev.narumi.stow.owned-content")
-}
-
 @MainActor
 private final class QuickCapturePanelController: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
@@ -277,37 +278,38 @@ private final class QuickCapturePanelController: NSObject, NSWindowDelegate {
 }
 
 @MainActor
-private final class ClipboardMonitor: NSObject {
+final class ClipboardMonitor: NSObject {
     enum CapturedContent {
-        case draft(CaptureDraft)
-        case attachment(CaptureDraft, fileURL: URL)
+        case draft(CaptureDraft, representations: [StowRepresentationDraft])
+        case attachment(
+            CaptureDraft,
+            fileURL: URL,
+            representations: [StowRepresentationDraft]
+        )
     }
 
     var captureHandler: ((CapturedContent) -> Void)?
     var statusHandler: ((String) -> Void)?
     var errorHandler: ((Error) -> Void)?
 
-    private let pasteboard = NSPasteboard.general
+    private let reader: any ClipboardPasteboardReading
+    private let imageFallbackEncoder: @MainActor (NSImage) -> PasteboardCanonicalAttachment?
     private var timer: Timer?
     private var lastChangeCount = 0
 
-    var statusText: String {
-        if #available(macOS 15.4, *) {
-            switch pasteboard.accessBehavior {
-            case .default: return "Permission not requested"
-            case .ask: return "Needs Always Allow"
-            case .alwaysAllow: return "Always Allow"
-            case .alwaysDeny: return "Blocked by macOS"
-            @unknown default: return "Unknown"
-            }
-        } else {
-            return "Monitoring"
-        }
+    init(
+        reader: any ClipboardPasteboardReading = SystemClipboardPasteboardReader(),
+        imageFallbackEncoder: @escaping @MainActor (NSImage) -> PasteboardCanonicalAttachment? = ClipboardMonitor.encodeFallbackImage
+    ) {
+        self.reader = reader
+        self.imageFallbackEncoder = imageFallbackEncoder
     }
+
+    var statusText: String { reader.statusText }
 
     func start() {
         guard timer == nil else { return }
-        lastChangeCount = pasteboard.changeCount
+        lastChangeCount = reader.changeCount
         let timer = Timer(timeInterval: 0.35, target: self, selector: #selector(checkForChanges), userInfo: nil, repeats: true)
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
@@ -319,22 +321,20 @@ private final class ClipboardMonitor: NSObject {
         timer = nil
     }
 
-    @objc private func checkForChanges() {
-        let changeCount = pasteboard.changeCount
+    @objc func checkForChanges() {
+        let changeCount = reader.changeCount
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount
         statusHandler?(statusText)
-        if #available(macOS 15.4, *) {
-            switch pasteboard.accessBehavior {
-            case .ask, .alwaysDeny:
-                return
-            case .default, .alwaysAllow:
-                break
-            @unknown default:
-                return
-            }
+        guard reader.captureAccessAllowed else { return }
+
+        let decision = ClipboardCapturePolicy.decision(
+            for: reader.advertisedTypeIdentifiers
+        )
+        guard decision == .capture else {
+            statusHandler?(statusText)
+            return
         }
-        guard pasteboard.availableType(from: [.stowOwnedContent]) == nil else { return }
 
         do {
             try captureCurrentContent(sourceApp: NSWorkspace.shared.frontmostApplication?.localizedName)
@@ -345,17 +345,28 @@ private final class ClipboardMonitor: NSObject {
     }
 
     private func captureCurrentContent(sourceApp: String?) throws {
-        let pastedURL = pasteboard.readObjects(forClasses: [NSURL.self])?.first as? URL
+        let snapshot = reader.readSnapshot()
+        var selection = try PasteboardRepresentationSelector.select(snapshot.candidates)
+        if selection.canonicalAttachment == nil,
+           let image = reader.readImage(),
+           let fallback = imageFallbackEncoder(image) {
+            selection = try PasteboardRepresentationSelector.select(
+                snapshot.candidates + [PasteboardRepresentationCandidate(
+                    typeIdentifier: fallback.typeIdentifier,
+                    data: fallback.data
+                )]
+            )
+        }
+        let pastedURL = snapshot.urls.first
         if let pastedURL, pastedURL.isFileURL {
             try captureFile(at: pastedURL, sourceApp: sourceApp)
             return
         }
 
-        if let image = NSImage(pasteboard: pasteboard), let tiffData = image.tiffRepresentation {
-            let representation = NSBitmapImageRep(data: tiffData)
-            let data = representation?.representation(using: .png, properties: [:]) ?? tiffData
-            let fileExtension = representation == nil ? "tiff" : "png"
-            let contentType = representation == nil ? UTType.tiff.identifier : UTType.png.identifier
+        if let attachment = selection.canonicalAttachment {
+            let data = attachment.data
+            let fileExtension = attachment.typeIdentifier == StowRepresentationType.png ? "png" : "tiff"
+            let contentType = attachment.typeIdentifier
             let fileURL = try stage(data: data, fileName: "Clipboard Image.\(fileExtension)")
             let draft = CaptureDraft(
                 type: .image,
@@ -366,34 +377,70 @@ private final class ClipboardMonitor: NSObject {
                 fileName: fileURL.lastPathComponent,
                 sourceApp: sourceApp
             )
-            captureHandler?(.attachment(draft, fileURL: fileURL))
+            captureHandler?(.attachment(
+                draft,
+                fileURL: fileURL,
+                representations: selection.representations
+            ))
             return
         }
 
-        if let string = pasteboard.string(forType: .string) {
-            captureText(string, sourceApp: sourceApp)
+        if let string = selection.canonicalText ?? selection.canonicalURL {
+            captureText(
+                string,
+                sourceApp: sourceApp,
+                representations: selection.representations
+            )
             return
         }
 
         if let pastedURL, !pastedURL.isFileURL {
-            captureText(pastedURL.absoluteString, sourceApp: sourceApp)
+            captureText(pastedURL.absoluteString, sourceApp: sourceApp, representations: [])
         }
     }
 
-    private func captureText(_ string: String, sourceApp: String?) {
-        let value = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return }
-        let components = URLComponents(string: value)
+    static func encodeFallbackImage(_ image: NSImage) -> PasteboardCanonicalAttachment? {
+        var proposedRect = NSRect(origin: .zero, size: image.size)
+        if let cgImage = image.cgImage(
+            forProposedRect: &proposedRect,
+            context: nil,
+            hints: nil
+        ) {
+            let bitmap = NSBitmapImageRep(cgImage: cgImage)
+            if let pngData = bitmap.representation(using: .png, properties: [:]),
+               pngData.count <= StowRepresentationLimits.imageBytes {
+                return PasteboardCanonicalAttachment(
+                    typeIdentifier: StowRepresentationType.png,
+                    data: pngData
+                )
+            }
+        }
+        guard let tiffData = image.tiffRepresentation,
+              tiffData.count <= StowRepresentationLimits.imageBytes else { return nil }
+        return PasteboardCanonicalAttachment(
+            typeIdentifier: StowRepresentationType.tiff,
+            data: tiffData
+        )
+    }
+
+    private func captureText(
+        _ string: String,
+        sourceApp: String?,
+        representations: [StowRepresentationDraft]
+    ) {
+        let displayValue = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !displayValue.isEmpty else { return }
+        let components = URLComponents(string: displayValue)
         let scheme = components?.scheme?.lowercased()
         let isWebURL = (scheme == "http" || scheme == "https") && components?.host?.isEmpty == false
         let draft = CaptureDraft(
             type: isWebURL ? .link : .text,
             title: "",
-            textContent: isWebURL ? nil : value,
-            urlString: isWebURL ? value : nil,
+            textContent: isWebURL ? nil : string,
+            urlString: isWebURL ? displayValue : nil,
             sourceApp: sourceApp
         )
-        captureHandler?(.draft(draft))
+        captureHandler?(.draft(draft, representations: representations))
     }
 
     private func captureFile(at sourceURL: URL, sourceApp: String?) throws {
@@ -418,7 +465,7 @@ private final class ClipboardMonitor: NSObject {
             fileName: fileName,
             sourceApp: sourceApp
         )
-        captureHandler?(.attachment(draft, fileURL: stagedURL))
+        captureHandler?(.attachment(draft, fileURL: stagedURL, representations: []))
     }
 
     private func stage(data: Data, fileName: String) throws -> URL {

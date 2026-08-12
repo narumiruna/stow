@@ -55,6 +55,28 @@ final class PerformanceReliabilityTests: XCTestCase {
     }
 
     @MainActor
+    func testTenThousandItemQueryDoesNotEagerlyFetchRepresentations() throws {
+        let container = try StowContainerFactory.inMemory()
+        let repository = StowRepository(modelContext: container.mainContext)
+        for index in 0..<10_000 {
+            container.mainContext.insert(StowItem(
+                type: .text,
+                title: "Item \(index)",
+                textContent: "Payload \(index)",
+                createdAt: Date(timeIntervalSince1970: TimeInterval(index))
+            ))
+        }
+        try container.mainContext.save()
+
+        XCTAssertEqual(try repository.allItems().count, 10_000)
+        XCTAssertEqual(repository.representationFetchCount, 0)
+        let firstID = try XCTUnwrap(repository.allItems().first?.id)
+        _ = try repository.representations(itemID: firstID)
+        XCTAssertEqual(repository.representationFetchCount, 1)
+        XCTAssertEqual(repository.representationRowFetchCount, 0)
+    }
+
+    @MainActor
     func testCaptureCommitAndRapidDuplicateIngestionMeetReliabilityTargets() throws {
         let container = try StowContainerFactory.inMemory()
         let repository = StowRepository(modelContext: container.mainContext)

@@ -10,10 +10,24 @@ public struct CaptureIngestionResult: Equatable, Sendable {
     }
 }
 
+public enum CaptureIngestionIntent: String, Codable, Equatable, Sendable {
+    case createNew
+    case coalesceClipboard
+}
+
+private struct StagedRepresentationDescriptor: Codable {
+    let typeIdentifier: String
+    let fileName: String
+    let byteCount: Int
+    let ordinal: Int
+}
+
 private struct StagedCaptureEnvelope: Codable {
     let draft: CaptureDraft
     let capturedAt: Date
     let attachmentFileName: String?
+    let ingestionIntent: CaptureIngestionIntent?
+    let representations: [StagedRepresentationDescriptor]?
 }
 
 @MainActor
@@ -38,8 +52,15 @@ public final class CaptureSpool {
         try fileManager.createDirectory(at: quarantineURL, withIntermediateDirectories: true)
     }
 
-    public func stage(_ draft: CaptureDraft, attachmentURL: URL? = nil, at date: Date = Date()) throws {
+    public func stage(
+        _ draft: CaptureDraft,
+        attachmentURL: URL? = nil,
+        representations: [StowRepresentationDraft] = [],
+        intent: CaptureIngestionIntent = .createNew,
+        at date: Date = Date()
+    ) throws {
         let normalized = try draft.normalized()
+        try StowRepresentationValidator.validate(representations)
         if normalized.type == .image || normalized.type == .file {
             guard attachmentURL != nil else { throw CaptureValidationError.missingAttachment }
         }
@@ -60,7 +81,27 @@ public final class CaptureSpool {
                 try fileManager.copyItem(at: attachmentURL, to: stagingURL.appendingPathComponent(name))
                 attachmentFileName = name
             }
-            let envelope = StagedCaptureEnvelope(draft: normalized, capturedAt: date, attachmentFileName: attachmentFileName)
+            var representationDescriptors: [StagedRepresentationDescriptor] = []
+            for representation in representations {
+                let fileName = "representation-\(representation.ordinal).data"
+                try representation.data.write(
+                    to: stagingURL.appendingPathComponent(fileName),
+                    options: [.atomic]
+                )
+                representationDescriptors.append(StagedRepresentationDescriptor(
+                    typeIdentifier: representation.typeIdentifier,
+                    fileName: fileName,
+                    byteCount: representation.data.count,
+                    ordinal: representation.ordinal
+                ))
+            }
+            let envelope = StagedCaptureEnvelope(
+                draft: normalized,
+                capturedAt: date,
+                attachmentFileName: attachmentFileName,
+                ingestionIntent: intent == .createNew ? nil : intent,
+                representations: representationDescriptors.isEmpty ? nil : representationDescriptors
+            )
             let manifest = try encoder.encode(envelope)
             try manifest.write(to: stagingURL.appendingPathComponent("manifest.json"), options: [.atomic])
             try fileManager.moveItem(at: stagingURL, to: destinationURL)
@@ -97,19 +138,34 @@ public final class CaptureSpool {
                     guard byteCount <= 100 * 1_024 * 1_024 else { throw CaptureValidationError.attachmentTooLarge }
                     attachment = (try Data(contentsOf: attachmentURL, options: .mappedIfSafe), safeName)
                 }
-                let item = try repository.create(from: envelope.draft, at: envelope.capturedAt)
-                if let attachment, try repository.attachments(itemID: item.id).isEmpty {
-                    let imageInfo = AttachmentStore.imageInfo(attachment.data)
-                    try repository.addAttachment(StowAttachment(
-                        itemID: item.id,
-                        data: attachment.data,
-                        thumbnailData: imageInfo.thumbnail,
-                        contentType: envelope.draft.contentType ?? "application/octet-stream",
-                        fileName: envelope.draft.fileName ?? attachment.name,
-                        pixelWidth: imageInfo.width,
-                        pixelHeight: imageInfo.height,
-                        createdAt: envelope.capturedAt
+                var representations: [StowRepresentationDraft] = []
+                for descriptor in envelope.representations ?? [] {
+                    let safeName = URL(fileURLWithPath: descriptor.fileName).lastPathComponent
+                    guard safeName == descriptor.fileName else { throw CocoaError(.fileReadInvalidFileName) }
+                    let data = try Data(contentsOf: directory.appendingPathComponent(safeName), options: .mappedIfSafe)
+                    guard data.count == descriptor.byteCount else { throw CocoaError(.fileReadCorruptFile) }
+                    representations.append(StowRepresentationDraft(
+                        typeIdentifier: descriptor.typeIdentifier,
+                        data: data,
+                        ordinal: descriptor.ordinal
                     ))
+                }
+                try StowRepresentationValidator.validate(representations)
+                switch envelope.ingestionIntent ?? .createNew {
+                case .createNew:
+                    _ = try repository.create(
+                        from: envelope.draft,
+                        attachmentData: attachment?.data,
+                        representations: representations,
+                        at: envelope.capturedAt
+                    )
+                case .coalesceClipboard:
+                    _ = try repository.ingestClipboard(
+                        envelope.draft,
+                        attachmentData: attachment?.data,
+                        representations: representations,
+                        at: envelope.capturedAt
+                    )
                 }
                 try fileManager.removeItem(at: directory)
                 result.ingested += 1

@@ -470,7 +470,8 @@ Stow already covers several features that many clipboard managers split across s
 
 Repository inspection found the following capture limitations in `Sources/StowApp/macOS/MacAppCoordinator.swift`.
 
-- The monitor does not currently check macOS concealed clipboard markers before reading content.
+- The monitor now rejects concealed, transient, and Stow-owned clipboard changes before reading payload content.
+- Automatic macOS monitoring now coalesces exact canonical duplicates into the existing non-Trash item, preserves user edits and lifecycle state, and treats matching Trash content as a new Inbox capture. The first implementation intentionally excludes fuzzy matching and independent cross-device reconciliation.
 - The settings do not currently expose per-app capture exclusions.
 - Text capture reads `.string` and trims leading and trailing whitespace.
 - Rich text, HTML, and alternative clipboard representations are not preserved.

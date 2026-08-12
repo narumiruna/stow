@@ -91,11 +91,12 @@ public struct CaptureDraft: Codable, Equatable, Identifiable, Sendable {
             if result.title.isEmpty { result.title = host }
 
         case .text, .code:
-            let value = textContent?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            guard !value.isEmpty else { throw CaptureValidationError.missingText }
-            result.textContent = value
+            let originalValue = textContent ?? ""
+            let displayValue = originalValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !displayValue.isEmpty else { throw CaptureValidationError.missingText }
+            result.textContent = originalValue
             if result.title.isEmpty {
-                result.title = value.split(whereSeparator: \.isNewline).first.map(String.init) ?? "Text"
+                result.title = displayValue.split(whereSeparator: \.isNewline).first.map(String.init) ?? "Text"
                 if result.title.count > 80 { result.title = String(result.title.prefix(80)) }
             }
 
