@@ -428,6 +428,7 @@ final class StowMacUITests: XCTestCase {
         XCTAssertEqual(NSPasteboard.general.string(forType: .string), richToken)
         XCTAssertEqual(NSPasteboard.general.data(forType: .rtf), Data("{\\rtf1\\b \(richToken)}".utf8))
         XCTAssertEqual(NSPasteboard.general.string(forType: .html), "<b>\(richToken)</b>")
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 5))
 
         showPanel(in: app)
         XCTAssertTrue(panel.waitForExistence(timeout: 3))
