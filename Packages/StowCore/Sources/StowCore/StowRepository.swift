@@ -11,6 +11,17 @@ public enum StowRepositoryError: Error, Equatable, LocalizedError {
     }
 }
 
+public enum CaptureIngestionOutcome {
+    case created(StowItem)
+    case coalesced(StowItem)
+
+    public var item: StowItem {
+        switch self {
+        case .created(let item), .coalesced(let item): item
+        }
+    }
+}
+
 @MainActor
 public final class StowRepository {
     public let modelContext: ModelContext
@@ -30,6 +41,56 @@ public final class StowRepository {
         modelContext.insert(item)
         try modelContext.save()
         return item
+    }
+
+    @discardableResult
+    public func ingestClipboard(
+        _ draft: CaptureDraft,
+        attachmentData: Data? = nil,
+        at date: Date = Date()
+    ) throws -> CaptureIngestionOutcome {
+        let normalized = try draft.normalized()
+        if let existing = try allItems().first(where: { $0.captureID == normalized.id }) {
+            return .coalesced(existing)
+        }
+        let fingerprint = try ClipboardContentFingerprint.make(
+            draft: normalized,
+            attachmentData: attachmentData
+        )
+        if let existing = try allItems().first(where: {
+            $0.status != .trashed && $0.contentFingerprint == fingerprint
+        }) {
+            existing.lastCapturedAt = date
+            existing.sourceApp = normalized.sourceApp
+            existing.updatedAt = date
+            try modelContext.save()
+            return .coalesced(existing)
+        }
+
+        let item = StowItem(draft: normalized, createdAt: date)
+        item.contentFingerprint = fingerprint
+        item.lastCapturedAt = date
+        modelContext.insert(item)
+        if let attachmentData {
+            let imageInfo = AttachmentStore.imageInfo(attachmentData)
+            modelContext.insert(StowAttachment(
+                itemID: item.id,
+                data: attachmentData,
+                thumbnailData: imageInfo.thumbnail,
+                contentType: normalized.contentType ?? "application/octet-stream",
+                fileName: normalized.fileName ?? normalized.stagedAttachmentName ?? "Attachment",
+                pixelWidth: imageInfo.width,
+                pixelHeight: imageInfo.height,
+                createdAt: date
+            ))
+        }
+        do {
+            try modelContext.save()
+            return .created(item)
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
     }
 
     public func allItems() throws -> [StowItem] {
@@ -119,11 +180,17 @@ public final class StowRepository {
         let cleanLanguage = language?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased()
         if updatesText, cleanText.isEmpty { throw CaptureValidationError.missingText }
 
+        let changesCanonicalContent = updatesText && (
+            item.textContent != cleanText || item.language != cleanLanguage
+        )
         item.title = cleanTitle.isEmpty ? item.title : cleanTitle
         item.note = cleanNote
         if updatesText {
             item.textContent = cleanText
             item.language = cleanLanguage
+        }
+        if changesCanonicalContent {
+            item.contentFingerprint = try ClipboardContentFingerprint.make(item: item)
         }
         item.updatedAt = date
         do {
@@ -165,6 +232,26 @@ public final class StowRepository {
 
     public func attachments(itemID: UUID) throws -> [StowAttachment] {
         try allAttachments().filter { $0.itemID == itemID }
+    }
+
+    @discardableResult
+    public func backfillContentFingerprints(limit: Int = 200) throws -> Int {
+        let missing = try allItems().filter { $0.contentFingerprint == nil }.prefix(max(0, limit))
+        var updated = 0
+        for item in missing {
+            let attachment = try attachments(itemID: item.id).first
+            do {
+                item.contentFingerprint = try ClipboardContentFingerprint.make(
+                    item: item,
+                    attachment: attachment
+                )
+                updated += 1
+            } catch ClipboardFingerprintError.missingAttachmentData {
+                continue
+            }
+        }
+        if updated > 0 { try modelContext.save() }
+        return updated
     }
 
     @discardableResult

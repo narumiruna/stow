@@ -175,9 +175,9 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     private func persist(_ content: ClipboardMonitor.CapturedContent, using model: AppModel) {
         switch content {
         case .draft(let draft):
-            model.create(draft)
+            model.ingestClipboard(draft)
         case .attachment(let draft, let fileURL):
-            model.createAttachment(draft, fileURL: fileURL)
+            model.createAttachment(draft, fileURL: fileURL, intent: .coalesceClipboard)
         }
     }
 

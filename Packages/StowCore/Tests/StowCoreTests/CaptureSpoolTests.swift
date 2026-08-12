@@ -27,6 +27,55 @@ final class CaptureSpoolTests: XCTestCase {
         XCTAssertEqual(reopened.ingestAll(into: repository).ingested, 0)
     }
 
+    func testClipboardAttachmentIntentCoalescesWithoutAddingASecondAttachment() throws {
+        let root = temporaryDirectory()
+        let firstURL = root.appendingPathComponent("first.png")
+        let secondURL = root.appendingPathComponent("second.png")
+        let bytes = Data([1, 2, 3, 4])
+        try bytes.write(to: firstURL)
+        try bytes.write(to: secondURL)
+        let first = CaptureDraft(type: .image, title: "First", stagedAttachmentName: "first.png", attachmentByteCount: bytes.count, contentType: "image/png", fileName: "first.png")
+        let second = CaptureDraft(type: .image, title: "Second", stagedAttachmentName: "second.png", attachmentByteCount: bytes.count, contentType: "image/png", fileName: "second.png")
+        let spool = try CaptureSpool(rootURL: root.appendingPathComponent("Spool"))
+        try spool.stage(first, attachmentURL: firstURL, intent: .coalesceClipboard, at: Date(timeIntervalSince1970: 100))
+
+        let container = try StowContainerFactory.inMemory()
+        let repository = StowRepository(modelContext: container.mainContext)
+        XCTAssertEqual(spool.ingestAll(into: repository).ingested, 1)
+        try spool.stage(second, attachmentURL: secondURL, intent: .coalesceClipboard, at: Date(timeIntervalSince1970: 101))
+        XCTAssertEqual(spool.ingestAll(into: repository).ingested, 1)
+
+        XCTAssertEqual(try repository.allItems().count, 1)
+        XCTAssertEqual(try repository.allAttachments().count, 1)
+        XCTAssertEqual(try repository.allItems().first?.lastCapturedAt, Date(timeIntervalSince1970: 101))
+        XCTAssertEqual(spool.ingestAll(into: repository).ingested, 0)
+    }
+
+    func testLegacyManifestWithoutIngestionIntentStillCreatesNew() throws {
+        struct LegacyEnvelope: Codable {
+            let draft: CaptureDraft
+            let capturedAt: Date
+            let attachmentFileName: String?
+        }
+        let root = temporaryDirectory().appendingPathComponent("Spool")
+        let pending = root.appendingPathComponent("Pending/legacy", isDirectory: true)
+        _ = try CaptureSpool(rootURL: root)
+        try FileManager.default.createDirectory(at: pending, withIntermediateDirectories: true)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(LegacyEnvelope(
+            draft: CaptureDraft(type: .text, title: "Legacy", textContent: "body"),
+            capturedAt: Date(timeIntervalSince1970: 100),
+            attachmentFileName: nil
+        )).write(to: pending.appendingPathComponent("manifest.json"))
+
+        let container = try StowContainerFactory.inMemory()
+        let repository = StowRepository(modelContext: container.mainContext)
+        XCTAssertEqual(try CaptureSpool(rootURL: root).ingestAll(into: repository).ingested, 1)
+        XCTAssertEqual(try repository.allItems().count, 1)
+        XCTAssertNil(try repository.allItems().first?.lastCapturedAt)
+    }
+
     func testInterruptedTemporaryDirectoryIsIgnoredAndRemovedByMaintenance() throws {
         let root = temporaryDirectory().appendingPathComponent("Spool")
         let spool = try CaptureSpool(rootURL: root)

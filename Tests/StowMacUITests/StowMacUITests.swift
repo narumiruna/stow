@@ -359,6 +359,51 @@ final class StowMacUITests: XCTestCase {
         app.terminate()
     }
 
+    func testClipboardDuplicateCoalescingAndTrashIsolation() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-utility-mode"])
+        XCTAssertNotEqual(app.state, .notRunning)
+        Thread.sleep(forTimeInterval: 0.6)
+
+        let token = "duplicate-fixture-\(UUID().uuidString)"
+        writeClipboardFixture(token)
+        Thread.sleep(forTimeInterval: 0.8)
+        let firstSearch = try runCLI(["search", token, "--json"])
+        let firstMatches = try XCTUnwrap((firstSearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertEqual(firstMatches.count, 1)
+        let originalID = try XCTUnwrap(firstMatches.first?["id"] as? String)
+
+        writeClipboardFixture("older-\(token)")
+        Thread.sleep(forTimeInterval: 0.8)
+        writeClipboardFixture(token)
+        Thread.sleep(forTimeInterval: 0.8)
+        let recopySearch = try runCLI(["search", token, "--json"])
+        let recopyMatches = try XCTUnwrap((recopySearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertEqual(recopyMatches.filter { ($0["title"] as? String) == token }.count, 1)
+        XCTAssertEqual(recopyMatches.first { ($0["title"] as? String) == token }?["id"] as? String, originalID)
+
+        app.activate()
+        let fileMenu = app.menuBars.menuBarItems["File"]
+        fileMenu.click()
+        fileMenu.menus.menuItems["Quick Panel…"].click()
+        let panel = app.windows["Stow Quick Panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        XCTAssertTrue(panel.buttons["Text, \(token)"].waitForExistence(timeout: 3), "Recopy must move the existing card to the front")
+        panel.buttons["Text, \(token)"].click()
+        app.typeKey(.delete, modifierFlags: [])
+        XCTAssertTrue(panel.staticTexts["Moved to Trash"].waitForExistence(timeout: 3))
+        panel.buttons["Close Quick Panel"].click()
+
+        writeClipboardFixture(token)
+        Thread.sleep(forTimeInterval: 0.8)
+        let afterTrashSearch = try runCLI(["search", token, "--status", "all", "--json"])
+        let afterTrashMatches = try XCTUnwrap((afterTrashSearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertEqual(afterTrashMatches.filter { ($0["title"] as? String) == token }.count, 2, "Trash remains and a new Inbox item is created")
+        XCTAssertEqual(afterTrashMatches.filter { ($0["status"] as? String) == "trashed" }.count, 1)
+        XCTAssertEqual(afterTrashMatches.filter { ($0["status"] as? String) == "inbox" }.count, 1)
+
+        app.terminate()
+    }
+
     func testImmediateSearchAndPasteFromTextEdit() {
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
         textEdit.launch()

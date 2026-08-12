@@ -1159,7 +1159,12 @@ struct RetrievalPanelView: View {
     }
 
     private func panelSort(_ lhs: StowItem, _ rhs: StowItem) -> Bool {
-        if mode == .clipboard { return (lhs.lastUsedAt ?? lhs.createdAt) > (rhs.lastUsedAt ?? rhs.createdAt) }
+        if mode == .clipboard {
+            let leftDate = ClipboardActivityOrdering.activityDate(for: lhs)
+            let rightDate = ClipboardActivityOrdering.activityDate(for: rhs)
+            if leftDate == rightDate { return lhs.id.uuidString < rhs.id.uuidString }
+            return leftDate > rightDate
+        }
         return lhs.createdAt > rhs.createdAt
     }
 }

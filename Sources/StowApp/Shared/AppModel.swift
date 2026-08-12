@@ -83,6 +83,24 @@ final class AppModel {
     }
 
     @discardableResult
+    func ingestClipboard(_ draft: CaptureDraft) -> Bool {
+        do {
+            guard let repository else { throw StowRepositoryError.itemNotFound }
+            let outcome = try repository.ingestClipboard(draft)
+            presentedError = nil
+            try? metrics?.record(.captureSucceeded)
+            if case .created(let item) = outcome, item.type == .link {
+                Task { await LinkMetadataEnricher().enrich(item: item, repository: repository) }
+            }
+            return true
+        } catch {
+            try? metrics?.record(.captureFailed)
+            presentedError = error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
     func create(_ draft: CaptureDraft) -> Bool {
         do {
             _ = try createForAutomation(draft)
@@ -113,11 +131,15 @@ final class AppModel {
     }
 
     @discardableResult
-    func createAttachment(_ draft: CaptureDraft, fileURL: URL) -> Bool {
+    func createAttachment(
+        _ draft: CaptureDraft,
+        fileURL: URL,
+        intent: CaptureIngestionIntent = .createNew
+    ) -> Bool {
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
             let captureSpool = try spool ?? CaptureSpool(rootURL: StowEnvironment.sharedContainerURL().appendingPathComponent("CaptureSpool", isDirectory: true))
-            try captureSpool.stage(draft, attachmentURL: fileURL)
+            try captureSpool.stage(draft, attachmentURL: fileURL, intent: intent)
             try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
             let result = captureSpool.ingestAll(into: repository)
             if let failure = result.failures.first { throw NSError(domain: "StowCapture", code: 1, userInfo: [NSLocalizedDescriptionKey: failure]) }
@@ -468,6 +490,9 @@ final class AppModel {
         if let ingestion, !ingestion.failures.isEmpty {
             presentedError = "Some shared items could not be imported. They were retained for diagnostics."
         }
+        do {
+            while try repository.backfillContentFingerprints() > 0 {}
+        } catch { presentedError = error.localizedDescription }
         if let links = try? repository.allItems().filter({ $0.type == .link && $0.linkDescription == nil }) {
             for item in links.prefix(10) { Task { await LinkMetadataEnricher().enrich(item: item, repository: repository) } }
         }
