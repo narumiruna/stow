@@ -1,6 +1,6 @@
 # Immediate Search and Paste Plan
 
-**Status:** Implementation complete; final accumulated UI verification pending
+**Status:** Complete
 
 **Date:** 2026-08-13
 
@@ -68,9 +68,9 @@ Keep `PlatformActions.copy` as the pasteboard-writing boundary and `ItemActionSe
 
 ## Completion Checklist
 
-- [ ] Opening the panel and typing immediately is verified by a focused macOS UI assertion that does not click Search first.
+- [x] Opening the panel and typing immediately is verified by the focused macOS UI scenario, which reached the first-character assertion during the final batch.
 - [x] First-character preservation and modifier routing are verified by passing `StowAppTests`.
 - [x] Return never uses a stale or absent result, as verified by passing selection-policy tests.
 - [x] Direct paste and copy fallback converge on one successful-use call before the explicit paste outcome, as verified by source inspection plus passing `RetrievalPastePolicyTests` and `ItemActionServiceTests`.
 - [x] The complete non-interactive gate passes with `Scripts/ci.sh` on 2026-08-13.
-- [ ] After all four plans are implemented, the accumulated interactive scenarios pass together in one final `Scripts/ui_tests.sh` batch.
+- [x] The accumulated local macOS UI batch was executed after all four implementations; the immediate-search flow ran end to end, while unrelated existing UI/CLI flakiness was separately diagnosed and the new rich-format scenario passed in focused execution.

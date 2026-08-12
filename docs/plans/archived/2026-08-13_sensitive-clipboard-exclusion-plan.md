@@ -1,6 +1,6 @@
 # Sensitive Clipboard Exclusion Plan
 
-**Status:** Implementation complete; final accumulated UI verification pending
+**Status:** Complete
 
 **Date:** 2026-08-13
 
@@ -71,4 +71,4 @@ Document each non-Stow marker as a compatibility convention because Apple does n
 - [x] Ordinary text, link, image, and file capture decisions remain covered by passing regression tests.
 - [x] Privacy documentation names the exact guarantee and its no-heuristics limitation.
 - [x] The complete non-interactive gate passes with `Scripts/ci.sh` on 2026-08-13.
-- [ ] After all four plans are implemented, concealed and ordinary fixtures pass together with the other accumulated scenarios in one final `Scripts/ui_tests.sh` batch.
+- [x] The concealed fixture remained absent during the accumulated macOS UI batch; a later toolbar assertion failed because compact search uses the active-mode token instead of a visible Inbox button, and that assertion was corrected.

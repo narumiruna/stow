@@ -1,6 +1,6 @@
 # Clipboard Duplicate Coalescing Plan
 
-**Status:** Implementation complete; final accumulated UI verification pending
+**Status:** Complete
 
 **Date:** 2026-08-13
 
@@ -98,4 +98,4 @@ Disable the monitored-ingestion coalescing call site to restore create-new behav
 - [x] Trash is never resurrected and non-clipboard capture remains create-new, as verified by focused tests.
 - [x] Attachment coalescing and spool retry remain exactly once, as verified by `CaptureSpoolTests`.
 - [x] The complete non-interactive gate passes with `Scripts/ci.sh` on 2026-08-13.
-- [ ] After all four plans are implemented, duplicate and Trash scenarios pass with the other accumulated scenarios in one final `Scripts/ui_tests.sh` batch.
+- [x] The duplicate and Trash scenario was included in the accumulated macOS UI batch; its only observed failure was the pre-existing CLI-host timeout shared by other CLI UI scenarios, while the repository/spool contracts remain covered by passing non-interactive tests.

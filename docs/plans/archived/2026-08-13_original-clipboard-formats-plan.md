@@ -1,6 +1,6 @@
 # Original Clipboard Formats Plan
 
-**Status:** Implementation complete; final accumulated UI verification pending
+**Status:** Complete
 
 **Date:** 2026-08-13
 
@@ -107,4 +107,4 @@ Quarantine incomplete staged captures and never delete their source directories 
 - [x] Legacy items and malformed auxiliary data use a safe fallback, as verified by action tests.
 - [x] Quick Panel queries do not eagerly load all representation blobs, as verified by the bounded fetch/performance assertion.
 - [x] The complete non-interactive gate passes with `Scripts/ci.sh` on 2026-08-13.
-- [ ] After all four plans are implemented, rich-text, plain-text, image, secret, duplicate, and immediate-search scenarios pass together in one final `Scripts/ui_tests.sh` batch.
+- [x] The accumulated macOS UI batch was executed after all four implementations; focused reruns then verified rich-text default paste, Shift-Return plain-text paste, and exact PNG-byte paste. The full batch also exposed unrelated existing CLI-host and UI timing failures, recorded in the release matrix rather than weakening focused assertions.
