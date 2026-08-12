@@ -232,10 +232,6 @@ extension Notification.Name {
     static let stowOpenSettings = Notification.Name("StowOpenSettings")
 }
 
-extension NSPasteboard.PasteboardType {
-    static let stowOwnedContent = NSPasteboard.PasteboardType("dev.narumi.stow.owned-content")
-}
-
 @MainActor
 private final class QuickCapturePanelController: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
@@ -277,7 +273,7 @@ private final class QuickCapturePanelController: NSObject, NSWindowDelegate {
 }
 
 @MainActor
-private final class ClipboardMonitor: NSObject {
+final class ClipboardMonitor: NSObject {
     enum CapturedContent {
         case draft(CaptureDraft)
         case attachment(CaptureDraft, fileURL: URL)
@@ -287,27 +283,19 @@ private final class ClipboardMonitor: NSObject {
     var statusHandler: ((String) -> Void)?
     var errorHandler: ((Error) -> Void)?
 
-    private let pasteboard = NSPasteboard.general
+    private let reader: any ClipboardPasteboardReading
     private var timer: Timer?
     private var lastChangeCount = 0
 
-    var statusText: String {
-        if #available(macOS 15.4, *) {
-            switch pasteboard.accessBehavior {
-            case .default: return "Permission not requested"
-            case .ask: return "Needs Always Allow"
-            case .alwaysAllow: return "Always Allow"
-            case .alwaysDeny: return "Blocked by macOS"
-            @unknown default: return "Unknown"
-            }
-        } else {
-            return "Monitoring"
-        }
+    init(reader: any ClipboardPasteboardReading = SystemClipboardPasteboardReader()) {
+        self.reader = reader
     }
+
+    var statusText: String { reader.statusText }
 
     func start() {
         guard timer == nil else { return }
-        lastChangeCount = pasteboard.changeCount
+        lastChangeCount = reader.changeCount
         let timer = Timer(timeInterval: 0.35, target: self, selector: #selector(checkForChanges), userInfo: nil, repeats: true)
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
@@ -319,22 +307,20 @@ private final class ClipboardMonitor: NSObject {
         timer = nil
     }
 
-    @objc private func checkForChanges() {
-        let changeCount = pasteboard.changeCount
+    @objc func checkForChanges() {
+        let changeCount = reader.changeCount
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount
         statusHandler?(statusText)
-        if #available(macOS 15.4, *) {
-            switch pasteboard.accessBehavior {
-            case .ask, .alwaysDeny:
-                return
-            case .default, .alwaysAllow:
-                break
-            @unknown default:
-                return
-            }
+        guard reader.captureAccessAllowed else { return }
+
+        let decision = ClipboardCapturePolicy.decision(
+            for: reader.advertisedTypeIdentifiers
+        )
+        guard decision == .capture else {
+            statusHandler?(statusText)
+            return
         }
-        guard pasteboard.availableType(from: [.stowOwnedContent]) == nil else { return }
 
         do {
             try captureCurrentContent(sourceApp: NSWorkspace.shared.frontmostApplication?.localizedName)
@@ -345,13 +331,13 @@ private final class ClipboardMonitor: NSObject {
     }
 
     private func captureCurrentContent(sourceApp: String?) throws {
-        let pastedURL = pasteboard.readObjects(forClasses: [NSURL.self])?.first as? URL
+        let pastedURL = reader.readURLs().first
         if let pastedURL, pastedURL.isFileURL {
             try captureFile(at: pastedURL, sourceApp: sourceApp)
             return
         }
 
-        if let image = NSImage(pasteboard: pasteboard), let tiffData = image.tiffRepresentation {
+        if let image = reader.readImage(), let tiffData = image.tiffRepresentation {
             let representation = NSBitmapImageRep(data: tiffData)
             let data = representation?.representation(using: .png, properties: [:]) ?? tiffData
             let fileExtension = representation == nil ? "tiff" : "png"
@@ -370,7 +356,7 @@ private final class ClipboardMonitor: NSObject {
             return
         }
 
-        if let string = pasteboard.string(forType: .string) {
+        if let string = reader.readString() {
             captureText(string, sourceApp: sourceApp)
             return
         }

@@ -162,7 +162,7 @@ The toolbar shows whether Return will use **Direct paste** or the **Copy only** 
 
 The menu bar item opens the quick panel, Quick Add, the management Library, monitoring controls, and Settings. The Library remains the place for Inbox processing, Archive, Trash, and detailed metadata work.
 
-While Stow is running, it can automatically save newly copied text, links, images, and regular files to Inbox. Configure this under **Stow → Settings → Capture**. On macOS 15.4 or later, set Stow to **Always Allow** in **System Settings → Privacy & Security → Paste from Other Apps** for reliable background capture.
+While Stow is running, it can automatically save newly copied text, links, images, and regular files to Inbox. Stow ignores clipboard items marked with the macOS compatibility types `org.nspasteboard.ConcealedType` or `org.nspasteboard.TransientType`, as well as Stow-owned writes, before reading their payload. This protects cooperating password managers and transient clipboard tools; Stow does not guess whether arbitrary secret-looking text is sensitive. Configure capture under **Stow → Settings → Capture**. On macOS 15.4 or later, set Stow to **Always Allow** in **System Settings → Privacy & Security → Paste from Other Apps** for reliable background capture.
 
 ## macOS Library and Settings
 

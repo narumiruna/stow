@@ -312,6 +312,53 @@ final class StowMacUITests: XCTestCase {
         app.terminate()
     }
 
+    func testSensitiveClipboardMarkersAreExcludedBeforePayloadCapture() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-utility-mode"])
+        XCTAssertNotEqual(app.state, .notRunning)
+        Thread.sleep(forTimeInterval: 0.6)
+
+        let token = "concealed-fixture-\(UUID().uuidString)"
+        writeClipboardFixture(
+            token,
+            marker: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
+        )
+        Thread.sleep(forTimeInterval: 0.8)
+
+        app.activate()
+        let fileMenu = app.menuBars.menuBarItems["File"]
+        fileMenu.click()
+        fileMenu.menus.menuItems["Quick Panel…"].click()
+        let panel = app.windows["Stow Quick Panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        app.typeText(token)
+        XCTAssertTrue(panel.staticTexts["No Results"].waitForExistence(timeout: 3))
+        XCTAssertTrue(panel.buttons["Inbox"].waitForExistence(timeout: 2))
+        panel.buttons["Inbox"].click()
+        XCTAssertTrue(panel.staticTexts["No Results"].waitForExistence(timeout: 3))
+        panel.buttons["More"].click()
+        panel.buttons["Open Library"].click()
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
+
+        let library = app.windows.matching(identifier: "stow-library-window").firstMatch
+        XCTAssertTrue(library.waitForExistence(timeout: 3))
+        let search = app.searchFields["Search saved content"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        replaceSearch(search, with: token)
+        XCTAssertTrue(app.staticTexts["No Results"].waitForExistence(timeout: 3))
+
+        let concealedSearch = try runCLI(["search", token, "--json"])
+        let concealedMatches = try XCTUnwrap((concealedSearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertTrue(concealedMatches.isEmpty)
+
+        writeClipboardFixture(token)
+        XCTAssertTrue(app.staticTexts[token].waitForExistence(timeout: 5), "An ordinary fixture following the protected change must still be captured")
+        let ordinarySearch = try runCLI(["search", token, "--json"])
+        let ordinaryMatches = try XCTUnwrap((ordinarySearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
+        XCTAssertEqual(ordinaryMatches.count, 1)
+
+        app.terminate()
+    }
+
     func testImmediateSearchAndPasteFromTextEdit() {
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
         textEdit.launch()
@@ -676,6 +723,17 @@ final class StowMacUITests: XCTestCase {
         textView.click()
         textView.typeKey("a", modifierFlags: .command)
         textView.typeKey(.delete, modifierFlags: [])
+    }
+
+    private func writeClipboardFixture(
+        _ value: String,
+        marker: NSPasteboard.PasteboardType? = nil
+    ) {
+        let item = NSPasteboardItem()
+        item.setString(value, forType: .string)
+        if let marker { item.setString("1", forType: marker) }
+        NSPasteboard.general.clearContents()
+        XCTAssertTrue(NSPasteboard.general.writeObjects([item]))
     }
 
     private func openSettings(in app: XCUIApplication) {

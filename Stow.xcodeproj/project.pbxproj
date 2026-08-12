@@ -14,6 +14,7 @@
 		082D29CEE8ACF133A0FE294E /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A788C3A02C767C90473AE2 /* AppModel.swift */; };
 		0CC25AF3F07CE83453CCC6AA /* ShareCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 909F664C7DE4664231DE0DDA /* ShareCaptureView.swift */; };
 		0E5C0DE98ABB35C2A1C56411 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A0F598A9652989C3BBF26AB1 /* PrivacyInfo.xcprivacy */; };
+		1154CA4DB63B5897D714EAA6 /* ClipboardCapturePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63876FB1BA1B1B47D8D6423D /* ClipboardCapturePolicy.swift */; };
 		121BCC372F99A382F2B4CAD7 /* StowEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65609923175544A55AAF431B /* StowEnvironment.swift */; };
 		15D1166F1EBF75006BB7021F /* StowItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EB6C816F13BF14CFFA69C7 /* StowItemDetailView.swift */; };
 		173118C86FEDD468E0A1834D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D36769836B9B583C2DBDF0A3 /* Foundation.framework */; };
@@ -26,6 +27,7 @@
 		2E745EA8446DDF61C91C6B51 /* MacLibraryPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2D74B59FF32398BE1C3BC9 /* MacLibraryPresentation.swift */; };
 		3524C6AB332196EC21353A4A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D36769836B9B583C2DBDF0A3 /* Foundation.framework */; };
 		3587364194B208AF10331645 /* QuickAddView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 642C909D2A33BCFA13AED8BF /* QuickAddView.swift */; };
+		3FE03017DCA79963014B33A5 /* ClipboardCapturePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A0752CAD179C3226808960 /* ClipboardCapturePolicyTests.swift */; };
 		4185E44A7F618A73A764B0BB /* LinkMetadataEnricher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC9CBC468614B5247D69062 /* LinkMetadataEnricher.swift */; };
 		4266C990498CCCCE80A37B5A /* StowAutomationHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571648D88CEDE083A904CD5E /* StowAutomationHostService.swift */; };
 		443BD966D5B29992F31F9E25 /* StowMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39F81DC4C7481BE31BAC9FD1 /* StowMacApp.swift */; };
@@ -181,6 +183,7 @@
 		061D790D7B2D6919DD72F0A5 /* ItemCollectionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ItemCollectionView.swift; sourceTree = "<group>"; };
 		074E2C6917AEE20A6DD278AC /* Stow-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Stow-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		0AC9CBC468614B5247D69062 /* LinkMetadataEnricher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LinkMetadataEnricher.swift; sourceTree = "<group>"; };
+		17A0752CAD179C3226808960 /* ClipboardCapturePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClipboardCapturePolicyTests.swift; sourceTree = "<group>"; };
 		18D22349BBF50A1B0A68CED5 /* StowMacUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowMacUITests.swift; sourceTree = "<group>"; };
 		1B8F85AB2B2B8C312C6807D6 /* GlobalHotKeyService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyService.swift; sourceTree = "<group>"; };
 		1EE50CB633249D9FBB7D981D /* StowSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowSettingsView.swift; sourceTree = "<group>"; };
@@ -204,6 +207,7 @@
 		5B6733E5C9BC22E5B7E84A64 /* RetrievalPastePolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPastePolicy.swift; sourceTree = "<group>"; };
 		61DA884D5357A0305F36D0EE /* Stow-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Stow-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		62770EB4996C3073DB0C5D8F /* StowRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowRootView.swift; sourceTree = "<group>"; };
+		63876FB1BA1B1B47D8D6423D /* ClipboardCapturePolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClipboardCapturePolicy.swift; sourceTree = "<group>"; };
 		642C909D2A33BCFA13AED8BF /* QuickAddView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickAddView.swift; sourceTree = "<group>"; };
 		65609923175544A55AAF431B /* StowEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowEnvironment.swift; sourceTree = "<group>"; };
 		65DE82C2D88B50242DC118F1 /* MacSettingsModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacSettingsModels.swift; sourceTree = "<group>"; };
@@ -439,6 +443,7 @@
 				9548A44E512CA4728F1F6455 /* StowAutomationHostServiceTests.swift */,
 				8268FB9AF797B5657A4590B4 /* QuickPanelInteractionPolicyTests.swift */,
 				B1915A735094A8DA02C7E4B8 /* RetrievalPastePolicyTests.swift */,
+				17A0752CAD179C3226808960 /* ClipboardCapturePolicyTests.swift */,
 			);
 			name = StowAppTests;
 			path = StowAppTests;
@@ -526,6 +531,7 @@
 				39F81DC4C7481BE31BAC9FD1 /* StowMacApp.swift */,
 				008EFDAA6EB372C8425C6EF5 /* QuickPanelInteractionPolicy.swift */,
 				5B6733E5C9BC22E5B7E84A64 /* RetrievalPastePolicy.swift */,
+				63876FB1BA1B1B47D8D6423D /* ClipboardCapturePolicy.swift */,
 			);
 			name = macOS;
 			path = StowApp/macOS;
@@ -854,6 +860,7 @@
 				C9BA26FF6642532251BA86AC /* StowAutomationHostServiceTests.swift in Sources */,
 				0040E8ACAF0BA962ECC4C10E /* QuickPanelInteractionPolicyTests.swift in Sources */,
 				7A906DC89008AFE4D8F53C1F /* RetrievalPastePolicyTests.swift in Sources */,
+				3FE03017DCA79963014B33A5 /* ClipboardCapturePolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -905,6 +912,7 @@
 				443BD966D5B29992F31F9E25 /* StowMacApp.swift in Sources */,
 				28B225B533D3574A13705A3C /* QuickPanelInteractionPolicy.swift in Sources */,
 				06CC30562FBCF097F85C79F3 /* RetrievalPastePolicy.swift in Sources */,
+				1154CA4DB63B5897D714EAA6 /* ClipboardCapturePolicy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
