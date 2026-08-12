@@ -383,6 +383,11 @@ struct RetrievalPanelView: View {
             .focused($searchFocused)
             .disabled(popoverItemID != nil)
             .onSubmit { performDefault() }
+            .onKeyPress(keys: [.return], phases: .down) { press in
+                guard press.modifiers.contains(.shift) else { return .ignored }
+                performPlainText()
+                return .handled
+            }
             .onKeyPress(.tab) {
                 searchFocused = false
                 timelineFocused = true
@@ -690,8 +695,7 @@ struct RetrievalPanelView: View {
             Button("") { performPlainText() }
                 .keyboardShortcut(.return, modifiers: .shift)
                 .accessibilityIdentifier("panel-paste-plain-text")
-                .opacity(0)
-                .frame(width: 1, height: 1)
+                .hidden()
             Button("") { copySelected() }.keyboardShortcut("c", modifiers: .command).hidden()
             Button("") { openSelected() }.keyboardShortcut("o", modifiers: .command).hidden()
             Button("") { archiveSelected() }.keyboardShortcut("a", modifiers: [.command, .shift]).hidden()
