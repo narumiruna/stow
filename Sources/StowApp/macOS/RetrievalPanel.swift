@@ -687,7 +687,11 @@ struct RetrievalPanelView: View {
         ZStack {
             Button("") { onRequestClose(.escape) }.keyboardShortcut(.cancelAction).hidden()
             Button("") { performDefault() }.keyboardShortcut(.return, modifiers: []).hidden()
-            Button("") { performPlainText() }.keyboardShortcut(.return, modifiers: .shift).hidden()
+            Button("") { performPlainText() }
+                .keyboardShortcut(.return, modifiers: .shift)
+                .accessibilityIdentifier("panel-paste-plain-text")
+                .opacity(0)
+                .frame(width: 1, height: 1)
             Button("") { copySelected() }.keyboardShortcut("c", modifiers: .command).hidden()
             Button("") { openSelected() }.keyboardShortcut("o", modifiers: .command).hidden()
             Button("") { archiveSelected() }.keyboardShortcut("a", modifiers: [.command, .shift]).hidden()
