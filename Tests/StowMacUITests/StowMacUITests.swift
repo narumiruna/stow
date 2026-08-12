@@ -419,7 +419,10 @@ final class StowMacUITests: XCTestCase {
         showPanel(in: app)
         let panel = app.windows["Stow Quick Panel"]
         XCTAssertTrue(panel.waitForExistence(timeout: 3))
-        app.typeText(richToken)
+        panel.buttons["Search"].click()
+        var search = panel.textFields["Search Stow"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        replaceSearch(search, with: richToken)
         XCTAssertTrue(panel.buttons["Text, \(richToken)"].waitForExistence(timeout: 3))
         app.typeKey(.return, modifierFlags: [])
         XCTAssertEqual(NSPasteboard.general.string(forType: .string), richToken)
@@ -429,7 +432,7 @@ final class StowMacUITests: XCTestCase {
         showPanel(in: app)
         XCTAssertTrue(panel.waitForExistence(timeout: 3))
         panel.buttons["Search"].click()
-        let search = panel.textFields["Search Stow"]
+        search = panel.textFields["Search Stow"]
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         replaceSearch(search, with: richToken)
         XCTAssertTrue(panel.buttons["Text, \(richToken)"].waitForExistence(timeout: 3))
