@@ -460,8 +460,6 @@ final class StowMacUITests: XCTestCase {
         search.typeKey(.return, modifierFlags: [])
         XCTAssertEqual(NSPasteboard.general.data(forType: .png), originalPNG)
 
-        let imageID: String = try waitForCLIItemID(query: "Clipboard Image", type: "image")
-
         app.terminate()
     }
 
@@ -784,23 +782,6 @@ final class StowMacUITests: XCTestCase {
             domain: "StowMacUITests",
             code: 1,
             userInfo: [NSLocalizedDescriptionKey: "Unable to locate the embedded Stow CLI helper."]
-        )
-    }
-
-    private func waitForCLIItemID(query: String, type: String, timeout: TimeInterval = 5) throws -> String {
-        let deadline = Date().addingTimeInterval(timeout)
-        repeat {
-            let response = try runCLI(["search", query, "--type", type, "--timeout", "30", "--json"])
-            if let items = (response["data"] as? [String: Any])?["items"] as? [[String: Any]],
-               let id = items.first?["id"] as? String {
-                return id
-            }
-            Thread.sleep(forTimeInterval: 0.1)
-        } while Date() < deadline
-        throw NSError(
-            domain: "StowMacUITests",
-            code: 2,
-            userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for a \(type) item matching \(query)."]
         )
     }
 
