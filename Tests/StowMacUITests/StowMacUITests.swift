@@ -404,6 +404,55 @@ final class StowMacUITests: XCTestCase {
         app.terminate()
     }
 
+    func testOriginalRichTextPlainTextAndImageRoundTrips() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-utility-mode"])
+        XCTAssertNotEqual(app.state, .notRunning)
+        Thread.sleep(forTimeInterval: 0.6)
+
+        let richToken = "rich-fixture-\(UUID().uuidString)"
+        let richItem = NSPasteboardItem()
+        richItem.setString(richToken, forType: .string)
+        richItem.setData(Data("{\\rtf1\\b \(richToken)}".utf8), forType: .rtf)
+        richItem.setString("<b>\(richToken)</b>", forType: .html)
+        NSPasteboard.general.clearContents()
+        XCTAssertTrue(NSPasteboard.general.writeObjects([richItem]))
+        Thread.sleep(forTimeInterval: 0.8)
+
+        showPanel(in: app)
+        let panel = app.windows["Stow Quick Panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        app.typeText(richToken)
+        XCTAssertTrue(panel.buttons["Text, \(richToken)"].waitForExistence(timeout: 3))
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), richToken)
+        XCTAssertEqual(NSPasteboard.general.data(forType: .rtf), Data("{\\rtf1\\b \(richToken)}".utf8))
+        XCTAssertEqual(NSPasteboard.general.string(forType: .html), "<b>\(richToken)</b>")
+
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        app.typeText(richToken)
+        XCTAssertTrue(panel.buttons["Text, \(richToken)"].waitForExistence(timeout: 3))
+        app.typeKey(.return, modifierFlags: .shift)
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), richToken)
+        XCTAssertNil(NSPasteboard.general.data(forType: .rtf))
+        XCTAssertNil(NSPasteboard.general.data(forType: .html))
+
+        let png = try XCTUnwrap(NSImage(systemSymbolName: "star.fill", accessibilityDescription: nil)?.tiffRepresentation)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: png))
+        let originalPNG = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        let imageItem = NSPasteboardItem()
+        imageItem.setData(originalPNG, forType: .png)
+        NSPasteboard.general.clearContents()
+        XCTAssertTrue(NSPasteboard.general.writeObjects([imageItem]))
+        let imageID: String = try waitForCLIItemID(query: "Clipboard Image", type: "image")
+        let exported = try runCLI(["export", imageID, "--json"])
+        let export = try XCTUnwrap((exported["data"] as? [String: Any])?["export"] as? [String: Any])
+        let path = try XCTUnwrap(export["path"] as? String)
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: path)), originalPNG)
+
+        app.terminate()
+    }
+
     func testImmediateSearchAndPasteFromTextEdit() {
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
         textEdit.launch()
@@ -723,6 +772,23 @@ final class StowMacUITests: XCTestCase {
             domain: "StowMacUITests",
             code: 1,
             userInfo: [NSLocalizedDescriptionKey: "Unable to locate the embedded Stow CLI helper."]
+        )
+    }
+
+    private func waitForCLIItemID(query: String, type: String, timeout: TimeInterval = 5) throws -> String {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            let response = try runCLI(["search", query, "--type", type, "--json"])
+            if let items = (response["data"] as? [String: Any])?["items"] as? [[String: Any]],
+               let id = items.first?["id"] as? String {
+                return id
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        } while Date() < deadline
+        throw NSError(
+            domain: "StowMacUITests",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for a \(type) item matching \(query)."]
         )
     }
 

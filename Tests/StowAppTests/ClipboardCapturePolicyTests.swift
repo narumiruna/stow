@@ -1,5 +1,6 @@
 import AppKit
 import XCTest
+import StowCore
 @testable import StowApp
 
 @MainActor
@@ -68,7 +69,7 @@ final class ClipboardCapturePolicyTests: XCTestCase {
                 string: "ordinary text"
             )
         )
-        guard case .draft(let textDraft) = text else { return XCTFail("Expected a text draft") }
+        guard case .draft(let textDraft, _) = text else { return XCTFail("Expected a text draft") }
         XCTAssertEqual(textDraft.type, .text)
         XCTAssertEqual(textDraft.textContent, "ordinary text")
 
@@ -78,9 +79,39 @@ final class ClipboardCapturePolicyTests: XCTestCase {
                 string: "https://example.com/path"
             )
         )
-        guard case .draft(let linkDraft) = link else { return XCTFail("Expected a link draft") }
+        guard case .draft(let linkDraft, _) = link else { return XCTFail("Expected a link draft") }
         XCTAssertEqual(linkDraft.type, .link)
         XCTAssertEqual(linkDraft.urlString, "https://example.com/path")
+    }
+
+    func testSafeRepresentationsAreSelectedOnlyAfterPolicyPreflight() throws {
+        let richReader = PasteboardReaderDouble(
+            advertisedTypeIdentifiers: [
+                NSPasteboard.PasteboardType.rtf.rawValue,
+                NSPasteboard.PasteboardType.html.rawValue,
+                NSPasteboard.PasteboardType.string.rawValue,
+            ],
+            string: "Rich text",
+            candidates: [
+                PasteboardRepresentationCandidate(typeIdentifier: StowRepresentationType.rtf, data: Data("{\\rtf1 Rich text}".utf8)),
+                PasteboardRepresentationCandidate(typeIdentifier: StowRepresentationType.html, data: Data("<b>Rich text</b>".utf8)),
+                PasteboardRepresentationCandidate(typeIdentifier: StowRepresentationType.plainText, data: Data("Rich text".utf8)),
+                PasteboardRepresentationCandidate(typeIdentifier: "com.example.private", data: Data([1])),
+            ]
+        )
+
+        let content = try capture(reader: richReader)
+
+        guard case .draft(let draft, let representations) = content else {
+            return XCTFail("Expected rich text draft")
+        }
+        XCTAssertEqual(draft.textContent, "Rich text")
+        XCTAssertEqual(representations.map(\.typeIdentifier), [
+            StowRepresentationType.rtf,
+            StowRepresentationType.html,
+        ])
+        XCTAssertEqual(richReader.snapshotReadCount, 1)
+        XCTAssertEqual(richReader.typeReadCount, 1)
     }
 
     func testOrdinaryImageAndFileChangesStillCaptureWithoutGeneralPasteboard() throws {
@@ -89,7 +120,7 @@ final class ClipboardCapturePolicyTests: XCTestCase {
             image: testImage()
         )
         let image = try capture(reader: imageReader)
-        guard case .attachment(let imageDraft, let imageURL) = image else {
+        guard case .attachment(let imageDraft, let imageURL, _) = image else {
             return XCTFail("Expected an image attachment")
         }
         defer { try? FileManager.default.removeItem(at: imageURL.deletingLastPathComponent()) }
@@ -108,7 +139,7 @@ final class ClipboardCapturePolicyTests: XCTestCase {
             urls: [sourceURL]
         )
         let file = try capture(reader: fileReader)
-        guard case .attachment(let fileDraft, let stagedURL) = file else {
+        guard case .attachment(let fileDraft, let stagedURL, _) = file else {
             return XCTFail("Expected a file attachment")
         }
         defer { try? FileManager.default.removeItem(at: stagedURL.deletingLastPathComponent()) }
@@ -149,19 +180,23 @@ private final class PasteboardReaderDouble: ClipboardPasteboardReading {
     private let urls: [URL]
     private let image: NSImage?
     private let string: String?
+    private let candidates: [PasteboardRepresentationCandidate]?
     private(set) var typeReadCount = 0
     private(set) var payloadReadCount = 0
+    private(set) var snapshotReadCount = 0
 
     init(
         advertisedTypeIdentifiers: [String],
         urls: [URL] = [],
         image: NSImage? = nil,
-        string: String? = nil
+        string: String? = nil,
+        candidates: [PasteboardRepresentationCandidate]? = nil
     ) {
         types = advertisedTypeIdentifiers
         self.urls = urls
         self.image = image
         self.string = string
+        self.candidates = candidates
     }
 
     var advertisedTypeIdentifiers: [String] {
@@ -182,5 +217,19 @@ private final class PasteboardReaderDouble: ClipboardPasteboardReading {
     func readString() -> String? {
         payloadReadCount += 1
         return string
+    }
+
+    func readSnapshot() -> ClipboardPasteboardSnapshot {
+        payloadReadCount += 1
+        snapshotReadCount += 1
+        return ClipboardPasteboardSnapshot(
+            candidates: candidates ?? string.map {
+                [PasteboardRepresentationCandidate(
+                    typeIdentifier: StowRepresentationType.plainText,
+                    data: Data($0.utf8)
+                )]
+            } ?? [],
+            urls: urls
+        )
     }
 }

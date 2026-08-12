@@ -167,7 +167,12 @@ private struct ItemContextMenu: View {
     let item: StowItem
 
     var body: some View {
-        Button { appModel.performUse(item, action: .copy, metric: .itemCopied) { try PlatformActions.copy(item, attachmentData: attachment?.data) } } label: { Label("Copy", systemImage: "doc.on.doc") }
+        Button {
+            let representations = appModel.representations(for: item)
+            appModel.performUse(item, action: .copy, metric: .itemCopied) {
+                try PlatformActions.copy(item, attachmentData: attachment?.data, representations: representations)
+            }
+        } label: { Label("Copy", systemImage: "doc.on.doc") }
         if item.type == .link || item.type == .file { Button { appModel.performUse(item, action: .open, metric: .itemOpened) { try PlatformActions.open(item, attachment: attachment) } } label: { Label("Open", systemImage: "arrow.up.forward.app") } }
         Button { appModel.togglePin(item) } label: { Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.slash" : "pin") }
         if item.status != .trashed { Button { appModel.archiveOrRestore(item) } label: { Label(item.status == .archived ? "Restore to Inbox" : "Archive", systemImage: "archivebox") } }

@@ -13,12 +13,12 @@ final class CaptureDraftTests: XCTestCase {
         XCTAssertEqual(normalized.title, "www.swift.org")
     }
 
-    func testMultilineTextPreservesLineBreaksWhileTrimmingEdges() throws {
+    func testMultilineTextPreservesLineBreaksAndMeaningfulOuterWhitespace() throws {
         let draft = CaptureDraft(type: .text, title: "", textContent: "  first\nsecond  \n")
 
         let normalized = try draft.normalized()
 
-        XCTAssertEqual(normalized.textContent, "first\nsecond")
+        XCTAssertEqual(normalized.textContent, "  first\nsecond  \n")
         XCTAssertEqual(normalized.title, "first")
     }
 

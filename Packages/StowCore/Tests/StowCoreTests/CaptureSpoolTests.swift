@@ -51,6 +51,70 @@ final class CaptureSpoolTests: XCTestCase {
         XCTAssertEqual(spool.ingestAll(into: repository).ingested, 0)
     }
 
+    func testRepresentationFilesSurviveReopenAndIngestWithAttachment() throws {
+        let root = temporaryDirectory()
+        let attachmentURL = root.appendingPathComponent("image.png")
+        try Data([1, 2, 3]).write(to: attachmentURL)
+        let spoolRoot = root.appendingPathComponent("Spool")
+        let draft = CaptureDraft(type: .image, title: "Image", stagedAttachmentName: "image.png", attachmentByteCount: 3, contentType: "image/png", fileName: "image.png")
+        let representation = StowRepresentationDraft(typeIdentifier: StowRepresentationType.html, data: Data("<p>caption</p>".utf8), ordinal: 0)
+        try CaptureSpool(rootURL: spoolRoot).stage(
+            draft,
+            attachmentURL: attachmentURL,
+            representations: [representation],
+            at: Date(timeIntervalSince1970: 100)
+        )
+
+        let container = try StowContainerFactory.inMemory()
+        let repository = StowRepository(modelContext: container.mainContext)
+        let reopenedSpool = try CaptureSpool(rootURL: spoolRoot)
+        let result = reopenedSpool.ingestAll(into: repository)
+
+        XCTAssertEqual(result.ingested, 1)
+        let item = try XCTUnwrap(repository.allItems().first)
+        XCTAssertEqual(try repository.attachments(itemID: item.id).count, 1)
+        XCTAssertEqual(try repository.representations(itemID: item.id).first?.data, representation.data)
+        XCTAssertEqual(reopenedSpool.ingestAll(into: repository).ingested, 0)
+        XCTAssertEqual(try repository.attachments(itemID: item.id).count, 1)
+        XCTAssertEqual(try repository.representations(itemID: item.id).count, 1)
+    }
+
+    func testMalformedRepresentationManifestIsQuarantinedWithoutPartialPersistence() throws {
+        let root = temporaryDirectory()
+        let spoolRoot = root.appendingPathComponent("Spool")
+        let spool = try CaptureSpool(rootURL: spoolRoot)
+        try spool.stage(
+            CaptureDraft(type: .text, title: "Rich", textContent: "body"),
+            representations: [
+                StowRepresentationDraft(typeIdentifier: StowRepresentationType.html, data: Data("<p>body</p>".utf8), ordinal: 0),
+            ]
+        )
+        let pending = try XCTUnwrap(
+            FileManager.default.contentsOfDirectory(
+                at: spoolRoot.appendingPathComponent("Pending"),
+                includingPropertiesForKeys: nil
+            ).first
+        )
+        let representationURL = pending.appendingPathComponent("representation-0.data")
+        try Data("tampered".utf8).write(to: representationURL)
+
+        let container = try StowContainerFactory.inMemory()
+        let repository = StowRepository(modelContext: container.mainContext)
+        let result = spool.ingestAll(into: repository)
+
+        XCTAssertEqual(result.ingested, 0)
+        XCTAssertEqual(result.failures.count, 1)
+        XCTAssertTrue(try repository.allItems().isEmpty)
+        XCTAssertTrue(try repository.allRepresentations().isEmpty)
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(
+                at: spoolRoot.appendingPathComponent("Quarantine"),
+                includingPropertiesForKeys: nil
+            ).count,
+            1
+        )
+    }
+
     func testLegacyManifestWithoutIngestionIntentStillCreatesNew() throws {
         struct LegacyEnvelope: Codable {
             let draft: CaptureDraft

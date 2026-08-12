@@ -1,9 +1,10 @@
 import AppKit
+import StowCore
 
 struct ClipboardPasteboardTypeIdentifier {
     static let concealed = "org.nspasteboard.ConcealedType"
     static let transient = "org.nspasteboard.TransientType"
-    static let stowOwned = "dev.narumi.stow.owned-content"
+    static let stowOwned = StowRepresentationType.stowOwned
 }
 
 enum ClipboardCaptureIgnoreReason: Equatable {
@@ -39,6 +40,11 @@ extension NSPasteboard.PasteboardType {
     )
 }
 
+struct ClipboardPasteboardSnapshot {
+    let candidates: [PasteboardRepresentationCandidate]
+    let urls: [URL]
+}
+
 @MainActor
 protocol ClipboardPasteboardReading: AnyObject {
     var changeCount: Int { get }
@@ -49,6 +55,20 @@ protocol ClipboardPasteboardReading: AnyObject {
     func readURLs() -> [URL]
     func readImage() -> NSImage?
     func readString() -> String?
+    func readSnapshot() -> ClipboardPasteboardSnapshot
+}
+
+extension ClipboardPasteboardReading {
+    func readSnapshot() -> ClipboardPasteboardSnapshot {
+        var candidates: [PasteboardRepresentationCandidate] = []
+        if let string = readString() {
+            candidates.append(PasteboardRepresentationCandidate(
+                typeIdentifier: StowRepresentationType.plainText,
+                data: Data(string.utf8)
+            ))
+        }
+        return ClipboardPasteboardSnapshot(candidates: candidates, urls: readURLs())
+    }
 }
 
 @MainActor
@@ -62,7 +82,7 @@ final class SystemClipboardPasteboardReader: ClipboardPasteboardReading {
     var changeCount: Int { pasteboard.changeCount }
 
     var advertisedTypeIdentifiers: [String] {
-        pasteboard.types?.map(\.rawValue) ?? []
+        pasteboard.pasteboardItems?.flatMap { $0.types.map(\.rawValue) } ?? pasteboard.types?.map(\.rawValue) ?? []
     }
 
     var captureAccessAllowed: Bool {
@@ -104,5 +124,30 @@ final class SystemClipboardPasteboardReader: ClipboardPasteboardReading {
 
     func readString() -> String? {
         pasteboard.string(forType: .string)
+    }
+
+    func readSnapshot() -> ClipboardPasteboardSnapshot {
+        guard let item = pasteboard.pasteboardItems?.first else {
+            return ClipboardPasteboardSnapshot(candidates: [], urls: readURLs())
+        }
+        let safeTypes: [(NSPasteboard.PasteboardType, String)] = [
+            (.string, StowRepresentationType.plainText),
+            (.rtf, StowRepresentationType.rtf),
+            (.html, StowRepresentationType.html),
+            (.URL, StowRepresentationType.url),
+            (.png, StowRepresentationType.png),
+            (.tiff, StowRepresentationType.tiff),
+        ]
+        let candidates = safeTypes.compactMap { pasteboardType, identifier -> PasteboardRepresentationCandidate? in
+            guard item.types.contains(pasteboardType) else { return nil }
+            let data: Data?
+            if pasteboardType == .string || pasteboardType == .URL {
+                data = item.string(forType: pasteboardType).map { Data($0.utf8) }
+            } else {
+                data = item.data(forType: pasteboardType)
+            }
+            return data.map { PasteboardRepresentationCandidate(typeIdentifier: identifier, data: $0) }
+        }
+        return ClipboardPasteboardSnapshot(candidates: candidates, urls: readURLs())
     }
 }

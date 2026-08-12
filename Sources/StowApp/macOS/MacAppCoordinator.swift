@@ -174,15 +174,20 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
 
     private func persist(_ content: ClipboardMonitor.CapturedContent, using model: AppModel) {
         switch content {
-        case .draft(let draft):
-            model.ingestClipboard(draft)
-        case .attachment(let draft, let fileURL):
-            model.createAttachment(draft, fileURL: fileURL, intent: .coalesceClipboard)
+        case .draft(let draft, let representations):
+            model.ingestClipboard(draft, representations: representations)
+        case .attachment(let draft, let fileURL, let representations):
+            model.createAttachment(
+                draft,
+                fileURL: fileURL,
+                representations: representations,
+                intent: .coalesceClipboard
+            )
         }
     }
 
     private func discardPendingClipboardContents() {
-        for case .attachment(_, let fileURL) in pendingClipboardContents {
+        for case .attachment(_, let fileURL, _) in pendingClipboardContents {
             try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
         }
         pendingClipboardContents.removeAll()
@@ -275,8 +280,12 @@ private final class QuickCapturePanelController: NSObject, NSWindowDelegate {
 @MainActor
 final class ClipboardMonitor: NSObject {
     enum CapturedContent {
-        case draft(CaptureDraft)
-        case attachment(CaptureDraft, fileURL: URL)
+        case draft(CaptureDraft, representations: [StowRepresentationDraft])
+        case attachment(
+            CaptureDraft,
+            fileURL: URL,
+            representations: [StowRepresentationDraft]
+        )
     }
 
     var captureHandler: ((CapturedContent) -> Void)?
@@ -331,17 +340,28 @@ final class ClipboardMonitor: NSObject {
     }
 
     private func captureCurrentContent(sourceApp: String?) throws {
-        let pastedURL = reader.readURLs().first
+        let snapshot = reader.readSnapshot()
+        var selection = try PasteboardRepresentationSelector.select(snapshot.candidates)
+        if selection.canonicalAttachment == nil,
+           let image = reader.readImage(),
+           let tiffData = image.tiffRepresentation {
+            selection = try PasteboardRepresentationSelector.select(
+                snapshot.candidates + [PasteboardRepresentationCandidate(
+                    typeIdentifier: StowRepresentationType.tiff,
+                    data: tiffData
+                )]
+            )
+        }
+        let pastedURL = snapshot.urls.first
         if let pastedURL, pastedURL.isFileURL {
             try captureFile(at: pastedURL, sourceApp: sourceApp)
             return
         }
 
-        if let image = reader.readImage(), let tiffData = image.tiffRepresentation {
-            let representation = NSBitmapImageRep(data: tiffData)
-            let data = representation?.representation(using: .png, properties: [:]) ?? tiffData
-            let fileExtension = representation == nil ? "tiff" : "png"
-            let contentType = representation == nil ? UTType.tiff.identifier : UTType.png.identifier
+        if let attachment = selection.canonicalAttachment {
+            let data = attachment.data
+            let fileExtension = attachment.typeIdentifier == StowRepresentationType.png ? "png" : "tiff"
+            let contentType = attachment.typeIdentifier
             let fileURL = try stage(data: data, fileName: "Clipboard Image.\(fileExtension)")
             let draft = CaptureDraft(
                 type: .image,
@@ -352,34 +372,46 @@ final class ClipboardMonitor: NSObject {
                 fileName: fileURL.lastPathComponent,
                 sourceApp: sourceApp
             )
-            captureHandler?(.attachment(draft, fileURL: fileURL))
+            captureHandler?(.attachment(
+                draft,
+                fileURL: fileURL,
+                representations: selection.representations
+            ))
             return
         }
 
-        if let string = reader.readString() {
-            captureText(string, sourceApp: sourceApp)
+        if let string = selection.canonicalText ?? selection.canonicalURL {
+            captureText(
+                string,
+                sourceApp: sourceApp,
+                representations: selection.representations
+            )
             return
         }
 
         if let pastedURL, !pastedURL.isFileURL {
-            captureText(pastedURL.absoluteString, sourceApp: sourceApp)
+            captureText(pastedURL.absoluteString, sourceApp: sourceApp, representations: [])
         }
     }
 
-    private func captureText(_ string: String, sourceApp: String?) {
-        let value = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return }
-        let components = URLComponents(string: value)
+    private func captureText(
+        _ string: String,
+        sourceApp: String?,
+        representations: [StowRepresentationDraft]
+    ) {
+        let displayValue = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !displayValue.isEmpty else { return }
+        let components = URLComponents(string: displayValue)
         let scheme = components?.scheme?.lowercased()
         let isWebURL = (scheme == "http" || scheme == "https") && components?.host?.isEmpty == false
         let draft = CaptureDraft(
             type: isWebURL ? .link : .text,
             title: "",
-            textContent: isWebURL ? nil : value,
-            urlString: isWebURL ? value : nil,
+            textContent: isWebURL ? nil : string,
+            urlString: isWebURL ? displayValue : nil,
             sourceApp: sourceApp
         )
-        captureHandler?(.draft(draft))
+        captureHandler?(.draft(draft, representations: representations))
     }
 
     private func captureFile(at sourceURL: URL, sourceApp: String?) throws {
@@ -404,7 +436,7 @@ final class ClipboardMonitor: NSObject {
             fileName: fileName,
             sourceApp: sourceApp
         )
-        captureHandler?(.attachment(draft, fileURL: stagedURL))
+        captureHandler?(.attachment(draft, fileURL: stagedURL, representations: []))
     }
 
     private func stage(data: Data, fileName: String) throws -> URL {

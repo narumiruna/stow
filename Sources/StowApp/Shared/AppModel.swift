@@ -83,10 +83,16 @@ final class AppModel {
     }
 
     @discardableResult
-    func ingestClipboard(_ draft: CaptureDraft) -> Bool {
+    func ingestClipboard(
+        _ draft: CaptureDraft,
+        representations: [StowRepresentationDraft] = []
+    ) -> Bool {
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
-            let outcome = try repository.ingestClipboard(draft)
+            let outcome = try repository.ingestClipboard(
+                draft,
+                representations: representations
+            )
             presentedError = nil
             try? metrics?.record(.captureSucceeded)
             if case .created(let item) = outcome, item.type == .link {
@@ -134,12 +140,18 @@ final class AppModel {
     func createAttachment(
         _ draft: CaptureDraft,
         fileURL: URL,
+        representations: [StowRepresentationDraft] = [],
         intent: CaptureIngestionIntent = .createNew
     ) -> Bool {
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
             let captureSpool = try spool ?? CaptureSpool(rootURL: StowEnvironment.sharedContainerURL().appendingPathComponent("CaptureSpool", isDirectory: true))
-            try captureSpool.stage(draft, attachmentURL: fileURL, intent: intent)
+            try captureSpool.stage(
+                draft,
+                attachmentURL: fileURL,
+                representations: representations,
+                intent: intent
+            )
             try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
             let result = captureSpool.ingestAll(into: repository)
             if let failure = result.failures.first { throw NSError(domain: "StowCapture", code: 1, userInfo: [NSLocalizedDescriptionKey: failure]) }
@@ -266,6 +278,16 @@ final class AppModel {
         } catch {
             presentedError = error.localizedDescription
             return false
+        }
+    }
+
+    func representations(for item: StowItem) -> [StowRepresentation] {
+        do {
+            guard let repository else { throw StowRepositoryError.itemNotFound }
+            return try repository.representations(itemID: item.id)
+        } catch {
+            presentedError = error.localizedDescription
+            return []
         }
     }
 

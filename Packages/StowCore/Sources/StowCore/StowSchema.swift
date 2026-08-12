@@ -11,7 +11,7 @@ public enum StowSchemaV1: VersionedSchema {
 public enum StowSchemaV2: VersionedSchema {
     public static let versionIdentifier = Schema.Version(2, 0, 0)
     public static var models: [any PersistentModel.Type] {
-        [StowSchemaV2.StowItem.self, StowSchemaV2.StowAttachment.self]
+        [StowSchemaV2.StowItem.self, StowSchemaV2.StowAttachment.self, StowSchemaV2.StowRepresentation.self]
     }
 }
 

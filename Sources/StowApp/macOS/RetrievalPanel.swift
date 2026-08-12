@@ -665,6 +665,9 @@ struct RetrievalPanelView: View {
     @ViewBuilder
     private func cardContextMenu(_ item: StowItem, attachment: StowAttachment?) -> some View {
         Button { performDefault(item) } label: { Label("Use", systemImage: "return") }
+        if item.type == .text || item.type == .code || item.type == .link {
+            Button { performPlainText(item) } label: { Label("Paste as Plain Text", systemImage: "textformat") }
+        }
         Button { onUse(item, attachment, .copy) } label: { Label("Copy", systemImage: "doc.on.doc") }
         if item.type == .link || item.type == .file {
             Button { onUse(item, attachment, .open) } label: { Label("Open", systemImage: "arrow.up.forward.app") }
@@ -684,6 +687,7 @@ struct RetrievalPanelView: View {
         ZStack {
             Button("") { onRequestClose(.escape) }.keyboardShortcut(.cancelAction).hidden()
             Button("") { performDefault() }.keyboardShortcut(.return, modifiers: []).hidden()
+            Button("") { performPlainText() }.keyboardShortcut(.return, modifiers: .shift).hidden()
             Button("") { copySelected() }.keyboardShortcut("c", modifiers: .command).hidden()
             Button("") { openSelected() }.keyboardShortcut("o", modifiers: .command).hidden()
             Button("") { archiveSelected() }.keyboardShortcut("a", modifiers: [.command, .shift]).hidden()
@@ -957,6 +961,12 @@ struct RetrievalPanelView: View {
         let item = requestedItem.flatMap { requested in items.first { $0.id == requested.id } } ?? selectedItem
         guard let item else { return }
         onUse(item, attachments[item.id], .defaultPaste)
+    }
+
+    private func performPlainText(_ requestedItem: StowItem? = nil) {
+        let item = requestedItem.flatMap { requested in items.first { $0.id == requested.id } } ?? selectedItem
+        guard let item, item.type == .text || item.type == .code || item.type == .link else { return }
+        onUse(item, attachments[item.id], .plainTextPaste)
     }
 
     private func copySelected() {
