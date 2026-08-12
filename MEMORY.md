@@ -7,6 +7,7 @@
 - Symptom: GitHub Actions selects a requested Xcode but `Scripts/ci.sh` reports the runner default. Cause: a hardcoded `DEVELOPER_DIR` overrides `setup-xcode`'s `MD_APPLE_SDK_ROOT`. Fix: prefer an existing `DEVELOPER_DIR`, then derive it from `MD_APPLE_SDK_ROOT`, and use `/Applications/Xcode.app` only as the local fallback.
 - CI must not run interactive `StowMacUITests`, `StowUITests`, or `Scripts/ui_tests.sh`; keep UI test orchestration in that local-only script and run it as one final verification batch.
 - Symptom: `xcodebuild` fails loading `IDESimulatorFoundation` because `/Library/Developer/PrivateFrameworks/CoreSimulator.framework` is missing. Cause: Xcode's system-resource packages were not installed during first launch. Fix: initialize Xcode with administrator authorization using `xcodebuild -runFirstLaunch` (or use an already initialized Xcode) before required project/UI verification.
+- Symptom: an Xcode build fails because `XCBuildData/build.db` is locked. Cause: concurrent `xcodebuild` commands share the default DerivedData directory. Fix: run Xcode builds sequentially or give each command a distinct `-derivedDataPath`.
 
 ## TASTE
 
