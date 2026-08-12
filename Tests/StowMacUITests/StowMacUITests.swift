@@ -436,8 +436,11 @@ final class StowMacUITests: XCTestCase {
         search = panel.textFields["Search Stow"]
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         replaceSearch(search, with: richToken)
-        XCTAssertTrue(panel.buttons["Text, \(richToken)"].waitForExistence(timeout: 3))
-        app.typeKey(.return, modifierFlags: .shift)
+        let richCard = panel.buttons["Text, \(richToken)"]
+        XCTAssertTrue(richCard.waitForExistence(timeout: 3))
+        richCard.rightClick()
+        XCTAssertTrue(app.menuItems["Paste as Plain Text"].waitForExistence(timeout: 3))
+        app.menuItems["Paste as Plain Text"].click()
         XCTAssertEqual(NSPasteboard.general.string(forType: .string), richToken)
         XCTAssertNil(NSPasteboard.general.data(forType: .rtf))
         XCTAssertNil(NSPasteboard.general.data(forType: .html))
