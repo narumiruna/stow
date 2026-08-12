@@ -13,6 +13,11 @@ public struct PasteboardRepresentationCandidate: Equatable, Sendable {
 public struct PasteboardCanonicalAttachment: Equatable, Sendable {
     public let typeIdentifier: String
     public let data: Data
+
+    public init(typeIdentifier: String, data: Data) {
+        self.typeIdentifier = typeIdentifier
+        self.data = data
+    }
 }
 
 public struct PasteboardRepresentationSelectionResult: Equatable, Sendable {

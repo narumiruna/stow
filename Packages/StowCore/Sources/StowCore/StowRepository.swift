@@ -26,6 +26,7 @@ public enum CaptureIngestionOutcome {
 public final class StowRepository {
     public let modelContext: ModelContext
     public private(set) var representationFetchCount = 0
+    public private(set) var representationRowFetchCount = 0
 
     public init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -294,12 +295,18 @@ public final class StowRepository {
     }
 
     private func representationsWithoutCounting(itemID: UUID) throws -> [StowRepresentation] {
-        try allRepresentations()
-            .filter { $0.itemID == itemID }
-            .sorted { lhs, rhs in
-                if lhs.ordinal == rhs.ordinal { return lhs.id.uuidString < rhs.id.uuidString }
-                return lhs.ordinal < rhs.ordinal
-            }
+        let descriptor = FetchDescriptor<StowRepresentation>(
+            predicate: #Predicate { representation in
+                representation.itemID == itemID
+            },
+            sortBy: [
+                SortDescriptor(\StowRepresentation.ordinal),
+                SortDescriptor(\StowRepresentation.id),
+            ]
+        )
+        let representations = try modelContext.fetch(descriptor)
+        representationRowFetchCount += representations.count
+        return representations
     }
 
     @discardableResult

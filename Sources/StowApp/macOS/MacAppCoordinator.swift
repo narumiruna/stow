@@ -293,11 +293,16 @@ final class ClipboardMonitor: NSObject {
     var errorHandler: ((Error) -> Void)?
 
     private let reader: any ClipboardPasteboardReading
+    private let imageFallbackEncoder: @MainActor (NSImage) -> PasteboardCanonicalAttachment?
     private var timer: Timer?
     private var lastChangeCount = 0
 
-    init(reader: any ClipboardPasteboardReading = SystemClipboardPasteboardReader()) {
+    init(
+        reader: any ClipboardPasteboardReading = SystemClipboardPasteboardReader(),
+        imageFallbackEncoder: @escaping @MainActor (NSImage) -> PasteboardCanonicalAttachment? = ClipboardMonitor.encodeFallbackImage
+    ) {
         self.reader = reader
+        self.imageFallbackEncoder = imageFallbackEncoder
     }
 
     var statusText: String { reader.statusText }
@@ -344,11 +349,11 @@ final class ClipboardMonitor: NSObject {
         var selection = try PasteboardRepresentationSelector.select(snapshot.candidates)
         if selection.canonicalAttachment == nil,
            let image = reader.readImage(),
-           let tiffData = image.tiffRepresentation {
+           let fallback = imageFallbackEncoder(image) {
             selection = try PasteboardRepresentationSelector.select(
                 snapshot.candidates + [PasteboardRepresentationCandidate(
-                    typeIdentifier: StowRepresentationType.tiff,
-                    data: tiffData
+                    typeIdentifier: fallback.typeIdentifier,
+                    data: fallback.data
                 )]
             )
         }
@@ -392,6 +397,30 @@ final class ClipboardMonitor: NSObject {
         if let pastedURL, !pastedURL.isFileURL {
             captureText(pastedURL.absoluteString, sourceApp: sourceApp, representations: [])
         }
+    }
+
+    static func encodeFallbackImage(_ image: NSImage) -> PasteboardCanonicalAttachment? {
+        var proposedRect = NSRect(origin: .zero, size: image.size)
+        if let cgImage = image.cgImage(
+            forProposedRect: &proposedRect,
+            context: nil,
+            hints: nil
+        ) {
+            let bitmap = NSBitmapImageRep(cgImage: cgImage)
+            if let pngData = bitmap.representation(using: .png, properties: [:]),
+               pngData.count <= StowRepresentationLimits.imageBytes {
+                return PasteboardCanonicalAttachment(
+                    typeIdentifier: StowRepresentationType.png,
+                    data: pngData
+                )
+            }
+        }
+        guard let tiffData = image.tiffRepresentation,
+              tiffData.count <= StowRepresentationLimits.imageBytes else { return nil }
+        return PasteboardCanonicalAttachment(
+            typeIdentifier: StowRepresentationType.tiff,
+            data: tiffData
+        )
     }
 
     private func captureText(

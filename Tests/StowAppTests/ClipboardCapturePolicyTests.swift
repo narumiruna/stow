@@ -114,6 +114,66 @@ final class ClipboardCapturePolicyTests: XCTestCase {
         XCTAssertEqual(richReader.typeReadCount, 1)
     }
 
+    func testFallbackImageEncoderProducesBoundedPNG() throws {
+        let fallback = try XCTUnwrap(ClipboardMonitor.encodeFallbackImage(testImage()))
+
+        XCTAssertEqual(fallback.typeIdentifier, StowRepresentationType.png)
+        XCTAssertLessThanOrEqual(fallback.data.count, StowRepresentationLimits.imageBytes)
+        XCTAssertTrue(fallback.data.starts(with: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))
+    }
+
+    func testFallbackImageConversionCapturesCompressedCandidate() throws {
+        let pngData = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1])
+        let reader = PasteboardReaderDouble(
+            advertisedTypeIdentifiers: ["public.jpeg"],
+            image: testImage()
+        )
+        let monitor = ClipboardMonitor(
+            reader: reader,
+            imageFallbackEncoder: { _ in
+                PasteboardCanonicalAttachment(
+                    typeIdentifier: StowRepresentationType.png,
+                    data: pngData
+                )
+            }
+        )
+        var captured: ClipboardMonitor.CapturedContent?
+        monitor.captureHandler = { captured = $0 }
+        monitor.start()
+        defer { monitor.stop() }
+
+        reader.changeCount += 1
+        monitor.checkForChanges()
+
+        guard case .attachment(let draft, let url, _) = captured else {
+            return XCTFail("Expected a bounded PNG fallback attachment")
+        }
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        XCTAssertEqual(draft.contentType, StowRepresentationType.png)
+        XCTAssertEqual(draft.attachmentByteCount, pngData.count)
+        XCTAssertEqual(try Data(contentsOf: url), pngData)
+    }
+
+    func testOversizedFallbackImageIsSkippedWithoutCapturingAssociatedTextAsImage() {
+        let reader = PasteboardReaderDouble(
+            advertisedTypeIdentifiers: ["public.jpeg"],
+            image: testImage()
+        )
+        let monitor = ClipboardMonitor(
+            reader: reader,
+            imageFallbackEncoder: { _ in nil }
+        )
+        var captured: ClipboardMonitor.CapturedContent?
+        monitor.captureHandler = { captured = $0 }
+        monitor.start()
+        defer { monitor.stop() }
+
+        reader.changeCount += 1
+        monitor.checkForChanges()
+
+        XCTAssertNil(captured)
+    }
+
     func testOrdinaryImageAndFileChangesStillCaptureWithoutGeneralPasteboard() throws {
         let imageReader = PasteboardReaderDouble(
             advertisedTypeIdentifiers: [NSPasteboard.PasteboardType.png.rawValue],

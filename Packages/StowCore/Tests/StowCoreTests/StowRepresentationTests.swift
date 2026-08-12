@@ -71,6 +71,30 @@ final class StowRepresentationTests: XCTestCase {
         XCTAssertEqual(try repository.representations(itemID: original.id).count, 1)
     }
 
+    func testItemScopedFetchLoadsOnlyMatchingRepresentationRows() throws {
+        let container = try StowContainerFactory.inMemory()
+        let repository = StowRepository(modelContext: container.mainContext)
+        let target = try repository.create(
+            from: CaptureDraft(type: .text, title: "Target", textContent: "target"),
+            representations: [
+                StowRepresentationDraft(typeIdentifier: StowRepresentationType.rtf, data: Data("{\\rtf1 target}".utf8), ordinal: 0),
+            ]
+        )
+        for index in 0..<100 {
+            _ = try repository.create(
+                from: CaptureDraft(type: .text, title: "Other \(index)", textContent: "other \(index)"),
+                representations: [
+                    StowRepresentationDraft(typeIdentifier: StowRepresentationType.html, data: Data("<p>other \(index)</p>".utf8), ordinal: 0),
+                ]
+            )
+        }
+
+        let representations = try repository.representations(itemID: target.id)
+
+        XCTAssertEqual(representations.map(\.data), [Data("{\\rtf1 target}".utf8)])
+        XCTAssertEqual(repository.representationRowFetchCount, 1)
+    }
+
     func testTextEditDropsStaleRichRepresentations() throws {
         let container = try StowContainerFactory.inMemory()
         let repository = StowRepository(modelContext: container.mainContext)

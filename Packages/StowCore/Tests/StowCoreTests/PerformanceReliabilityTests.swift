@@ -73,6 +73,7 @@ final class PerformanceReliabilityTests: XCTestCase {
         let firstID = try XCTUnwrap(repository.allItems().first?.id)
         _ = try repository.representations(itemID: firstID)
         XCTAssertEqual(repository.representationFetchCount, 1)
+        XCTAssertEqual(repository.representationRowFetchCount, 0)
     }
 
     @MainActor
