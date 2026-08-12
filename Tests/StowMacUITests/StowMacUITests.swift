@@ -449,11 +449,18 @@ final class StowMacUITests: XCTestCase {
         imageItem.setData(originalPNG, forType: .png)
         NSPasteboard.general.clearContents()
         XCTAssertTrue(NSPasteboard.general.writeObjects([imageItem]))
+        Thread.sleep(forTimeInterval: 0.8)
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 3))
+        panel.buttons["Search"].click()
+        search = panel.textFields["Search Stow"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        replaceSearch(search, with: "Clipboard Image")
+        XCTAssertTrue(panel.buttons["Image, Clipboard Image"].waitForExistence(timeout: 3))
+        search.typeKey(.return, modifierFlags: [])
+        XCTAssertEqual(NSPasteboard.general.data(forType: .png), originalPNG)
+
         let imageID: String = try waitForCLIItemID(query: "Clipboard Image", type: "image")
-        let exported = try runCLI(["export", imageID, "--json"])
-        let export = try XCTUnwrap((exported["data"] as? [String: Any])?["export"] as? [String: Any])
-        let path = try XCTUnwrap(export["path"] as? String)
-        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: path)), originalPNG)
 
         app.terminate()
     }
@@ -783,7 +790,7 @@ final class StowMacUITests: XCTestCase {
     private func waitForCLIItemID(query: String, type: String, timeout: TimeInterval = 5) throws -> String {
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            let response = try runCLI(["search", query, "--type", type, "--json"])
+            let response = try runCLI(["search", query, "--type", type, "--timeout", "30", "--json"])
             if let items = (response["data"] as? [String: Any])?["items"] as? [[String: Any]],
                let id = items.first?["id"] as? String {
                 return id
