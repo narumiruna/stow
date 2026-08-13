@@ -41,7 +41,7 @@ if [[ "$generator_setting_count" -ne 1 || "$generator_version" != "$project_vers
 fi
 
 version_setting_count="$(grep -Ec 'MARKETING_VERSION = ' Stow.xcodeproj/project.pbxproj)"
-matching_setting_count="$(grep -Ec "MARKETING_VERSION = ${project_version};" Stow.xcodeproj/project.pbxproj)"
+matching_setting_count="$(grep -Fc "MARKETING_VERSION = ${project_version};" Stow.xcodeproj/project.pbxproj)"
 if [[ "$version_setting_count" -eq 0 || "$matching_setting_count" -ne "$version_setting_count" ]]; then
   echo "Not every Xcode MARKETING_VERSION matches ${project_version}." >&2
   exit 1
