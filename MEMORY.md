@@ -8,6 +8,7 @@
 - CI must not run interactive `StowMacUITests`, `StowUITests`, or `Scripts/ui_tests.sh`; keep UI test orchestration in that local-only script and run it as one final verification batch.
 - Symptom: `xcodebuild` fails loading `IDESimulatorFoundation` because `/Library/Developer/PrivateFrameworks/CoreSimulator.framework` is missing. Cause: Xcode's system-resource packages were not installed during first launch. Fix: initialize Xcode with administrator authorization using `xcodebuild -runFirstLaunch` (or use an already initialized Xcode) before required project/UI verification.
 - Symptom: an Xcode build fails because `XCBuildData/build.db` is locked. Cause: concurrent `xcodebuild` commands share the default DerivedData directory. Fix: run Xcode builds sequentially or give each command a distinct `-derivedDataPath`.
+- Symptom: `callowayproject/bump-my-version@1.5.0` fails in `actions/setup-python` before bumping Stow. Cause: the composite action enables pip caching but this non-Python repository has no `requirements.txt` or `pyproject.toml`. Fix: install pinned uv with caching disabled and run pinned `bump-my-version` directly.
 
 ## TASTE
 

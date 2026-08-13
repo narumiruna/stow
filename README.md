@@ -148,7 +148,18 @@ Remove the symlink without changing saved Stow data:
 just uninstall-cli
 ```
 
+## Releases
+
 Release metadata, privacy/support copy, screenshots, and the current device matrix live in [`docs/release`](docs/release).
+
+After the release gates pass on `main`, run **Bump Version** from the GitHub Actions page and choose `patch`, `minor`, or `major`.
+The workflow updates `.bumpversion.toml`, the project generator, and every Xcode `MARKETING_VERSION`, then atomically pushes one `chore(release)` commit and an annotated `vMAJOR.MINOR.PATCH` tag.
+The tag triggers **Release**, which runs `Scripts/verify_version.sh` and creates a source-only GitHub release with generated notes.
+Run `Scripts/verify_version.sh` locally when checking version consistency without starting a release.
+
+Configure the repository Actions secret `PAT_TOKEN` with repository contents write access.
+The bump workflow needs this token because events pushed with the built-in `GITHUB_TOKEN` do not start the separate release workflow.
+If the atomic push is rejected because `main` changed, rerun **Bump Version** from the latest `main`; do not force-push the release commit or tag.
 
 Signing team selection and CloudKit credentials are kept in local Xcode settings and are never committed.
 
