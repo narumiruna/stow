@@ -2,9 +2,8 @@
 current_version = "0.1.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
-commit = true
-tag = true
-tag_name = "v{new_version}"
+commit = false
+tag = false
 
 [[tool.bumpversion.files]]
 filename = "Scripts/generate_project.rb"

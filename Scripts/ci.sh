@@ -14,6 +14,7 @@ printf '%s\n' "$xcode_version"
 printf '%s\n' "$swift_version"
 grep -Fqx "Xcode $expected_xcode_version" <<<"$xcode_version"
 grep -Fq "Swift version $expected_swift_version_prefix" <<<"$swift_version"
+Scripts/verify_version.sh
 swift test --package-path Packages/StowCore
 xcodebuild -project Stow.xcodeproj -scheme StowAppTests CODE_SIGNING_ALLOWED=NO test
 xcodebuild -project Stow.xcodeproj -scheme Stow-macOS -configuration Debug CODE_SIGNING_ALLOWED=NO build

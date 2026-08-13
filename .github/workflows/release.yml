@@ -8,24 +8,24 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Verify tag matches project version
-        run: |
-          project_version="$(awk -F '"' '/^current_version = / { print $2; exit }' .bumpversion.toml)"
-          if [[ "${GITHUB_REF_NAME}" != "v${project_version}" ]]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match project version v${project_version}." >&2
-            exit 1
-          fi
+      - name: Checkout the tagged revision
+        uses: actions/checkout@v4
+      - name: Verify release version
+        run: Scripts/verify_version.sh --tag "$GITHUB_REF_NAME"
       - name: Create GitHub release
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "${GITHUB_REF_NAME}" \
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
             --generate-notes \
             --verify-tag
