@@ -45,12 +45,21 @@ Run the non-interactive quality gate used by CI:
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ci.sh
 ```
 
-`Scripts/ci.sh` never runs UI tests. Run the full interactive UI suite locally, on the current macOS host and newest available iPhone simulator, through its separate entry point:
+`Scripts/ci.sh` never runs UI tests.
+Run the full interactive UI suite locally, on the current macOS host and newest available iPhone simulator, through its separate entry point:
 
 ```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh all
 ```
 
+Run one platform through the same orchestration entry point when focused verification is needed:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh macos
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh ios
+```
+
+The default mode is `all`, and it attempts both platforms before returning a failure.
 `Scripts/ui_tests.sh` is local-only and exits without running tests when a CI environment is detected.
 
 Focused non-interactive commands:
@@ -59,12 +68,6 @@ Focused non-interactive commands:
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --package-path Packages/StowCore
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-macOS CODE_SIGNING_ALLOWED=NO build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-iOS -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
-```
-
-Focused local macOS UI test command:
-
-```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme StowMacUITests CODE_SIGN_ENTITLEMENTS='' CODE_SIGN_IDENTITY='-' test
 ```
 
 ## Agent-first macOS CLI
