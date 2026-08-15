@@ -10,6 +10,8 @@ import AppKit
 
 struct StowItemDetailView: View {
     @Environment(AppModel.self) private var appModel
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query private var allAttachments: [StowAttachment]
     let item: StowItem
     @State private var title: String
@@ -22,7 +24,7 @@ struct StowItemDetailView: View {
 
     init(item: StowItem) {
         self.item = item
-        _title = State(initialValue: item.title)
+        _title = State(initialValue: item.displayTitle)
         _note = State(initialValue: item.note ?? "")
         _text = State(initialValue: item.textContent ?? "")
         _language = State(initialValue: item.language ?? "")
@@ -30,16 +32,15 @@ struct StowItemDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 24) {
                 contentPreview
-                Divider()
-                if editing { editor } else { metadata }
                 actionBar
+                if editing { editor } else { metadata }
             }
             .padding()
             .frame(maxWidth: 780, alignment: .leading)
         }
-        .navigationTitle(item.title)
+        .navigationTitle(item.displayTitle)
         .task { appModel.markUsed(item, metric: .itemOpened) }
         .quickLookPreview($previewURL)
         .toolbar {
@@ -57,25 +58,44 @@ struct StowItemDetailView: View {
     private var contentPreview: some View {
         switch item.type {
         case .link:
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 if let data = item.linkPreviewImageData, let image = platformImage(data: data) {
-                    image.resizable().scaledToFill().frame(maxWidth: .infinity, minHeight: 180, maxHeight: 260).clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: isCompactLayout ? 180 : 240)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
-                HStack(spacing: 10) {
+                HStack(alignment: .top, spacing: 12) {
                     if let data = item.faviconData, let icon = platformImage(data: data) {
-                        icon.resizable().scaledToFit().frame(width: 36, height: 36).clipShape(RoundedRectangle(cornerRadius: 8))
+                        icon
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 40, height: 40)
+                            .clipShape(RoundedRectangle(cornerRadius: 9))
                     } else {
-                        Image(systemName: "link.circle.fill").font(.system(size: 36)).foregroundStyle(.blue)
+                        Image(systemName: "link.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.blue)
                     }
-                    VStack(alignment: .leading) {
-                        Text(item.title).font(.title2.bold())
-                        Text(item.sourceDomain ?? item.urlString ?? "").foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.displayTitle)
+                            .font(.title2.weight(.semibold))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(item.sourceDomain ?? item.urlString ?? "")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                if let description = item.linkDescription { Text(description).foregroundStyle(.secondary) }
-                if let url = item.urlString { Text(url).font(.callout).textSelection(.enabled) }
+                if let description = item.displayLinkDescription {
+                    Text(description)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
+            .textSelection(.enabled)
             .onDrag { dragProvider() }
         case .text:
             Text(item.textContent ?? "")
@@ -116,16 +136,48 @@ struct StowItemDetailView: View {
     private var attachments: [StowAttachment] { allAttachments.filter { $0.itemID == item.id } }
 
     private var metadata: some View {
-        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
-            metadataRow("Title", item.title)
-            if let note = item.note, !note.isEmpty { metadataRow("Note", note) }
-            metadataRow("Added", item.createdAt.formatted(date: .abbreviated, time: .shortened))
-            metadataRow("Last used", item.lastUsedAt?.formatted(date: .abbreviated, time: .shortened) ?? "Never")
-            metadataRow("Source", item.sourceApp ?? "Unknown")
-            if let url = item.urlString { metadataRow("Original URL", url) }
-            if item.type == .code { metadataRow("Language", item.language ?? "Plain text") }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Details")
+                .font(.headline)
+            Group {
+                if isCompactLayout {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ForEach(metadataEntries) { entry in
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(entry.label)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(entry.value)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                } else {
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+                        ForEach(metadataEntries) { entry in
+                            metadataRow(entry.label, entry.value)
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
         }
         .textSelection(.enabled)
+    }
+
+    private var metadataEntries: [ItemMetadataEntry] {
+        var entries: [ItemMetadataEntry] = []
+        if item.type != .link { entries.append(ItemMetadataEntry(label: "Title", value: item.displayTitle)) }
+        if let note = item.note, !note.isEmpty { entries.append(ItemMetadataEntry(label: "Note", value: note)) }
+        entries.append(ItemMetadataEntry(label: "Added", value: item.createdAt.formatted(date: .abbreviated, time: .shortened)))
+        entries.append(ItemMetadataEntry(label: "Last used", value: item.lastUsedAt?.formatted(date: .abbreviated, time: .shortened) ?? "Never"))
+        entries.append(ItemMetadataEntry(label: "Source", value: item.sourceApp ?? "Unknown"))
+        if let url = item.urlString { entries.append(ItemMetadataEntry(label: "Original URL", value: url)) }
+        if item.type == .code { entries.append(ItemMetadataEntry(label: "Language", value: item.language ?? "Plain text")) }
+        return entries
     }
 
     private var editor: some View {
@@ -150,40 +202,95 @@ struct StowItemDetailView: View {
     }
 
     private var actionBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                let representations = appModel.representations(for: item)
-                appModel.performUse(item, action: .copy, metric: .itemCopied) {
-                    try PlatformActions.copy(
-                        item,
-                        attachmentData: attachments.first?.data,
-                        attachment: attachments.first,
-                        representations: representations
-                    )
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Actions")
+                .font(.headline)
+            if isCompactLayout {
+                LazyVGrid(columns: compactActionColumns, spacing: 10) {
+                    actionButtons(fillsWidth: true)
                 }
-            } label: { Label("Copy", systemImage: "doc.on.doc") }
-                .buttonStyle(.borderedProminent)
-            if item.type == .link || item.type == .file {
-                Button { appModel.performUse(item, action: .open, metric: .itemOpened) { try PlatformActions.open(item, attachment: attachments.first) } } label: { Label(item.type == .link ? "Open Link" : "Open In", systemImage: "arrow.up.forward.app") }
+            } else {
+                HStack(spacing: 10) {
+                    actionButtons(fillsWidth: false)
+                }
             }
-            if item.type == .file, let attachment = attachments.first {
-                Button {
-                    appModel.performUse(item, action: .preview, metric: .itemOpened) { previewURL = try PlatformActions.materialize(attachment) }
-                } label: { Label("Quick Look", systemImage: "eye") }
-            }
-            StowShareButton(item: item, attachment: attachments.first)
-            #if os(iOS)
-            if item.type == .image, let data = attachments.first?.data {
-                Button { appModel.performUse(item, action: .open, metric: .itemOpened) { try PlatformActions.saveToPhotos(data) } } label: { Label("Save Image", systemImage: "photo.badge.arrow.down") }
-            }
-            #endif
-            Button { appModel.archiveOrRestore(item) } label: { Label(item.status == .archived ? "Restore" : "Archive", systemImage: "archivebox") }
-            Button(role: .destructive) { appModel.trashOrRestore(item) } label: { Label(item.status == .trashed ? "Restore" : "Delete", systemImage: item.status == .trashed ? "arrow.uturn.backward" : "trash") }
         }
+        .buttonStyle(.bordered)
         .controlSize(.large)
-        .fixedSize(horizontal: false, vertical: true)
     }
 
+    @ViewBuilder
+    private func actionButtons(fillsWidth: Bool) -> some View {
+        Button {
+            let representations = appModel.representations(for: item)
+            appModel.performUse(item, action: .copy, metric: .itemCopied) {
+                try PlatformActions.copy(
+                    item,
+                    attachmentData: attachments.first?.data,
+                    attachment: attachments.first,
+                    representations: representations
+                )
+            }
+        } label: {
+            actionLabel("Copy", systemImage: "doc.on.doc", fillsWidth: fillsWidth)
+        }
+        .buttonStyle(.borderedProminent)
+        if item.type == .link || item.type == .file {
+            Button {
+                appModel.performUse(item, action: .open, metric: .itemOpened) {
+                    try PlatformActions.open(item, attachment: attachments.first)
+                }
+            } label: {
+                actionLabel(item.type == .link ? "Open Link" : "Open In", systemImage: "arrow.up.forward.app", fillsWidth: fillsWidth)
+            }
+        }
+        if item.type == .file, let attachment = attachments.first {
+            Button {
+                appModel.performUse(item, action: .preview, metric: .itemOpened) {
+                    previewURL = try PlatformActions.materialize(attachment)
+                }
+            } label: {
+                actionLabel("Quick Look", systemImage: "eye", fillsWidth: fillsWidth)
+            }
+        }
+        StowShareButton(item: item, attachment: attachments.first, fillsWidth: fillsWidth)
+        #if os(iOS)
+        if item.type == .image, let data = attachments.first?.data {
+            Button {
+                appModel.performUse(item, action: .open, metric: .itemOpened) {
+                    try PlatformActions.saveToPhotos(data)
+                }
+            } label: {
+                actionLabel("Save Image", systemImage: "photo.badge.arrow.down", fillsWidth: fillsWidth)
+            }
+        }
+        #endif
+        Button { appModel.archiveOrRestore(item) } label: {
+            actionLabel(item.status == .archived ? "Restore" : "Archive", systemImage: "archivebox", fillsWidth: fillsWidth)
+        }
+        Button(role: .destructive) { appModel.trashOrRestore(item) } label: {
+            actionLabel(item.status == .trashed ? "Restore" : "Delete", systemImage: item.status == .trashed ? "arrow.uturn.backward" : "trash", fillsWidth: fillsWidth)
+        }
+    }
+
+    private func actionLabel(_ title: String, systemImage: String, fillsWidth: Bool) -> some View {
+        Label(title, systemImage: systemImage)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+            .minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 1 : 0.8)
+            .frame(maxWidth: fillsWidth ? .infinity : nil, minHeight: 22)
+    }
+
+    private var compactActionColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible()), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2)
+    }
+
+    private var isCompactLayout: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
 
     private func metadataRow(_ label: String, _ value: String) -> some View {
         GridRow {
@@ -213,6 +320,23 @@ struct StowItemDetailView: View {
         guard let image = NSImage(data: data) else { return nil }
         return Image(nsImage: image)
         #endif
+    }
+}
+
+private struct ItemMetadataEntry: Identifiable {
+    let label: String
+    let value: String
+
+    var id: String { label }
+}
+
+extension StowItem {
+    var displayTitle: String {
+        type == .link ? HTMLMetadataParser.decodeCharacterReferences(title) : title
+    }
+
+    var displayLinkDescription: String? {
+        linkDescription.map(HTMLMetadataParser.decodeCharacterReferences)
     }
 }
 

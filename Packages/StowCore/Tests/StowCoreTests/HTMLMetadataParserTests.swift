@@ -31,4 +31,13 @@ final class HTMLMetadataParserTests: XCTestCase {
         XCTAssertEqual(result.title, "Swift & Safety")
         XCTAssertEqual(result.description, "It's fast")
     }
+
+    func testDecimalAndHexadecimalCharacterReferencesAreDecoded() {
+        let html = "<title>Threads&#x306e;Yang&#32;Wilson</title><meta name='description' content='&#x570b;&#x969b;'>"
+
+        let result = HTMLMetadataParser.parse(html, baseURL: URL(string: "https://threads.com")!)
+
+        XCTAssertEqual(result.title, "ThreadsのYang Wilson")
+        XCTAssertEqual(result.description, "國際")
+    }
 }
