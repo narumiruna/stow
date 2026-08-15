@@ -1,14 +1,20 @@
 name: CI
 
 on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   build-and-test:
     runs-on: macos-15
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Select Xcode 26.3
         uses: maxim-lobanov/setup-xcode@v1
         with:
