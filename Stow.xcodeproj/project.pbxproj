@@ -993,7 +993,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.macos;
 				PRODUCT_MODULE_NAME = StowMacUITests;
 				SDKROOT = macosx;
@@ -1015,7 +1015,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.cli;
 				PRODUCT_MODULE_NAME = StowCLI;
 				PRODUCT_NAME = stow;
@@ -1037,7 +1037,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.macos;
 				PRODUCT_MODULE_NAME = StowMacUITests;
 				SDKROOT = macosx;
@@ -1059,7 +1059,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/macOS-Share-Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.share.macos;
 				PRODUCT_MODULE_NAME = StowShare;
 				SDKROOT = macosx;
@@ -1202,7 +1202,7 @@
 				INFOPLIST_FILE = "Configuration/macOS-App-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
 				PRODUCT_MODULE_NAME = StowApp;
 				SDKROOT = macosx;
@@ -1223,7 +1223,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.unit;
 				PRODUCT_MODULE_NAME = StowAppTests;
 				SDKROOT = macosx;
@@ -1245,7 +1245,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.ios;
 				PRODUCT_MODULE_NAME = StowUITests;
 				SDKROOT = iphoneos;
@@ -1271,7 +1271,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/iOS-Share-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.share.ios;
 				PRODUCT_MODULE_NAME = StowShare;
 				SDKROOT = iphoneos;
@@ -1293,7 +1293,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.cli;
 				PRODUCT_MODULE_NAME = StowCLI;
 				PRODUCT_NAME = stow;
@@ -1320,7 +1320,7 @@
 				INFOPLIST_FILE = "Configuration/iOS-App-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
 				PRODUCT_MODULE_NAME = StowApp;
 				SDKROOT = iphoneos;
@@ -1344,7 +1344,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/iOS-Share-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.share.ios;
 				PRODUCT_MODULE_NAME = StowShare;
 				SDKROOT = iphoneos;
@@ -1369,7 +1369,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/macOS-Share-Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.share.macos;
 				PRODUCT_MODULE_NAME = StowShare;
 				SDKROOT = macosx;
@@ -1390,7 +1390,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.ios;
 				PRODUCT_MODULE_NAME = StowUITests;
 				SDKROOT = iphoneos;
@@ -1415,7 +1415,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.unit;
 				PRODUCT_MODULE_NAME = StowAppTests;
 				SDKROOT = macosx;
@@ -1441,7 +1441,7 @@
 				INFOPLIST_FILE = "Configuration/iOS-App-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
 				PRODUCT_MODULE_NAME = StowApp;
 				SDKROOT = iphoneos;
@@ -1469,7 +1469,7 @@
 				INFOPLIST_FILE = "Configuration/macOS-App-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
 				PRODUCT_MODULE_NAME = StowApp;
 				SDKROOT = macosx;

@@ -87,7 +87,7 @@ def configure_target(target, platform:, deployment:, bundle_id:, info_plist:, en
     settings["CODE_SIGN_STYLE"] = "Automatic"
     settings["DEVELOPMENT_TEAM"] = ""
     settings["CURRENT_PROJECT_VERSION"] = "1"
-    settings["MARKETING_VERSION"] = "0.1.0"
+    settings["MARKETING_VERSION"] = "0.1.1"
     settings["ENABLE_USER_SCRIPT_SANDBOXING"] = "YES"
     settings["ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS"] = "YES"
     settings["PRODUCT_MODULE_NAME"] = module_name if module_name
