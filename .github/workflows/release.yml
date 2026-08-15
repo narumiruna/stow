@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the tagged revision
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Verify release version
         run: Scripts/verify_version.sh --tag "$GITHUB_REF_NAME"
       - name: Create GitHub release
