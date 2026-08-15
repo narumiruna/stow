@@ -6,9 +6,20 @@ import Security
 public enum StowSharedStorage {
     public static let appGroupIdentifier = "group.dev.narumi.stow"
     public static let cloudKitContainerIdentifier = "iCloud.dev.narumi.stow"
+    public static let developmentContainerPathEnvironmentKey = "STOW_SHARED_CONTAINER_PATH"
 
-    public static func macOSContainerURL(fileManager: FileManager = .default) -> URL {
+    public static func macOSContainerURL(
+        fileManager: FileManager = .default,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL {
         #if os(macOS)
+        #if DEBUG
+        if let path = environment[developmentContainerPathEnvironmentKey], !path.isEmpty {
+            let override = URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL
+            try? fileManager.createDirectory(at: override, withIntermediateDirectories: true)
+            return override
+        }
+        #endif
         if hasAppGroupEntitlement(),
            let groupURL = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
             return groupURL
@@ -26,8 +37,12 @@ public enum StowSharedStorage {
         #endif
     }
 
-    public static func automationRootURL(fileManager: FileManager = .default) -> URL {
-        macOSContainerURL(fileManager: fileManager).appendingPathComponent("Automation", isDirectory: true)
+    public static func automationRootURL(
+        fileManager: FileManager = .default,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL {
+        macOSContainerURL(fileManager: fileManager, environment: environment)
+            .appendingPathComponent("Automation", isDirectory: true)
     }
 
     private static func hasAppGroupEntitlement() -> Bool {

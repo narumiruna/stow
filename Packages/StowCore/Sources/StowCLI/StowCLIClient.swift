@@ -41,6 +41,12 @@ struct StowCLIHostLauncher {
         configuration.addsToRecentItems = false
         configuration.hides = true
         configuration.arguments = ["--stow-automation"]
+        let stowEnvironment = environment.filter { $0.key.hasPrefix("STOW_") }
+        if !stowEnvironment.isEmpty { configuration.environment = stowEnvironment }
+        if let sharedContainerPath = environment[StowSharedStorage.developmentContainerPathEnvironmentKey],
+           !sharedContainerPath.isEmpty {
+            configuration.arguments.append("--stow-shared-container-path=\(sharedContainerPath)")
+        }
         let completion = StowLaunchCompletion()
         workspace.openApplication(at: appURL, configuration: configuration) { _, error in
             completion.finish(error: error)

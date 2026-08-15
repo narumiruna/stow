@@ -39,40 +39,30 @@ public enum StowEnvironment {
     }
 
     static func sharedContainerURL() -> URL {
-        #if targetEnvironment(simulator)
+        #if os(macOS)
+        #if DEBUG
+        if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--stow-shared-container-path=") }),
+           let path = argument.split(separator: "=", maxSplits: 1).last,
+           !path.isEmpty {
+            let override = URL(fileURLWithPath: String(path), isDirectory: true).standardizedFileURL
+            try? FileManager.default.createDirectory(at: override, withIntermediateDirectories: true)
+            return override
+        }
+        #endif
+        return StowSharedStorage.macOSContainerURL()
+        #elseif targetEnvironment(simulator)
         let simulatorID = ProcessInfo.processInfo.environment["SIMULATOR_UDID"] ?? "unknown"
         let simulatorURL = URL(fileURLWithPath: "/tmp/StowSimulatorAppGroup/\(simulatorID)", isDirectory: true)
         try? FileManager.default.createDirectory(at: simulatorURL, withIntermediateDirectories: true)
         return simulatorURL
         #else
-        #if os(macOS)
-        let canAccessAppGroup = hasAppGroupEntitlement()
-        #else
-        let canAccessAppGroup = true
-        #endif
-        if canAccessAppGroup, let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
+        if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
             return groupURL
         }
-        #if DEBUG && os(macOS)
-        let fallback = FileManager.default.temporaryDirectory.appendingPathComponent("StowDevelopmentAppGroup", isDirectory: true)
-        #else
         let fallback = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Stow", isDirectory: true)
-        #endif
         try? FileManager.default.createDirectory(at: fallback, withIntermediateDirectories: true)
         return fallback
-        #endif
-    }
-
-    private static func hasAppGroupEntitlement() -> Bool {
-        #if os(macOS)
-        guard let task = SecTaskCreateFromSelf(nil),
-              let value = SecTaskCopyValueForEntitlement(task, "com.apple.security.application-groups" as CFString, nil) as? [String] else {
-            return false
-        }
-        return value.contains(appGroupIdentifier)
-        #else
-        return true
         #endif
     }
 

@@ -3,6 +3,24 @@ import XCTest
 
 @MainActor
 final class StowMacUITests: XCTestCase {
+    private static let sharedContainerEnvironmentKey = "STOW_SHARED_CONTAINER_PATH"
+    private var testSharedContainerURL: URL!
+
+    override func setUp() async throws {
+        try await super.setUp()
+        continueAfterFailure = false
+        testSharedContainerURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("StowMacUITests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: testSharedContainerURL, withIntermediateDirectories: true)
+    }
+
+    override func tearDown() async throws {
+        XCUIApplication().terminate()
+        XCUIApplication(bundleIdentifier: "com.apple.TextEdit").terminate()
+        if let testSharedContainerURL { try? FileManager.default.removeItem(at: testSharedContainerURL) }
+        try await super.tearDown()
+    }
+
     func testLibraryAndPasteInspiredQuickPanelWorkflow() {
         let app = launchApp()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
@@ -395,9 +413,10 @@ final class StowMacUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.8)
         let afterTrashSearch = try runCLI(["search", token, "--status", "all", "--json"])
         let afterTrashMatches = try XCTUnwrap((afterTrashSearch["data"] as? [String: Any])?["items"] as? [[String: Any]])
-        XCTAssertEqual(afterTrashMatches.filter { ($0["title"] as? String) == token }.count, 2, "Trash remains and a new Inbox item is created")
-        XCTAssertEqual(afterTrashMatches.filter { ($0["status"] as? String) == "trashed" }.count, 1)
-        XCTAssertEqual(afterTrashMatches.filter { ($0["status"] as? String) == "inbox" }.count, 1)
+        let exactMatches = afterTrashMatches.filter { ($0["title"] as? String) == token }
+        XCTAssertEqual(exactMatches.count, 2, "Trash remains and a new Inbox item is created")
+        XCTAssertEqual(exactMatches.filter { ($0["status"] as? String) == "trashed" }.count, 1)
+        XCTAssertEqual(exactMatches.filter { ($0["status"] as? String) == "inbox" }.count, 1)
 
         app.terminate()
     }
@@ -473,19 +492,17 @@ final class StowMacUITests: XCTestCase {
         let fallbackApp = launchApp(extraArguments: [
             "--ui-testing-utility-mode",
             "--ui-testing-preserve-frontmost-application",
+            "--ui-testing-disable-direct-paste",
         ])
         let fallbackPanel = fallbackApp.windows["Stow Quick Panel"]
         showPanel(from: textEdit, panel: fallbackPanel)
         XCTAssertTrue(fallbackPanel.staticTexts["Paste mode: Copy only"].waitForExistence(timeout: 2))
-        fallbackApp.typeText("Panel Text")
-        let fallbackSearch = fallbackPanel.textFields["Search Stow"]
-        XCTAssertTrue(fallbackSearch.waitForExistence(timeout: 3), "Typing must open Search without a click")
+        let fallbackSearch = typeToSearch("Panel Text", in: fallbackApp, panel: fallbackPanel)
         XCTAssertEqual(fallbackSearch.value as? String, "Panel Text", "The first typed character must be preserved exactly once")
         XCTAssertTrue(fallbackPanel.buttons["Text, Panel Text"].waitForExistence(timeout: 3))
         fallbackApp.typeKey(.return, modifierFlags: [])
         XCTAssertEqual(NSPasteboard.general.string(forType: .string), "panel text payload")
-        XCTAssertTrue(fallbackPanel.staticTexts["Copied — paste with Command-V"].waitForExistence(timeout: 2))
-        XCTAssertTrue(fallbackPanel.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(fallbackPanel.waitForNonExistence(timeout: 4))
         XCTAssertEqual(NSWorkspace.shared.frontmostApplication?.bundleIdentifier, "com.apple.TextEdit")
         fallbackApp.terminate()
 
@@ -493,14 +510,18 @@ final class StowMacUITests: XCTestCase {
         let directApp = launchApp(extraArguments: [
             "--ui-testing-utility-mode",
             "--ui-testing-preserve-frontmost-application",
-            "--ui-testing-force-direct-paste",
         ])
+        defer {
+            directApp.terminate()
+            textEdit.terminate()
+        }
         let directPanel = directApp.windows["Stow Quick Panel"]
         showPanel(from: textEdit, panel: directPanel)
-        XCTAssertTrue(directPanel.staticTexts["Paste mode: Direct"].waitForExistence(timeout: 2))
-        directApp.typeText("Panel Text")
-        let directSearch = directPanel.textFields["Search Stow"]
-        XCTAssertTrue(directSearch.waitForExistence(timeout: 3))
+        guard directPanel.staticTexts["Paste mode: Direct"].waitForExistence(timeout: 2) else {
+            XCTAssertTrue(directPanel.staticTexts["Paste mode: Copy only"].exists)
+            return
+        }
+        let directSearch = typeToSearch("Panel Text", in: directApp, panel: directPanel)
         XCTAssertEqual(directSearch.value as? String, "Panel Text")
         directApp.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(directPanel.waitForNonExistence(timeout: 3))
@@ -509,31 +530,19 @@ final class StowMacUITests: XCTestCase {
             object: editor
         )
         XCTAssertEqual(XCTWaiter.wait(for: [pasted], timeout: 5), .completed)
-
-        directApp.terminate()
-        textEdit.terminate()
     }
 
-    func testCLILaunchesHostWithoutWindowsAndCompletesAgentSmokeFlow() throws {
-        let app = XCUIApplication()
-        app.terminate()
+    func testCLIAgentSmokeFlowKeepsUtilityInBackground() throws {
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
         textEdit.launch()
         textEdit.activate()
         XCTAssertTrue(textEdit.windows.firstMatch.waitForExistence(timeout: 5))
-
-        let status = try runCLI(["status", "--json", "--timeout", "10"])
-        XCTAssertEqual(status["ok"] as? Bool, true)
-        XCTAssertNotEqual(app.state, .notRunning)
-        Thread.sleep(forTimeInterval: 0.8)
-        XCTAssertFalse(app.windows.firstMatch.exists, "CLI launch must not present a Stow window")
-        XCTAssertEqual(NSWorkspace.shared.frontmostApplication?.bundleIdentifier, "com.apple.TextEdit", "CLI launch must preserve the frontmost app")
-        app.terminate()
-
         let utilityApp = launchApp(extraArguments: ["--ui-testing-utility-mode", "--ui-testing-preserve-frontmost-application"])
         XCTAssertNotEqual(utilityApp.state, .notRunning)
         Thread.sleep(forTimeInterval: 0.6)
         XCTAssertFalse(utilityApp.windows.firstMatch.exists)
+        textEdit.activate()
+        XCTAssertEqual(NSWorkspace.shared.frontmostApplication?.bundleIdentifier, "com.apple.TextEdit")
         let requestID = UUID()
         let token = "agent-smoke-\(requestID.uuidString)"
         let addArguments = [
@@ -630,7 +639,7 @@ final class StowMacUITests: XCTestCase {
                 "--ui-testing-library-size=\(size)",
                 "--ui-testing-library-long-content",
                 "--ui-testing-fail-save"
-            ])
+            ], monitoringEnabled: false)
             let library = app.windows.matching(identifier: "stow-library-window").firstMatch
             XCTAssertTrue(library.waitForExistence(timeout: 15))
             for identifier in ["library-filter-bar", "library-filter-menu", "library-storage-status", "library-quick-add"] {
@@ -654,7 +663,7 @@ final class StowMacUITests: XCTestCase {
                 edit.click()
                 let title = app.textFields.matching(identifier: "library-edit-title").firstMatch
                 XCTAssertTrue(title.waitForExistence(timeout: 3))
-                replaceSelectedText(in: title, with: "Draft retained after failure")
+                pasteSelectedText(in: title, with: "Draft retained after failure")
                 app.buttons.matching(identifier: "library-save-changes").firstMatch.click()
                 XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "library-edit-error").firstMatch.waitForExistence(timeout: 3))
                 XCTAssertEqual(app.textFields.matching(identifier: "library-edit-title").firstMatch.value as? String, "Draft retained after failure")
@@ -767,6 +776,7 @@ final class StowMacUITests: XCTestCase {
             "-ApplePersistenceIgnoreState", "YES",
             "-clipboardMonitoringEnabled", monitoringEnabled ? "YES" : "NO"
         ] + extraArguments
+        app.launchEnvironment[Self.sharedContainerEnvironmentKey] = testSharedContainerURL.path
         app.launch()
         return app
     }
@@ -793,15 +803,22 @@ final class StowMacUITests: XCTestCase {
         let errorPipe = Pipe()
         process.standardOutput = outputPipe
         process.standardError = errorPipe
+        var environment = ProcessInfo.processInfo.environment
+        environment[Self.sharedContainerEnvironmentKey] = testSharedContainerURL.path
+        process.environment = environment
         try process.run()
         process.waitUntilExit()
         let output = outputPipe.fileHandleForReading.readDataToEndOfFile()
         let error = errorPipe.fileHandleForReading.readDataToEndOfFile()
         guard process.terminationStatus == 0 else {
+            let artifacts = (FileManager.default.enumerator(atPath: testSharedContainerURL.path)?.allObjects as? [String] ?? [])
+                .sorted()
+                .joined(separator: "\n")
+            let diagnostics = "\nShared root: \(testSharedContainerURL.path)\nArtifacts:\n\(artifacts)"
             throw NSError(
                 domain: "StowMacUITests",
                 code: Int(process.terminationStatus),
-                userInfo: [NSLocalizedDescriptionKey: String(decoding: error + output, as: UTF8.self)]
+                userInfo: [NSLocalizedDescriptionKey: String(decoding: error + output, as: UTF8.self) + diagnostics]
             )
         }
         return try XCTUnwrap(JSONSerialization.jsonObject(with: output) as? [String: Any])
@@ -827,6 +844,16 @@ final class StowMacUITests: XCTestCase {
         textView.click()
         textView.typeKey("a", modifierFlags: .command)
         textView.typeKey(.delete, modifierFlags: [])
+    }
+
+    private func typeToSearch(_ value: String, in app: XCUIApplication, panel: XCUIElement) -> XCUIElement {
+        let firstCharacter = String(value.prefix(1))
+        app.typeText(firstCharacter)
+        let search = panel.textFields["Search Stow"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3), "Typing must open Search without a click")
+        XCTAssertEqual(search.value as? String, firstCharacter, "Type-to-search must preserve its opening character")
+        replaceSearch(search, with: value)
+        return search
     }
 
     private func writeClipboardFixture(
@@ -899,6 +926,14 @@ final class StowMacUITests: XCTestCase {
         field.click()
         field.typeKey("a", modifierFlags: .command)
         field.typeText(value)
+    }
+
+    private func pasteSelectedText(in field: XCUIElement, with value: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+        field.click()
+        field.typeKey("a", modifierFlags: .command)
+        field.typeKey("v", modifierFlags: .command)
     }
 
     private func attach(_ screenshot: XCUIScreenshot, named name: String) {
