@@ -153,7 +153,7 @@ just uninstall-cli
 Release metadata, privacy/support copy, screenshots, and the current device matrix live in [`docs/release`](docs/release).
 
 After the release gates pass on `main`, run **Bump Version** from the GitHub Actions page and choose `patch`, `minor`, or `major`.
-The workflow updates `.bumpversion.toml`, the project generator, and every Xcode `MARKETING_VERSION`, then atomically pushes one `chore(release)` commit and an annotated `vMAJOR.MINOR.PATCH` tag.
+The workflow uses `Scripts/bump_version.sh` to update `VERSION`, the project generator, and every Xcode `MARKETING_VERSION`, then atomically pushes one `chore(release)` commit and an annotated `vMAJOR.MINOR.PATCH` tag.
 The tag triggers **Release**, which runs `Scripts/verify_version.sh` and creates a source-only GitHub release with generated notes.
 Run `Scripts/verify_version.sh` locally when checking version consistency without starting a release.
 
