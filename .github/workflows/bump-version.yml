@@ -46,20 +46,13 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Install uv
-        uses: astral-sh/setup-uv@v9
-        with:
-          version: "0.9.26"
-          enable-cache: false
       - name: Bump project version
         id: bump
         env:
           BUMP_TYPE: ${{ inputs.bump-type }}
         run: |
-          previous_version="$(uvx --from 'bump-my-version==1.5.1' bump-my-version show current_version)"
-          uvx --from 'bump-my-version==1.5.1' bump-my-version bump "$BUMP_TYPE" --no-commit --no-tag
-          current_version="$(uvx --from 'bump-my-version==1.5.1' bump-my-version show current_version)"
-
+          previous_version="$(Scripts/verify_version.sh)"
+          current_version="$(Scripts/bump_version.sh "$BUMP_TYPE")"
           verified_version="$(Scripts/verify_version.sh)"
           if [[ "$verified_version" != "$current_version" ]]; then
             echo "Version verification returned ${verified_version}, expected ${current_version}." >&2
@@ -76,7 +69,7 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
-          git add .bumpversion.toml Scripts/generate_project.rb Stow.xcodeproj/project.pbxproj
+          git add VERSION Scripts/generate_project.rb Stow.xcodeproj/project.pbxproj
           git commit -m "chore(release): bump version to ${CURRENT_VERSION}"
           git tag -a "v${CURRENT_VERSION}" -m "Release ${CURRENT_VERSION}"
       - name: Push version commit and tag

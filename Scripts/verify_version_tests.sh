@@ -6,11 +6,11 @@ temporary="$(mktemp -d)"
 trap 'rm -rf "$temporary"' EXIT
 
 mkdir -p "$temporary/Scripts" "$temporary/Stow.xcodeproj"
-cp "$root/.bumpversion.toml" "$temporary/"
+cp "$root/VERSION" "$temporary/"
 cp "$root/Scripts/generate_project.rb" "$root/Scripts/verify_version.sh" "$temporary/Scripts/"
 cp "$root/Stow.xcodeproj/project.pbxproj" "$temporary/Stow.xcodeproj/"
 
-expected_version="$(awk -F '"' '/^current_version = / { print $2; exit }' "$root/.bumpversion.toml")"
+expected_version="$(cat "$root/VERSION")"
 baseline_version="$($temporary/Scripts/verify_version.sh)"
 if [[ "$baseline_version" != "$expected_version" ]]; then
   echo "Expected baseline version $expected_version, got $baseline_version." >&2

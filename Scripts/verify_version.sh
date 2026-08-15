@@ -16,9 +16,14 @@ elif [[ $# -ne 0 ]]; then
   exit 64
 fi
 
-project_version="$(awk -F '"' '/^current_version = / { print $2; exit }' .bumpversion.toml)"
-if [[ ! "$project_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-  echo "Configured version ${project_version:-<missing>} is not MAJOR.MINOR.PATCH." >&2
+if [[ ! -f VERSION ]]; then
+  echo "VERSION is missing." >&2
+  exit 1
+fi
+project_version="$(cat VERSION)"
+if [[ ! "$project_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] ||
+  ! printf '%s\n' "$project_version" | cmp -s - VERSION; then
+  echo "Configured version ${project_version:-<missing>} is not one MAJOR.MINOR.PATCH line." >&2
   exit 1
 fi
 
