@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -213,7 +213,7 @@
 		65609923175544A55AAF431B /* StowEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowEnvironment.swift; sourceTree = "<group>"; };
 		65DE82C2D88B50242DC118F1 /* MacSettingsModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacSettingsModels.swift; sourceTree = "<group>"; };
 		6660F23F777BE9A4EE938C64 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		70941375C228F11F7D9C372C /* stow */ = {isa = PBXFileReference; includeInIndex = 0; name = stow; path = stow; sourceTree = BUILT_PRODUCTS_DIR; };
+		70941375C228F11F7D9C372C /* stow */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = stow; sourceTree = BUILT_PRODUCTS_DIR; };
 		7BAF05A1E718374342238EDB /* ShareCaptureModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareCaptureModel.swift; sourceTree = "<group>"; };
 		8268FB9AF797B5657A4590B4 /* QuickPanelInteractionPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelInteractionPolicyTests.swift; sourceTree = "<group>"; };
 		88F25BA270A74D95A16A1E66 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
@@ -223,7 +223,7 @@
 		93B6B9B1B5DD15BFB3832C2E /* MacSettingsModelsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacSettingsModelsTests.swift; sourceTree = "<group>"; };
 		9548A44E512CA4728F1F6455 /* StowAutomationHostServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAutomationHostServiceTests.swift; sourceTree = "<group>"; };
 		99D16B4D139A504E85F533A7 /* RetrievalPanelController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPanelController.swift; sourceTree = "<group>"; };
-		A0F598A9652989C3BBF26AB1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A0F598A9652989C3BBF26AB1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A161A39A2726A44D95CC80AD /* iOS-App-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "iOS-App-Info.plist"; sourceTree = "<group>"; };
 		A38D6A71B9F0AE1BACB3E422 /* SearchIndexRecoveryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchIndexRecoveryTests.swift; sourceTree = "<group>"; };
 		AABBCD997ABEE9CDC74D5E46 /* MacAppCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacAppCoordinator.swift; sourceTree = "<group>"; };
@@ -328,7 +328,6 @@
 			children = (
 				18D22349BBF50A1B0A68CED5 /* StowMacUITests.swift */,
 			);
-			name = StowMacUITests;
 			path = StowMacUITests;
 			sourceTree = "<group>";
 		};
@@ -346,7 +345,6 @@
 			children = (
 				6660F23F777BE9A4EE938C64 /* Assets.xcassets */,
 			);
-			name = Resources;
 			path = Resources;
 			sourceTree = "<group>";
 		};
@@ -419,7 +417,6 @@
 				12A67A6C33E0FA7014422E06 /* iOS */,
 				D5A9CF4CE2BDABE18FC81FFE /* macOS */,
 			);
-			name = Sources;
 			path = Sources;
 			sourceTree = "<group>";
 		};
@@ -448,7 +445,6 @@
 				17A0752CAD179C3226808960 /* ClipboardCapturePolicyTests.swift */,
 				91B33E680670ACB29F6A5313 /* PlatformActionsPasteTests.swift */,
 			);
-			name = StowAppTests;
 			path = StowAppTests;
 			sourceTree = "<group>";
 		};
@@ -468,7 +464,6 @@
 				F8811DB521C3C05AA75AB215 /* StowUITests */,
 				0D5A78160EFA0D3BA090CDB7 /* StowMacUITests */,
 			);
-			name = Tests;
 			path = Tests;
 			sourceTree = "<group>";
 		};
@@ -495,7 +490,6 @@
 				B299554E793B70AAC1FAA217 /* StowShare-macOS.entitlements */,
 				A0F598A9652989C3BBF26AB1 /* PrivacyInfo.xcprivacy */,
 			);
-			name = Configuration;
 			path = Configuration;
 			sourceTree = "<group>";
 		};
@@ -554,7 +548,6 @@
 			children = (
 				20861C0C7D42B4D7AE5436A5 /* StowUITests.swift */,
 			);
-			name = StowUITests;
 			path = StowUITests;
 			sourceTree = "<group>";
 		};
@@ -741,11 +734,9 @@
 				Base,
 			);
 			mainGroup = 78058F75C5DA47EEFDDB6ADD;
-			minimizedProjectReferenceProxies = 0;
 			packageReferences = (
-				9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */,
+				9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "Packages/StowCore" */,
 			);
-			preferredProjectObjectVersion = 100;
 			productRefGroup = 7F7EB6523FD779BA04AF07CA /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -988,7 +979,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
@@ -1011,7 +1002,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -1032,7 +1023,7 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
@@ -1052,9 +1043,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-macOS.entitlements";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/macOS-Share-Info.plist";
@@ -1193,14 +1185,18 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Configuration/Stow-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/macOS-App-Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
@@ -1218,7 +1214,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
@@ -1240,7 +1236,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
@@ -1266,7 +1262,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-iOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/iOS-Share-Info.plist";
@@ -1289,7 +1285,7 @@
 				CODE_SIGN_ENTITLEMENTS = Configuration/StowCLI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -1314,12 +1310,15 @@
 				CODE_SIGN_ENTITLEMENTS = "Configuration/Stow-iOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/iOS-App-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
 				PRODUCT_MODULE_NAME = StowApp;
@@ -1339,7 +1338,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-iOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/iOS-Share-Info.plist";
@@ -1362,9 +1361,10 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/macOS-Share-Info.plist";
@@ -1385,7 +1385,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
@@ -1410,7 +1410,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
@@ -1435,12 +1435,15 @@
 				CODE_SIGN_ENTITLEMENTS = "Configuration/Stow-iOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/iOS-App-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
 				PRODUCT_MODULE_NAME = StowApp;
@@ -1460,14 +1463,18 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Configuration/Stow-macOS.entitlements";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/macOS-App-Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
@@ -1565,7 +1572,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */ = {
+		9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "Packages/StowCore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/StowCore;
 		};
@@ -1574,32 +1581,32 @@
 /* Begin XCSwiftPackageProductDependency section */
 		117F6D5238FBEDD7DDA4F0D7 /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
+			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "Packages/StowCore" */;
 			productName = StowCore;
 		};
 		32160B1FE80E7FE187769E2B /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
+			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "Packages/StowCore" */;
 			productName = StowCore;
 		};
 		3FC668A6993235FAC41BA43D /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
+			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "Packages/StowCore" */;
 			productName = StowCore;
 		};
 		7DAF7A9598D9FE73B0B91304 /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
+			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "Packages/StowCore" */;
 			productName = StowCore;
 		};
 		9657CA1729E7964460D1E599 /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
+			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "Packages/StowCore" */;
 			productName = StowCore;
 		};
 		E7F7230ED27654007800CC99 /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
+			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "Packages/StowCore" */;
 			productName = StowCore;
 		};
 /* End XCSwiftPackageProductDependency section */
