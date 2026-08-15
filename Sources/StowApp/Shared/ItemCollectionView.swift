@@ -132,7 +132,7 @@ private struct StowItemRow: View {
             }
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
-                    Text(item.title).font(.headline).lineLimit(1)
+                    Text(item.displayTitle).font(.headline).lineLimit(1)
                     if item.isPinned { Image(systemName: "pin.fill").font(.caption).foregroundStyle(.orange).accessibilityLabel("Pinned") }
                 }
                 Text(item.previewText)

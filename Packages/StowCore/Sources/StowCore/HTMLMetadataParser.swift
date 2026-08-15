@@ -22,11 +22,11 @@ public enum HTMLMetadataParser {
         for tag in metaTags {
             let attributes = attributes(in: tag)
             if let key = (attributes["property"] ?? attributes["name"])?.lowercased(), let content = attributes["content"] {
-                metadata[key] = decode(content)
+                metadata[key] = decodeCharacterReferences(content)
             }
         }
 
-        let htmlTitle = firstMatch(pattern: #"<title\b[^>]*>(.*?)</title>"#, in: html, capture: 1).map { decode(stripTags($0)) }
+        let htmlTitle = firstMatch(pattern: #"<title\b[^>]*>(.*?)</title>"#, in: html, capture: 1).map { decodeCharacterReferences(stripTags($0)) }
         let title = clean(metadata["og:title"]) ?? clean(htmlTitle)
         let description = clean(metadata["og:description"]) ?? clean(metadata["description"])
         let image = clean(metadata["og:image"]).flatMap { URL(string: $0, relativeTo: baseURL)?.absoluteURL }
@@ -36,7 +36,7 @@ public enum HTMLMetadataParser {
             let attributes = attributes(in: tag)
             if attributes["rel"]?.lowercased().split(separator: " ").contains(where: { $0.contains("icon") }) == true,
                let href = attributes["href"] {
-                favicon = URL(string: decode(href), relativeTo: baseURL)?.absoluteURL
+                favicon = URL(string: decodeCharacterReferences(href), relativeTo: baseURL)?.absoluteURL
                 break
             }
         }
@@ -76,7 +76,7 @@ public enum HTMLMetadataParser {
         value.replacingOccurrences(of: #"<[^>]+>"#, with: "", options: .regularExpression)
     }
 
-    private static func decode(_ value: String) -> String {
+    public static func decodeCharacterReferences(_ value: String) -> String {
         var output = value
             .replacingOccurrences(of: "&amp;", with: "&", options: .caseInsensitive)
             .replacingOccurrences(of: "&quot;", with: "\"", options: .caseInsensitive)
@@ -84,11 +84,16 @@ public enum HTMLMetadataParser {
             .replacingOccurrences(of: "&apos;", with: "'", options: .caseInsensitive)
             .replacingOccurrences(of: "&lt;", with: "<", options: .caseInsensitive)
             .replacingOccurrences(of: "&gt;", with: ">", options: .caseInsensitive)
-        let numeric = try? NSRegularExpression(pattern: #"&#(\d+);"#)
+            .replacingOccurrences(of: "&nbsp;", with: " ", options: .caseInsensitive)
+        let numeric = try? NSRegularExpression(pattern: #"&#(?:x([0-9A-F]+)|(\d+));"#, options: .caseInsensitive)
         if let numeric {
             for match in numeric.matches(in: output, range: NSRange(output.startIndex..<output.endIndex, in: output)).reversed() {
-                guard let full = Range(match.range(at: 0), in: output), let digits = Range(match.range(at: 1), in: output),
-                      let scalar = UInt32(output[digits]).flatMap(UnicodeScalar.init) else { continue }
+                let isHexadecimal = match.range(at: 1).location != NSNotFound
+                let digitsIndex = isHexadecimal ? 1 : 2
+                guard let full = Range(match.range(at: 0), in: output),
+                      let digits = Range(match.range(at: digitsIndex), in: output),
+                      let scalarValue = UInt32(output[digits], radix: isHexadecimal ? 16 : 10),
+                      let scalar = UnicodeScalar(scalarValue) else { continue }
                 output.replaceSubrange(full, with: String(Character(scalar)))
             }
         }

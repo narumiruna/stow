@@ -11,6 +11,7 @@ struct StowShareButton: View {
     @Environment(AppModel.self) private var appModel
     let item: StowItem
     let attachment: StowAttachment?
+    let fillsWidth: Bool
     #if os(iOS)
     @State private var activityItems: [Any] = []
     @State private var presenting = false
@@ -18,8 +19,18 @@ struct StowShareButton: View {
     @State private var coordinator = MacShareCoordinator()
     #endif
 
+    init(item: StowItem, attachment: StowAttachment?, fillsWidth: Bool = false) {
+        self.item = item
+        self.attachment = attachment
+        self.fillsWidth = fillsWidth
+    }
+
     var body: some View {
-        Button { share() } label: { Label("Share", systemImage: "square.and.arrow.up") }
+        Button { share() } label: {
+            Label("Share", systemImage: "square.and.arrow.up")
+                .lineLimit(1)
+                .frame(maxWidth: fillsWidth ? .infinity : nil)
+        }
         #if os(iOS)
         .sheet(isPresented: $presenting) {
             ActivitySheet(items: activityItems) { completed, error in
