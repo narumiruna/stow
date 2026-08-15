@@ -4,3 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "swift"
+    directory: "/Packages/StowCore"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "swift"
+    directory: "/Spikes/LocalSearch"
+    schedule:
+      interval: "weekly"
