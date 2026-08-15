@@ -37,7 +37,7 @@ record_failure() {
 run_cli_launch_smoke() {
   local app_path="$1"
   local shared_root host_pid visible_windows status=0
-  shared_root="$(mktemp -d "${TMPDIR:-/tmp}/StowCLISmoke.XXXXXX")"
+  shared_root="$(mktemp -d "${TMPDIR:-/tmp}/StowCLISmoke.XXXXXX")" || return $?
 
   STOW_SHARED_CONTAINER_PATH="$shared_root" \
     "$app_path/Contents/Helpers/stow" status --json --timeout 10 || status=$?
@@ -51,8 +51,8 @@ run_cli_launch_smoke() {
 let pid = Int(CommandLine.arguments[1])!
 let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
 let windows = info.filter { ($0[kCGWindowOwnerPID as String] as? Int) == pid && ($0[kCGWindowLayer as String] as? Int) == 0 }
-print(windows.count)' "$host_pid")"
-      if [[ "$visible_windows" != "0" ]]; then
+print(windows.count)' "$host_pid")" || status=$?
+      if (( status == 0 )) && [[ "$visible_windows" != "0" ]]; then
         printf 'A CLI launch presented %s visible Stow window(s).\n' "$visible_windows" >&2
         status=1
       fi
@@ -80,15 +80,15 @@ run_macos_tests() {
     "CODE_SIGN_ENTITLEMENTS="
     "CODE_SIGN_IDENTITY=-"
   )
-  xcodebuild "${build_arguments[@]}" build-for-testing
+  xcodebuild "${build_arguments[@]}" build-for-testing || return $?
 
   local built_products app_path
   built_products="$(
     xcodebuild "${build_arguments[@]}" -showBuildSettings -json |
       plutil -extract 0.buildSettings.BUILT_PRODUCTS_DIR raw -o - -
-  )"
+  )" || return $?
   app_path="$built_products/Stow-macOS.app"
-  run_cli_launch_smoke "$app_path"
+  run_cli_launch_smoke "$app_path" || return $?
 
   xcodebuild "${build_arguments[@]}" test-without-building
 }
@@ -98,9 +98,9 @@ run_ios_tests() {
   device_id="$(
     xcrun simctl list devices available -j |
       python3 -c 'import json,re,sys; devices=json.load(sys.stdin)["devices"]; runtimes=sorted(devices, key=lambda runtime: tuple(map(int, re.findall(r"\d+", runtime)))); print(next(device["udid"] for runtime in reversed(runtimes) for device in devices[runtime] if device["name"].startswith("iPhone") and device["isAvailable"]))'
-  )"
+  )" || return $?
   xcrun simctl boot "$device_id" 2>/dev/null || true
-  xcrun simctl bootstatus "$device_id" -b
+  xcrun simctl bootstatus "$device_id" -b || return $?
   xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" CODE_SIGNING_ALLOWED=NO test
 }
 

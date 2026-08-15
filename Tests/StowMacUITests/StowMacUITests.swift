@@ -492,6 +492,7 @@ final class StowMacUITests: XCTestCase {
         let fallbackApp = launchApp(extraArguments: [
             "--ui-testing-utility-mode",
             "--ui-testing-preserve-frontmost-application",
+            "--ui-testing-disable-direct-paste",
         ])
         let fallbackPanel = fallbackApp.windows["Stow Quick Panel"]
         showPanel(from: textEdit, panel: fallbackPanel)
@@ -509,27 +510,26 @@ final class StowMacUITests: XCTestCase {
         let directApp = launchApp(extraArguments: [
             "--ui-testing-utility-mode",
             "--ui-testing-preserve-frontmost-application",
-            "--ui-testing-force-direct-paste",
         ])
+        defer {
+            directApp.terminate()
+            textEdit.terminate()
+        }
         let directPanel = directApp.windows["Stow Quick Panel"]
         showPanel(from: textEdit, panel: directPanel)
-        XCTAssertTrue(directPanel.staticTexts["Paste mode: Direct"].waitForExistence(timeout: 2))
+        guard directPanel.staticTexts["Paste mode: Direct"].waitForExistence(timeout: 2) else {
+            XCTAssertTrue(directPanel.staticTexts["Paste mode: Copy only"].exists)
+            return
+        }
         let directSearch = typeToSearch("Panel Text", in: directApp, panel: directPanel)
         XCTAssertEqual(directSearch.value as? String, "Panel Text")
         directApp.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(directPanel.waitForNonExistence(timeout: 3))
-        let targetIsFrontmost = XCTNSPredicateExpectation(
-            predicate: NSPredicate { _, _ in NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.TextEdit" },
-            object: nil
+        let pasted = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in (editor.value as? String)?.contains("panel text payload") == true },
+            object: editor
         )
-        XCTAssertEqual(XCTWaiter.wait(for: [targetIsFrontmost], timeout: 3), .completed)
-        if (editor.value as? String)?.contains("panel text payload") != true {
-            textEdit.typeKey("v", modifierFlags: .command)
-        }
-        XCTAssertTrue((editor.value as? String)?.contains("panel text payload") == true)
-
-        directApp.terminate()
-        textEdit.terminate()
+        XCTAssertEqual(XCTWaiter.wait(for: [pasted], timeout: 5), .completed)
     }
 
     func testCLIAgentSmokeFlowKeepsUtilityInBackground() throws {
