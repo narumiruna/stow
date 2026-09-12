@@ -23,6 +23,8 @@ struct StowMacApp: App {
                 .modelContainer(container)
                 .task { appDelegate.configure(model: model, container: container) }
         }
+        .defaultSize(width: 1120, height: 740)
+        .windowToolbarStyle(.unified)
         .commands { StowCommands(model: model) }
 
         MenuBarExtra("Stow", systemImage: "shippingbox.fill") {

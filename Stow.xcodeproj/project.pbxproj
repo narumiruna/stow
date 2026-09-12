@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A628784BDB63F27D39E51A12 /* MacVisualStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A628784BDB63F27D39E51A11 /* MacVisualStyle.swift */; };
 		0000A022020A552CD7C0E4FE /* StowRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62770EB4996C3073DB0C5D8F /* StowRootView.swift */; };
 		0040E8ACAF0BA962ECC4C10E /* QuickPanelInteractionPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8268FB9AF797B5657A4590B4 /* QuickPanelInteractionPolicyTests.swift */; };
 		02F41832A3322681501ED2A6 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 117F6D5238FBEDD7DDA4F0D7 /* StowCore */; };
@@ -176,6 +177,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A628784BDB63F27D39E51A11 /* MacVisualStyle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacVisualStyle.swift; sourceTree = "<group>"; };
 		008E4A32C265AEB64DFA15D2 /* Stow-macOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "Stow-macOS.entitlements"; sourceTree = "<group>"; };
 		008EFDAA6EB372C8425C6EF5 /* QuickPanelInteractionPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelInteractionPolicy.swift; sourceTree = "<group>"; };
 		0371DB2A71163029C9B84363 /* macOS-App-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "macOS-App-Info.plist"; sourceTree = "<group>"; };
@@ -520,6 +522,7 @@
 				2BD28696172EFAF834904242 /* MacLibraryView.swift */,
 				65DE82C2D88B50242DC118F1 /* MacSettingsModels.swift */,
 				4FBA2CF41EEC1E2F46E98F83 /* MacSettingsView.swift */,
+				A628784BDB63F27D39E51A11 /* MacVisualStyle.swift */,
 				F0296D3DEFBC555181CD4351 /* QuickPanelClosePolicy.swift */,
 				04159F53C9D66A6EB44369C5 /* RetrievalPanel.swift */,
 				99D16B4D139A504E85F533A7 /* RetrievalPanelController.swift */,
@@ -899,6 +902,7 @@
 				6AFCAB1BA0CC7E7801205C50 /* MacLibraryView.swift in Sources */,
 				4BDC4E3043365F3AA0E181E6 /* MacSettingsModels.swift in Sources */,
 				BD603001EB08CE1AD84F86E0 /* MacSettingsView.swift in Sources */,
+				A628784BDB63F27D39E51A12 /* MacVisualStyle.swift in Sources */,
 				8B4B73C1069B4D2153F35D1A /* QuickPanelClosePolicy.swift in Sources */,
 				5210F58E78013EB653A24411 /* RetrievalPanel.swift in Sources */,
 				DBA34C017DDB8B9968355778 /* RetrievalPanelController.swift in Sources */,

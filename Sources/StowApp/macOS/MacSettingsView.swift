@@ -58,7 +58,7 @@ struct MacSettingsView: View {
     }
 
     private var capturePage: some View {
-        settingsPage(title: "Capture", subtitle: "Choose what Stow saves from the clipboard.") {
+        settingsPage(title: "Capture", subtitle: "Choose what Stow saves from the clipboard.", symbol: "tray.and.arrow.down") {
             settingsGroup("Clipboard Monitoring") {
                 Toggle("Automatically save copied items", isOn: $clipboardMonitoringEnabled)
                     .accessibilityIdentifier("settings-clipboard-monitoring-toggle")
@@ -74,7 +74,7 @@ struct MacSettingsView: View {
     }
 
     private var pasteAndShortcutsPage: some View {
-        settingsPage(title: "Paste & Shortcuts", subtitle: "Control direct paste and the shortcuts that open Stow.") {
+        settingsPage(title: "Paste & Shortcuts", subtitle: "Control direct paste and the shortcuts that open Stow.", symbol: "command") {
             settingsGroup("Direct Paste") {
                 statusRow(title: "Accessibility", value: directPasteGranted ? "Granted" : "Copy-only fallback")
                 guidance("Accessibility lets Stow paste the selected item back into the app you were using. Without it, Stow safely copies the item so you can press Command-V yourself.")
@@ -106,6 +106,7 @@ struct MacSettingsView: View {
 
                 HStack {
                     Button("Apply Shortcuts") { applyShortcutDraft() }
+                        .buttonStyle(.borderedProminent)
                         .disabled(shortcutDraft == appliedShortcuts || isApplyingShortcuts)
                         .accessibilityIdentifier("settings-apply-shortcuts")
                     if isApplyingShortcuts {
@@ -127,7 +128,7 @@ struct MacSettingsView: View {
     }
 
     private var syncAndStoragePage: some View {
-        settingsPage(title: "Sync & Storage", subtitle: "Review where your library is stored and recover local search.") {
+        settingsPage(title: "Sync & Storage", subtitle: "Review where your library is stored and recover local search.", symbol: "externaldrive") {
             settingsGroup("Sync") {
                 statusRow(title: "Account", value: model.usesPrivateICloud ? "Private iCloud" : "Local only")
                 statusRow(title: "Status", value: model.syncStatus.title)
@@ -156,7 +157,7 @@ struct MacSettingsView: View {
     }
 
     private var privacyPage: some View {
-        settingsPage(title: "Privacy", subtitle: "Keep product diagnostics on this Mac under your control.") {
+        settingsPage(title: "Privacy", subtitle: "Keep product diagnostics on this Mac under your control.", symbol: "hand.raised") {
             settingsGroup("On-device Metrics") {
                 Toggle("Anonymous on-device product metrics", isOn: $analyticsEnabled)
                     .accessibilityIdentifier("settings-analytics-toggle")
@@ -201,40 +202,51 @@ struct MacSettingsView: View {
         }
     }
 
-    private func settingsPage<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
+    private func settingsPage<Content: View>(title: String, subtitle: String, symbol: String, @ViewBuilder content: () -> Content) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.title2).fontWeight(.semibold)
-                    Text(subtitle)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top, spacing: 14) {
+                    MacSymbolTile(symbol: symbol, size: 44)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(title).font(.system(size: 24, weight: .bold))
+                        Text(subtitle)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
+                .padding(.bottom, 6)
                 content()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: 680, alignment: .leading)
             .padding(24)
+            .frame(maxWidth: .infinity)
         }
+        .background(MacVisualStyle.canvas)
     }
 
     private func settingsGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) { content() }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(4)
-        } label: {
+        VStack(alignment: .leading, spacing: 12) {
             Text(title).font(.headline)
+            Divider()
+            content()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(MacSurface(padding: 16))
     }
 
     private func statusRow(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.subheadline).fontWeight(.medium)
+        HStack(alignment: .top, spacing: 16) {
+            Text(title)
+                .fontWeight(.medium)
+                .frame(width: 120, alignment: .leading)
             Text(value)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .font(.callout)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -253,10 +265,13 @@ struct MacSettingsView: View {
                 .textSelection(.enabled)
         } icon: {
             Image(systemName: systemImage)
+                .foregroundStyle(color)
         }
         .font(.callout)
-        .foregroundStyle(color)
+        .foregroundStyle(.primary)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func applyShortcutDraft() {
