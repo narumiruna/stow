@@ -8,6 +8,33 @@ final class MacLibraryPresentationTests: XCTestCase {
         XCTAssertEqual(MacLibraryPolicy.title(for: .recent), "Recently Used")
     }
 
+    func testSidebarCountsIncludeOverlappingCollectionsButExcludeTrashFromRecentAndPinned() {
+        let inbox = makeItem(title: "Inbox", isPinned: true)
+        let archived = makeItem(title: "Archived", status: .archived, isPinned: true)
+        archived.lastUsedAt = .now
+        let trashed = makeItem(title: "Trashed", status: .trashed, isPinned: true)
+        trashed.lastUsedAt = .now
+
+        let counts = MacLibraryPolicy.counts(for: [inbox, archived, trashed])
+
+        XCTAssertEqual(counts, [.inbox: 1, .recent: 1, .pinned: 2, .archive: 1, .trash: 1])
+        XCTAssertFalse(MacLibraryPolicy.includes(trashed, in: .recent))
+        XCTAssertFalse(MacLibraryPolicy.includes(trashed, in: .pinned))
+        XCTAssertFalse(MacLibraryPolicy.includes(inbox, in: .settings))
+    }
+
+    func testSidebarCountsKeepEmptyCollectionsAndFollowLifecycleChanges() {
+        XCTAssertEqual(MacLibraryPolicy.counts(for: []), [.inbox: 0, .recent: 0, .pinned: 0, .archive: 0, .trash: 0])
+        let item = makeItem(title: "Saved")
+        XCTAssertEqual(MacLibraryPolicy.counts(for: [item])[.inbox], 1)
+
+        item.status = .archived
+        item.isPinned = true
+        item.lastUsedAt = .now
+
+        XCTAssertEqual(MacLibraryPolicy.counts(for: [item]), [.inbox: 0, .recent: 1, .pinned: 1, .archive: 1, .trash: 0])
+    }
+
     func testFilterSummaryCountsAndNamesEveryActiveCriterion() {
         let summary = MacLibraryFilterSummary(
             type: .code,

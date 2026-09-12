@@ -25,8 +25,9 @@ final class StowMacUITests: XCTestCase {
         let app = launchApp()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
 
-        for section in ["Inbox", "Recently Used", "Pinned", "Archive", "Trash"] {
-            XCTAssertTrue(app.staticTexts[section].waitForExistence(timeout: 3), "Missing \(section)")
+        for section in ["inbox", "recent", "pinned", "archive", "trash"] {
+            let row = app.descendants(matching: .any).matching(identifier: "library-section-\(section)").firstMatch
+            XCTAssertTrue(row.waitForExistence(timeout: 3), "Missing \(section)")
         }
         XCTAssertFalse(app.staticTexts["Settings"].exists, "Settings belongs in the native Settings window, not the Library sidebar")
         XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "library-filter-menu").firstMatch.waitForExistence(timeout: 3))
@@ -681,7 +682,7 @@ final class StowMacUITests: XCTestCase {
                 manageItem.click()
                 app.menuItems["Move to Trash"].click()
                 XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "library-feedback").firstMatch.waitForExistence(timeout: 3))
-                app.staticTexts["Trash"].click()
+                app.descendants(matching: .any).matching(identifier: "library-section-trash").firstMatch.click()
                 XCTAssertTrue(app.staticTexts["Panel Text"].waitForExistence(timeout: 3))
                 app.staticTexts["Panel Text"].click()
                 manageItem = app.descendants(matching: .any).matching(identifier: "library-manage-item").firstMatch
@@ -691,6 +692,36 @@ final class StowMacUITests: XCTestCase {
                 XCTAssertFalse(app.menuItems["Archive"].exists)
                 app.menuItems["Restore"].click()
             }
+            app.terminate()
+        }
+    }
+
+    func testLibraryPreviewSurfacesInLightAndDarkAppearance() {
+        for dark in [false, true] {
+            var arguments = ["--ui-testing-library-size=1080x720"]
+            if dark {
+                arguments += ["--ui-testing-force-dark", "-AppleInterfaceStyle", "Dark", "-AppleIncreaseContrast", "YES"]
+            }
+            let app = launchApp(extraArguments: arguments, monitoringEnabled: false)
+            let library = app.windows.matching(identifier: "stow-library-window").firstMatch
+            XCTAssertTrue(library.waitForExistence(timeout: 15))
+            let appearance = dark ? "dark" : "light"
+            attach(library.screenshot(), named: "stow-library-empty-detail-\(appearance)")
+
+            for title in ["Panel Text", "Panel Code", "Panel Image", "Panel Link", "Panel File"] {
+                let row = app.staticTexts[title].firstMatch
+                XCTAssertTrue(row.waitForExistence(timeout: 3))
+                row.click()
+                let detail = app.descendants(matching: .any).matching(identifier: "library-item-detail").firstMatch
+                XCTAssertTrue(detail.waitForExistence(timeout: 3))
+                assertContained(detail, in: library, message: "Preview must fit inside the Library")
+                XCTAssertTrue(app.buttons["Copy"].exists)
+                attach(library.screenshot(), named: "stow-library-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))-\(appearance)")
+            }
+
+            app.descendants(matching: .any).matching(identifier: "library-section-trash").firstMatch.click()
+            XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "library-empty-state").firstMatch.waitForExistence(timeout: 3))
+            attach(library.screenshot(), named: "stow-library-empty-trash-\(appearance)")
             app.terminate()
         }
     }

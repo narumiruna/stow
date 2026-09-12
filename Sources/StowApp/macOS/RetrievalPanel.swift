@@ -21,14 +21,6 @@ enum RetrievalPanelMode: String, CaseIterable, Identifiable {
         }
     }
 
-    var color: Color {
-        switch self {
-        case .clipboard: .secondary
-        case .inbox: .red
-        case .pinned: .green
-        case .archive: .orange
-        }
-    }
 }
 
 private enum RetrievalPopoverKind {
@@ -64,6 +56,8 @@ private struct PanelActionFeedback: Identifiable {
 struct RetrievalPanelView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.openSettings) private var openSettings
     @Query(sort: \StowItem.createdAt, order: .reverse) private var allItems: [StowItem]
     @Query private var allAttachments: [StowAttachment]
@@ -139,16 +133,21 @@ struct RetrievalPanelView: View {
     private var panelSurface: some View {
         GeometryReader { geometry in
             ZStack {
-                RetrievalPanelMaterial()
-                LinearGradient(
-                    colors: [Color.white.opacity(0.10), Color.accentColor.opacity(0.05), Color.black.opacity(0.03)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                if reduceTransparency {
+                    MacVisualStyle.canvas
+                } else {
+                    RetrievalPanelMaterial()
+                    LinearGradient(
+                        colors: [Color.accentColor.opacity(0.04), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
                 VStack(spacing: 0) {
                     resizeHandle(currentHeight: geometry.size.height)
                     toolbar
                     timeline
+                    if !isCompact && !isNarrow { keyboardHints }
                 }
                 if let feedback = session.feedback {
                     feedbackPill(feedback)
@@ -170,7 +169,11 @@ struct RetrievalPanelView: View {
                 popoverOverlay(availableSize: geometry.size)
             }
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).strokeBorder(.white.opacity(0.32), lineWidth: 1))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(contrast == .increased ? 0.45 : 0.12))
+                    .allowsHitTesting(false)
+            }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: searchActive)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: isCompact)
         }
@@ -267,6 +270,21 @@ struct RetrievalPanelView: View {
         .overlay(alignment: .bottom) { Divider().opacity(0.35) }
     }
 
+    private var keyboardHints: some View {
+        HStack(spacing: 18) {
+            Text("\(items.count) items")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            MacShortcutHint(keys: "← →", title: "Navigate")
+            MacShortcutHint(keys: "↩", title: session.directPasteAvailable ? "Paste" : "Copy")
+            MacShortcutHint(keys: "space", title: "Preview")
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
+        .accessibilityIdentifier("panel-keyboard-hints")
+    }
+
     private var searchButton: some View {
         Button { activateSearch() } label: {
             Image(systemName: "magnifyingglass")
@@ -274,6 +292,7 @@ struct RetrievalPanelView: View {
                 .frame(width: 34, height: 34)
         }
         .buttonStyle(.plain)
+        .help("Search Stow (⌘F)")
         .accessibilityLabel("Search")
         .accessibilityIdentifier("panel-search")
     }
@@ -285,6 +304,7 @@ struct RetrievalPanelView: View {
                 .frame(width: 34, height: 34)
         }
         .buttonStyle(.plain)
+        .help("Quick Add")
         .accessibilityLabel("Quick Add")
     }
 
@@ -345,7 +365,7 @@ struct RetrievalPanelView: View {
                     .accessibilityLabel("\(activeFilterCount) search filters applied")
             } else {
                 if let typeFilter {
-                    filterToken(typeFilter.singularPanelName, color: typeFilter.panelColor) { self.typeFilter = nil }
+                    filterToken(typeFilter.singularPanelName, color: typeFilter.tint) { self.typeFilter = nil }
                 }
                 if let sourceFilter {
                     filterToken(sourceFilter, color: .blue) { self.sourceFilter = nil }
@@ -428,9 +448,8 @@ struct RetrievalPanelView: View {
     private func modeChip(_ toolbarMode: RetrievalPanelMode) -> some View {
         Button { mode = toolbarMode } label: {
             HStack(spacing: 7) {
-                Circle()
-                    .fill(toolbarMode.color)
-                    .frame(width: 9, height: 9)
+                Image(systemName: toolbarMode.icon)
+                    .foregroundStyle(toolbarMode == mode ? Color.accentColor : .secondary)
                 if !isCompact || toolbarMode == mode {
                     Text(toolbarMode.rawValue)
                         .lineLimit(1)
@@ -443,6 +462,8 @@ struct RetrievalPanelView: View {
             .overlay(Capsule().strokeBorder(toolbarMode == mode ? Color.primary.opacity(0.08) : Color.clear))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(toolbarMode.rawValue)
+        .accessibilityAddTraits(toolbarMode == mode ? [.isSelected] : [])
         .accessibilityIdentifier("mode-\(toolbarMode.rawValue.lowercased())")
     }
 
@@ -453,6 +474,7 @@ struct RetrievalPanelView: View {
                 .frame(width: 34, height: 34)
         }
         .buttonStyle(.plain)
+        .help("More actions")
         .accessibilityLabel("More")
         .onChange(of: monitoringEnabled) { _, enabled in
             UserDefaults.standard.set(enabled, forKey: "clipboardMonitoringEnabled")
@@ -1196,6 +1218,12 @@ private struct PanelResizeHandle: View {
         Rectangle()
             .fill(Color.clear)
             .frame(height: 7)
+            .overlay {
+                Capsule()
+                    .fill(.secondary.opacity(0.35))
+                    .frame(width: 32, height: 3)
+                    .allowsHitTesting(false)
+            }
             .contentShape(Rectangle())
             .onHover { hovering in
                 if hovering { NSCursor.resizeUpDown.set() } else { NSCursor.arrow.set() }
@@ -1230,7 +1258,7 @@ private struct RetrievalPanelMaterial: NSViewRepresentable {
 }
 
 private struct StowTimelineCard: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
     let item: StowItem
     let attachment: StowAttachment?
     let isSelected: Bool
@@ -1245,9 +1273,10 @@ private struct StowTimelineCard: View {
         .clipShape(RoundedRectangle(cornerRadius: isCompact ? 15 : 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: isCompact ? 15 : 18, style: .continuous)
-                .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.09), lineWidth: isSelected ? 4 : 1)
+                .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(contrast == .increased ? 0.4 : 0.12), lineWidth: isSelected ? 2.5 : 1)
+                .allowsHitTesting(false)
         }
-        .shadow(color: .black.opacity(isSelected ? 0.20 : 0.11), radius: isSelected ? 12 : 7, y: 4)
+        .shadow(color: .black.opacity(isSelected ? 0.12 : 0.06), radius: isSelected ? 8 : 4, y: 3)
         .contentShape(RoundedRectangle(cornerRadius: isCompact ? 15 : 18, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(item.type.singularPanelName), \(item.title)")
@@ -1255,37 +1284,38 @@ private struct StowTimelineCard: View {
     }
 
     private var cardHeader: some View {
-        HStack(alignment: .center, spacing: 6) {
-            VStack(alignment: .leading, spacing: 1) {
+        HStack(alignment: .center, spacing: 8) {
+            MacSymbolTile(symbol: item.type.icon, tint: item.type.tint, size: isCompact ? 26 : 32)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.type.singularPanelName)
-                    .font(.system(size: isCompact ? 12 : 14, weight: .semibold))
+                    .font(.system(size: isCompact ? 11 : 12, weight: .semibold))
                 Text(item.createdAt.panelRelativeLabel)
-                    .font(.system(size: isCompact ? 10 : 11, weight: .medium))
-                    .opacity(0.78)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
             }
             Spacer(minLength: 4)
-            if let sourceIcon = SourceAppIconProvider.shared.icon(named: item.sourceApp) {
+            if item.isPinned {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.orange)
+                    .accessibilityLabel("Pinned")
+            }
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityLabel("Selected")
+            } else if let sourceIcon = SourceAppIconProvider.shared.icon(named: item.sourceApp) {
                 Image(nsImage: sourceIcon)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: isCompact ? 25 : 34, height: isCompact ? 25 : 34)
-                    .padding(isCompact ? 3 : 4)
-                    .background(.white.opacity(0.90), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 11, style: .continuous))
-                    .accessibilityHidden(true)
-            } else {
-                Image(systemName: item.type.icon)
-                    .font(.system(size: isCompact ? 15 : 18, weight: .semibold))
-                    .frame(width: isCompact ? 31 : 42, height: isCompact ? 31 : 42)
-                    .background(.white.opacity(0.88), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 11, style: .continuous))
-                    .foregroundStyle(item.type.panelColor)
+                    .frame(width: 22, height: 22)
                     .accessibilityHidden(true)
             }
         }
-        .foregroundStyle(item.type == .file ? Color.primary : Color.white)
-        .padding(.leading, isCompact ? 11 : 13)
-        .padding(.trailing, isCompact ? 8 : 9)
-        .frame(height: isCompact ? 39 : 51)
-        .background(item.type.headerColor)
+        .padding(.horizontal, isCompact ? 10 : 12)
+        .frame(height: isCompact ? 43 : 55)
+        .background(MacVisualStyle.surface)
+        .overlay(alignment: .bottom) { Divider().opacity(0.5) }
     }
 
     @ViewBuilder
@@ -1327,7 +1357,7 @@ private struct StowTimelineCard: View {
     private var textBody: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(item.textContent ?? item.title)
-                .font(.system(size: isCompact ? 13 : 15, weight: .regular, design: .rounded))
+                .font(.system(size: isCompact ? 12 : 14))
                 .lineSpacing(isCompact ? 1 : 3)
                 .lineLimit(isCompact ? 5 : 8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -1339,8 +1369,8 @@ private struct StowTimelineCard: View {
             }
         }
         .padding(isCompact ? 11 : 14)
-        .foregroundStyle(Color.black.opacity(0.82))
-        .background(Color(red: 1.0, green: 0.96, blue: 0.72))
+        .foregroundStyle(.primary)
+        .background(item.type.tint.opacity(0.05))
     }
 
     private var codeBody: some View {
@@ -1350,7 +1380,7 @@ private struct StowTimelineCard: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .padding(isCompact ? 11 : 14)
         }
-        .background(Color(red: 0.105, green: 0.11, blue: 0.14))
+        .background(item.type.tint.opacity(0.05))
     }
 
     private var imageBody: some View {
@@ -1840,20 +1870,6 @@ private final class PanelCardDragSourceView: NSView, NSDraggingSource {
 private extension ItemType {
     var singularPanelName: String {
         switch self { case .link: "Link"; case .text: "Text"; case .code: "Code"; case .image: "Image"; case .file: "File" }
-    }
-
-    var panelColor: Color {
-        switch self { case .link: .blue; case .text: .yellow; case .code: .indigo; case .image: .red; case .file: .gray }
-    }
-
-    var headerColor: Color {
-        switch self {
-        case .link: Color(red: 0.18, green: 0.48, blue: 0.95)
-        case .text: Color(red: 0.94, green: 0.68, blue: 0.13)
-        case .code: Color(red: 0.28, green: 0.25, blue: 0.48)
-        case .image: Color(red: 0.92, green: 0.28, blue: 0.30)
-        case .file: Color(nsColor: .controlBackgroundColor)
-        }
     }
 }
 

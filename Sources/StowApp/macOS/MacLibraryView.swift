@@ -18,10 +18,10 @@ struct MacLibraryView: View {
         @Bindable var appModel = appModel
         NavigationSplitView {
             sidebar
-                .navigationSplitViewColumnWidth(min: 160, ideal: 190, max: 230)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 250)
         } content: {
             collection
-                .navigationSplitViewColumnWidth(min: 300, ideal: 350, max: 480)
+                .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 480)
         } detail: {
             detail
                 .frame(minWidth: 340)
@@ -54,6 +54,7 @@ struct MacLibraryView: View {
         }
         .privacySensitive()
         #if DEBUG
+        .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("--ui-testing-force-dark") ? .dark : nil)
         .overlay(alignment: .topTrailing) {
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-drop-target") {
                 PanelDropTestTarget()
@@ -65,15 +66,36 @@ struct MacLibraryView: View {
     }
 
     private var sidebar: some View {
-        List(selection: Binding<StowSection?>(
+        let counts = MacLibraryPolicy.counts(for: allItems)
+        return List(selection: Binding<StowSection?>(
             get: { appModel.selection },
             set: { if let section = $0 { appModel.selection = section } }
         )) {
-            ForEach(MacLibraryPolicy.sections) { section in
-                Label(MacLibraryPolicy.title(for: section), systemImage: section.icon)
-                    .tag(section)
-                    .accessibilityIdentifier("library-section-\(section.rawValue.lowercased())")
+            Section("Library") {
+                ForEach(MacLibraryPolicy.sections.filter { $0 != .archive && $0 != .trash }) { section in
+                    sidebarRow(section, count: counts[section, default: 0])
+                }
             }
+            Section("Manage") {
+                sidebarRow(.archive, count: counts[.archive, default: 0])
+                sidebarRow(.trash, count: counts[.trash, default: 0])
+            }
+        }
+        .listStyle(.sidebar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack(spacing: 10) {
+                MacSymbolTile(symbol: "shippingbox.fill", size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Stow").font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text("Your content, collected.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 22)
         }
         .navigationTitle("Stow")
         .safeAreaInset(edge: .bottom) {
@@ -82,9 +104,10 @@ struct MacLibraryView: View {
                     NotificationCenter.default.post(name: .stowShowQuickAdd, object: nil)
                 } label: {
                     Label("Quick Add", systemImage: "plus")
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 24)
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .accessibilityIdentifier("library-quick-add")
 
                 Label {
@@ -105,8 +128,47 @@ struct MacLibraryView: View {
         }
     }
 
+    private func sidebarRow(_ section: StowSection, count: Int) -> some View {
+        HStack(spacing: 10) {
+            Label(MacLibraryPolicy.title(for: section), systemImage: section.icon)
+                .font(.system(size: 13, weight: appModel.selection == section ? .semibold : .regular))
+            Spacer(minLength: 4)
+            Text(count, format: .number)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 6)
+        .tag(section)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(MacLibraryPolicy.title(for: section))
+        .accessibilityValue("\(count) items")
+        .accessibilityIdentifier("library-section-\(section.rawValue.lowercased())")
+    }
+
     private var collection: some View {
         VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(MacLibraryPolicy.title(for: appModel.selection))
+                        .font(.system(size: 23, weight: .bold))
+                    Spacer(minLength: 4)
+                    Text(visibleItems.count, format: .number)
+                        .font(.system(.caption, design: .rounded).weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(.quaternary, in: Capsule())
+                        .accessibilityLabel("\(visibleItems.count) visible items")
+                }
+                Text(MacLibraryPolicy.subtitle(for: appModel.selection))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
             MacLibraryFilterBar(
                 summary: filterSummary,
                 type: Binding(get: { appModel.typeFilter }, set: { appModel.typeFilter = $0 }),
@@ -124,14 +186,27 @@ struct MacLibraryView: View {
                     ForEach(visibleItems) { item in
                         MacLibraryRow(item: item, attachment: attachmentMap[item.id])
                             .tag(item.id)
+                            .listRowSeparator(.hidden)
                             .contextMenu { contextMenu(for: item) }
                             .accessibilityIdentifier("library-item-\(item.id.uuidString)")
                     }
                 }
                 .listStyle(.inset)
+                .scrollContentBackground(.hidden)
                 .accessibilityIdentifier("library-item-list")
             }
+            Divider()
+            HStack {
+                Text(selectedIDs.isEmpty ? "\(visibleItems.count) items" : "\(selectedIDs.count) selected")
+                Spacer()
+                Text(appModel.selection == .recent ? "Recently used first" : "Newest first")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
+        .background(MacVisualStyle.surface)
         .navigationTitle(MacLibraryPolicy.title(for: appModel.selection))
     }
 
@@ -157,11 +232,14 @@ struct MacLibraryView: View {
             )
             .id(item.id)
         } else {
-            ContentUnavailableView(
-                "Choose an item",
-                systemImage: "shippingbox",
-                description: Text("Preview its contents, edit details, or manage its Library status.")
-            )
+            MacEmptyState(
+                title: "A little space for everything",
+                symbol: "square.stack.3d.up",
+                message: "Choose an item to preview its contents, make it your own, or use it again."
+            ) {
+                MacShortcutHint(keys: "⇧ click", title: "Select multiple items")
+            }
+            .background(MacVisualStyle.canvas)
             .accessibilityIdentifier("library-empty-detail")
         }
     }
@@ -173,11 +251,11 @@ struct MacLibraryView: View {
             hasSearchText: !appModel.searchText.isEmpty,
             hasFilters: filterSummary.count > 0
         )
-        ContentUnavailableView {
-            Label(emptyTitle(for: state), systemImage: emptyIcon(for: state))
-        } description: {
-            Text(emptyDescription(for: state))
-        } actions: {
+        MacEmptyState(
+            title: emptyTitle(for: state),
+            symbol: emptyIcon(for: state),
+            message: emptyDescription(for: state)
+        ) {
             if state == .noResults {
                 Button("Clear Search and Filters") {
                     appModel.searchText = ""
@@ -190,8 +268,7 @@ struct MacLibraryView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(24)
+        .buttonStyle(.borderedProminent)
         .accessibilityIdentifier("library-empty-state")
     }
 
@@ -239,7 +316,7 @@ struct MacLibraryView: View {
 
     private var visibleItems: [StowItem] {
         allItems.filter { item in
-            sectionIncludes(item) && filtersInclude(item) && searchIncludes(item)
+            MacLibraryPolicy.includes(item, in: appModel.selection) && filtersInclude(item) && searchIncludes(item)
         }
         .sorted(by: sectionSort)
     }
@@ -266,17 +343,6 @@ struct MacLibraryView: View {
         appModel.typeFilter = nil
         appModel.sourceFilter = nil
         appModel.dateFilter = .anytime
-    }
-
-    private func sectionIncludes(_ item: StowItem) -> Bool {
-        switch appModel.selection {
-        case .inbox: item.status == .inbox
-        case .recent: item.status != .trashed && item.lastUsedAt != nil
-        case .pinned: item.status != .trashed && item.isPinned
-        case .archive: item.status == .archived
-        case .trash: item.status == .trashed
-        case .settings: false
-        }
     }
 
     private func filtersInclude(_ item: StowItem) -> Bool {
@@ -418,7 +484,6 @@ private struct MacLibraryFilterBar: View {
         }
         .padding(.horizontal, 12)
         .frame(minHeight: 44)
-        .background(.bar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("library-filter-bar")
     }
@@ -494,11 +559,10 @@ private struct MacLibraryRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             thumbnail
-                .frame(width: 42, height: 42)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(item.title)
-                        .font(.headline)
+                        .font(.system(size: 13, weight: .semibold))
                         .lineLimit(2)
                     if item.isPinned {
                         Image(systemName: "pin.fill")
@@ -508,21 +572,22 @@ private struct MacLibraryRow: View {
                     }
                 }
                 Text(item.previewText)
-                    .font(.subheadline)
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 8) {
-                        if let source = item.sourceApp { Text(source) }
-                        Text(item.createdAt, style: .relative)
+                        Text(item.sourceApp ?? item.type.displayName).lineLimit(1)
+                        Text("·")
+                        Text(item.createdAt, style: .relative).lineLimit(1)
                     }
                     Text(item.createdAt, style: .relative)
                 }
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .help(item.title)
         .accessibilityElement(children: .combine)
@@ -538,13 +603,10 @@ private struct MacLibraryRow: View {
             Image(nsImage: image)
                 .resizable()
                 .scaledToFill()
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(width: 40, height: 40)
+                .clipShape(RoundedRectangle(cornerRadius: 11))
         } else {
-            Image(systemName: item.type.icon)
-                .font(.title3)
-                .foregroundStyle(item.type.tint)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(item.type.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+            MacSymbolTile(symbol: item.type.icon, tint: item.type.tint)
         }
     }
 
@@ -568,34 +630,41 @@ private struct MacLibraryBatchDetail: View {
                 .font(.title2.bold())
             Text("Apply one Library action to the complete selection.")
                 .foregroundStyle(.secondary)
-            HStack(spacing: 10) {
-                if items.allSatisfy({ $0.status == .trashed }) {
-                    Button { onRestore(items.map(\.id)) } label: {
-                        Label("Restore", systemImage: "arrow.uturn.backward")
-                    }
-                    .buttonStyle(.borderedProminent)
-                } else {
-                    if let pinAction = MacLibraryPolicy.pinAction(for: items) {
-                        Button { onSetPinned(items, pinAction == .pinAll) } label: {
-                            Label(pinAction.title, systemImage: pinAction.systemImage)
-                        }
-                    }
-                    if let lifecycle = MacLibraryPolicy.lifecycleAction(for: items) {
-                        Button { onLifecycle(items) } label: {
-                            Label(lifecycle.title, systemImage: "archivebox")
-                        }
-                    }
-                    Button(role: .destructive) { onTrash(items) } label: {
-                        Label("Move to Trash", systemImage: "trash")
-                    }
-                }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) { batchActions }
+                VStack(alignment: .leading, spacing: 10) { batchActions }
             }
             .controlSize(.large)
             Spacer()
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(MacVisualStyle.canvas)
         .accessibilityIdentifier("library-batch-detail")
+    }
+
+    @ViewBuilder
+    private var batchActions: some View {
+        if items.allSatisfy({ $0.status == .trashed }) {
+            Button { onRestore(items.map(\.id)) } label: {
+                Label("Restore", systemImage: "arrow.uturn.backward")
+            }
+            .buttonStyle(.borderedProminent)
+        } else {
+            if let pinAction = MacLibraryPolicy.pinAction(for: items) {
+                Button { onSetPinned(items, pinAction == .pinAll) } label: {
+                    Label(pinAction.title, systemImage: pinAction.systemImage)
+                }
+            }
+            if let lifecycle = MacLibraryPolicy.lifecycleAction(for: items) {
+                Button { onLifecycle(items) } label: {
+                    Label(lifecycle.title, systemImage: "archivebox")
+                }
+            }
+            Button(role: .destructive) { onTrash(items) } label: {
+                Label("Move to Trash", systemImage: "trash")
+            }
+        }
     }
 }
 
@@ -617,6 +686,9 @@ private struct MacLibraryFeedbackView: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .accessibilityHidden(true)
             Text(feedback.message)
             if let title = feedback.actionTitle, let action = feedback.action {
                 Button(title) {
@@ -659,15 +731,27 @@ private struct MacLibraryDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                contentPreview
-                Divider()
-                metadata
+            VStack(alignment: .leading, spacing: 24) {
+                detailHeader
                 actionBar
+                VStack(alignment: .leading, spacing: 14) {
+                    sectionHeading("Preview", symbol: "doc.text.magnifyingglass")
+                    contentPreview
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .modifier(MacSurface())
+                VStack(alignment: .leading, spacing: 16) {
+                    sectionHeading("Details", symbol: "info.circle")
+                    metadata
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .modifier(MacSurface())
             }
             .padding(24)
             .frame(maxWidth: 780, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
+        .background(MacVisualStyle.canvas)
         .navigationTitle(item.title)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
@@ -691,6 +775,39 @@ private struct MacLibraryDetailView: View {
         .accessibilityIdentifier("library-item-detail")
     }
 
+    private var detailHeader: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                MacSymbolTile(symbol: item.type.icon, tint: item.type.tint)
+                Text(item.type.displayName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if item.isPinned {
+                    Image(systemName: "pin.fill")
+                        .foregroundStyle(.orange)
+                        .accessibilityLabel("Pinned")
+                }
+                Text(item.status == .inbox ? "Inbox" : item.status == .archived ? "Archived" : "Trash")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(.quaternary, in: Capsule())
+            }
+            Text(item.title)
+                .font(.system(size: 25, weight: .bold))
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func sectionHeading(_ title: String, symbol: String) -> some View {
+        Label(title, systemImage: symbol)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+    }
+
     @ViewBuilder
     private var contentPreview: some View {
         switch item.type {
@@ -704,8 +821,8 @@ private struct MacLibraryDetailView: View {
                         .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                Text(item.title).font(.title2.bold())
                 Text(item.sourceDomain ?? item.urlString ?? "")
+                    .font(.headline)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                 if let description = item.linkDescription { Text(description) }
@@ -713,6 +830,8 @@ private struct MacLibraryDetailView: View {
             .onDrag { dragProvider() }
         case .text:
             Text(item.textContent ?? "")
+                .font(.system(size: 14))
+                .lineSpacing(5)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .onDrag { dragProvider() }
@@ -756,7 +875,6 @@ private struct MacLibraryDetailView: View {
 
     private var metadata: some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
-            metadataRow("Title", item.title)
             if let note = item.note, !note.isEmpty { metadataRow("Note", note) }
             metadataRow("Added", item.createdAt.formatted(date: .abbreviated, time: .shortened))
             metadataRow("Last used", item.lastUsedAt?.formatted(date: .abbreviated, time: .shortened) ?? "Never")
@@ -764,6 +882,7 @@ private struct MacLibraryDetailView: View {
             if let url = item.urlString { metadataRow("Original URL", url) }
             if item.type == .code { metadataRow("Language", item.language ?? "Plain text") }
         }
+        .font(.callout)
         .textSelection(.enabled)
     }
 
@@ -836,8 +955,10 @@ private struct MacLibraryDetailView: View {
     }
 
     private func metadataRow(_ label: String, _ value: String) -> some View {
-        GridRow {
-            Text(label).foregroundStyle(.secondary)
+        GridRow(alignment: .top) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .fixedSize()
             Text(value)
                 .fixedSize(horizontal: false, vertical: true)
         }

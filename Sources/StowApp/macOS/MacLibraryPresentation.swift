@@ -78,6 +78,38 @@ enum MacLibraryPolicy {
         section == .recent ? "Recently Used" : section.rawValue
     }
 
+    static func includes(_ item: StowItem, in section: StowSection) -> Bool {
+        switch section {
+        case .inbox: item.status == .inbox
+        case .recent: item.status != .trashed && item.lastUsedAt != nil
+        case .pinned: item.status != .trashed && item.isPinned
+        case .archive: item.status == .archived
+        case .trash: item.status == .trashed
+        case .settings: false
+        }
+    }
+
+    static func counts(for items: [StowItem]) -> [StowSection: Int] {
+        var counts = Dictionary(uniqueKeysWithValues: sections.map { ($0, 0) })
+        for item in items {
+            for section in sections where includes(item, in: section) {
+                counts[section, default: 0] += 1
+            }
+        }
+        return counts
+    }
+
+    static func subtitle(for section: StowSection) -> String {
+        switch section {
+        case .inbox: "Everything you save, ready for what’s next."
+        case .recent: "Pick up where you left off."
+        case .pinned: "Your essentials, always close at hand."
+        case .archive: "Out of the way. Never out of reach."
+        case .trash: "Recover items for up to 30 days."
+        case .settings: "Make Stow your own."
+        }
+    }
+
     static func emptyState(section: StowSection, hasSearchText: Bool, hasFilters: Bool) -> MacLibraryEmptyState {
         if hasSearchText || hasFilters { return .noResults }
         if section == .inbox { return .emptyInbox }
