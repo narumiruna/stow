@@ -56,7 +56,7 @@ public final class StowRepository {
     ) throws -> StowItem {
         let normalized = try draft.normalized()
         try StowRepresentationValidator.validate(representations)
-        if let existing = try allItems().first(where: { $0.captureID == normalized.id }) {
+        if let existing = try item(captureID: normalized.id) {
             let existingAttachments = try attachments(itemID: existing.id)
             let existingRepresentations = try representationsWithoutCounting(itemID: existing.id)
             let needsAttachment = attachmentData != nil && existingAttachments.isEmpty
@@ -68,13 +68,8 @@ public final class StowRepository {
             if needsRepresentations {
                 insertRepresentations(representations, itemID: existing.id, at: date)
             }
-            do {
-                try modelContext.save()
-                return existing
-            } catch {
-                modelContext.rollback()
-                throw error
-            }
+            try saveChanges()
+            return existing
         }
         let item = StowItem(draft: normalized, createdAt: date)
         modelContext.insert(item)
@@ -82,13 +77,8 @@ public final class StowRepository {
             insertAttachment(data: attachmentData, draft: normalized, itemID: item.id, at: date)
         }
         insertRepresentations(representations, itemID: item.id, at: date)
-        do {
-            try modelContext.save()
-            return item
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
+        try saveChanges()
+        return item
     }
 
     @discardableResult
@@ -100,7 +90,7 @@ public final class StowRepository {
     ) throws -> CaptureIngestionOutcome {
         let normalized = try draft.normalized()
         try StowRepresentationValidator.validate(representations)
-        if let existing = try allItems().first(where: { $0.captureID == normalized.id }) {
+        if let existing = try item(captureID: normalized.id) {
             return .coalesced(existing)
         }
         let fingerprint = try ClipboardContentFingerprint.make(
@@ -113,13 +103,11 @@ public final class StowRepository {
                 )
             }
         )
-        if let existing = try allItems().first(where: {
-            $0.status != .trashed && $0.contentFingerprint == fingerprint
-        }) {
+        if let existing = try item(contentFingerprint: fingerprint) {
             existing.lastCapturedAt = date
             existing.sourceApp = normalized.sourceApp
             existing.updatedAt = date
-            try modelContext.save()
+            try saveChanges()
             return .coalesced(existing)
         }
 
@@ -131,13 +119,8 @@ public final class StowRepository {
             insertAttachment(data: attachmentData, draft: normalized, itemID: item.id, at: date)
         }
         insertRepresentations(representations, itemID: item.id, at: date)
-        do {
-            try modelContext.save()
-            return .created(item)
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
+        try saveChanges()
+        return .created(item)
     }
 
     public func allItems() throws -> [StowItem] {
@@ -145,7 +128,11 @@ public final class StowRepository {
     }
 
     public func item(id: UUID) throws -> StowItem? {
-        try allItems().first(where: { $0.id == id })
+        var descriptor = FetchDescriptor<StowItem>(
+            predicate: #Predicate { item in item.id == id }
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     public func items(in status: ItemStatus) throws -> [StowItem] {
@@ -160,16 +147,13 @@ public final class StowRepository {
     public func recent() throws -> [StowItem] {
         try allItems()
             .filter { $0.status != .trashed && $0.lastUsedAt != nil }
-            .sorted { ($0.lastUsedAt ?? .distantPast) > ($1.lastUsedAt ?? .distantPast) }
+            .sorted(by: Self.precedesByRecency)
     }
 
     public func pinned() throws -> [StowItem] {
         try allItems()
             .filter { $0.status != .trashed && $0.isPinned }
-            .sorted { lhs, rhs in
-                if lhs.lastUsedAt != rhs.lastUsedAt { return (lhs.lastUsedAt ?? .distantPast) > (rhs.lastUsedAt ?? .distantPast) }
-                return lhs.createdAt > rhs.createdAt
-            }
+            .sorted(by: Self.precedesByRecency)
     }
 
     public func archive(_ id: UUID, at date: Date = Date()) throws {
@@ -215,7 +199,7 @@ public final class StowRepository {
     public func recordSuccessfulUse(_ id: UUID, at date: Date = Date()) throws {
         let item = try requiredItem(id)
         item.recordSuccessfulUse(at: date)
-        try modelContext.save()
+        try saveChanges()
     }
 
     public func update(_ id: UUID, title: String, note: String?, textContent: String?, language: String?, at date: Date = Date()) throws {
@@ -244,12 +228,7 @@ public final class StowRepository {
             item.contentFingerprint = try ClipboardContentFingerprint.make(item: item)
         }
         item.updatedAt = date
-        do {
-            try modelContext.save()
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
+        try saveChanges()
     }
 
     public func updateLinkMetadata(_ id: UUID, metadata: LinkMetadata, at date: Date = Date()) throws {
@@ -264,17 +243,12 @@ public final class StowRepository {
         item.faviconData = metadata.faviconData
         item.linkPreviewImageData = metadata.previewImageData
         item.updatedAt = date
-        try modelContext.save()
+        try saveChanges()
     }
 
     public func addAttachment(_ attachment: StowAttachment) throws {
         modelContext.insert(attachment)
-        do {
-            try modelContext.save()
-        } catch {
-            modelContext.delete(attachment)
-            throw error
-        }
+        try saveChanges()
     }
 
     public func allAttachments() throws -> [StowAttachment] {
@@ -282,7 +256,10 @@ public final class StowRepository {
     }
 
     public func attachments(itemID: UUID) throws -> [StowAttachment] {
-        try allAttachments().filter { $0.itemID == itemID }
+        let descriptor = FetchDescriptor<StowAttachment>(
+            predicate: #Predicate { attachment in attachment.itemID == itemID }
+        )
+        return try modelContext.fetch(descriptor)
     }
 
     public func allRepresentations() throws -> [StowRepresentation] {
@@ -332,7 +309,7 @@ public final class StowRepository {
                 continue
             }
         }
-        if updated > 0 { try modelContext.save() }
+        if updated > 0 { try saveChanges() }
         return updated
     }
 
@@ -348,23 +325,17 @@ public final class StowRepository {
             modelContext.delete(representation)
         }
         for item in expired { modelContext.delete(item) }
-        try modelContext.save()
+        try saveChanges()
         return expired.count
     }
 
     private func mutateItems(_ ids: [UUID], mutation: (StowItem) -> Void) throws {
-        let uniqueIDs = Array(Set(ids))
-        guard !uniqueIDs.isEmpty else { return }
-        let requestedIDs = Set(uniqueIDs)
+        let requestedIDs = Set(ids)
+        guard !requestedIDs.isEmpty else { return }
         let matches = try allItems().filter { requestedIDs.contains($0.id) }
         guard matches.count == requestedIDs.count else { throw StowRepositoryError.itemNotFound }
         for item in matches { mutation(item) }
-        do {
-            try modelContext.save()
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
+        try saveChanges()
     }
 
     private func insertAttachment(
@@ -402,9 +373,41 @@ public final class StowRepository {
         }
     }
 
+    private func item(captureID: UUID) throws -> StowItem? {
+        var descriptor = FetchDescriptor<StowItem>(
+            predicate: #Predicate { item in item.captureID == captureID }
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
+    }
+
+    private func item(contentFingerprint: String) throws -> StowItem? {
+        let descriptor = FetchDescriptor<StowItem>(
+            predicate: #Predicate { item in item.contentFingerprint == contentFingerprint }
+        )
+        return try modelContext.fetch(descriptor).first { $0.status != .trashed }
+    }
+
     private func requiredItem(_ id: UUID) throws -> StowItem {
         guard let item = try item(id: id) else { throw StowRepositoryError.itemNotFound }
         return item
+    }
+
+    private func saveChanges() throws {
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+    }
+
+    private static func precedesByRecency(_ lhs: StowItem, _ rhs: StowItem) -> Bool {
+        let leftActivity = lhs.lastUsedAt ?? .distantPast
+        let rightActivity = rhs.lastUsedAt ?? .distantPast
+        if leftActivity != rightActivity { return leftActivity > rightActivity }
+        if lhs.createdAt != rhs.createdAt { return lhs.createdAt > rhs.createdAt }
+        return lhs.id.uuidString < rhs.id.uuidString
     }
 }
 
