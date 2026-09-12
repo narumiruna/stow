@@ -44,6 +44,39 @@ final class StowRepositoryTests: XCTestCase {
         withExtendedLifetime(container) {}
     }
 
+    func testRecentAndPinnedUseStableIDOrderingWhenDatesTie() throws {
+        let (container, repository) = try makeRepository()
+        let laterID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+        let earlierID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+        let later = StowItem(
+            id: laterID,
+            type: .text,
+            title: "Later ID",
+            textContent: "2",
+            createdAt: start,
+            isPinned: true
+        )
+        let earlier = StowItem(
+            id: earlierID,
+            type: .text,
+            title: "Earlier ID",
+            textContent: "1",
+            createdAt: start,
+            isPinned: true
+        )
+        repository.modelContext.insert(later)
+        repository.modelContext.insert(earlier)
+        try repository.modelContext.save()
+
+        let usedAt = start.addingTimeInterval(10)
+        try repository.recordSuccessfulUse(later.id, at: usedAt)
+        try repository.recordSuccessfulUse(earlier.id, at: usedAt)
+
+        XCTAssertEqual(try repository.recent().map(\.id), [earlier.id, later.id])
+        XCTAssertEqual(try repository.pinned().map(\.id), [earlier.id, later.id])
+        withExtendedLifetime(container) {}
+    }
+
     func testBatchLifecycleMutationsApplyTogether() throws {
         let (container, repository) = try makeRepository()
         let first = try repository.create(from: CaptureDraft(type: .text, title: "First", textContent: "1"), at: start)
