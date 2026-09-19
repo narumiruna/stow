@@ -137,7 +137,7 @@ assets = resources_group.new_file("Assets.xcassets")
 end
 
 ios_share = project.new_target(:app_extension, "StowShare-iOS", :ios, "17.0")
-configure_target(ios_share, platform: :ios, deployment: "17.0", bundle_id: "dev.narumi.stow.share.ios", info_plist: "Configuration/iOS-Share-Info.plist", entitlements: "Configuration/StowShare-iOS.entitlements", module_name: "StowShare")
+configure_target(ios_share, platform: :ios, deployment: "17.0", bundle_id: "dev.narumi.stow.share-ios", info_plist: "Configuration/iOS-Share-Info.plist", entitlements: "Configuration/StowShare-iOS.entitlements", module_name: "StowShare")
 add_sources(sources_group, ios_share, ROOT, ["StowShare/Shared", "StowShare/iOS"])
 add_package(project, ios_share, package_ref, "StowCore")
 ios_app.add_dependency(ios_share)
@@ -146,7 +146,7 @@ copy_phase.symbol_dst_subfolder_spec = :plug_ins
 copy_phase.add_file_reference(ios_share.product_reference, true)
 
 mac_share = project.new_target(:app_extension, "StowShare-macOS", :osx, "14.0")
-configure_target(mac_share, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow.share.macos", info_plist: "Configuration/macOS-Share-Info.plist", entitlements: "Configuration/StowShare-macOS.entitlements", module_name: "StowShare")
+configure_target(mac_share, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow.share-macos", info_plist: "Configuration/macOS-Share-Info.plist", entitlements: "Configuration/StowShare-macOS.entitlements", module_name: "StowShare")
 add_sources(sources_group, mac_share, ROOT, ["StowShare/Shared", "StowShare/macOS"])
 add_package(project, mac_share, package_ref, "StowCore")
 mac_app.add_dependency(mac_share)

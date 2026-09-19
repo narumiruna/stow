@@ -162,7 +162,7 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(share.waitForExistence(timeout: 3))
         share.tap()
 
-        let shareExtension = XCUIApplication(bundleIdentifier: "dev.narumi.stow.share.ios")
+        let shareExtension = XCUIApplication(bundleIdentifier: "dev.narumi.stow.share-ios")
         _ = shareExtension.state
         XCTAssertTrue(openStowShareExtension(from: safari, extensionApp: shareExtension))
         XCTAssertTrue(shareExtension.textFields["Title"].exists)
