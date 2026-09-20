@@ -7,7 +7,7 @@ if [[ -n "${CI:-}" ]]; then
 fi
 
 usage() {
-  printf '%s\n' 'Usage: Scripts/ui_tests.sh [all|macos|ios]' >&2
+  printf '%s\n' 'Usage: Scripts/ui_tests.sh [all|macos|ios|ios-share]' >&2
 }
 
 if (( $# > 1 )); then
@@ -17,7 +17,7 @@ fi
 
 suite="${1:-all}"
 case "$suite" in
-  all|macos|ios) ;;
+  all|macos|ios|ios-share) ;;
   *)
     usage
     exit 64
@@ -101,7 +101,14 @@ run_ios_tests() {
   )" || return $?
   xcrun simctl boot "$device_id" 2>/dev/null || true
   xcrun simctl bootstatus "$device_id" -b || return $?
-  xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" CODE_SIGNING_ALLOWED=NO test
+  local -a test_arguments=()
+  if [[ "$suite" == "ios-share" ]]; then
+    test_arguments+=(
+      -only-testing:StowUITests/StowUITests/testSafariShareExtensionCapturesURLInOneSave
+      -only-testing:StowUITests/StowUITests/testSafariShareExtensionCanSaveImmediately
+    )
+  fi
+  xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" CODE_SIGNING_ALLOWED=NO "${test_arguments[@]}" test
 }
 
 if [[ "$suite" == "all" || "$suite" == "macos" ]]; then
@@ -112,7 +119,7 @@ if [[ "$suite" == "all" || "$suite" == "macos" ]]; then
   fi
 fi
 
-if [[ "$suite" == "all" || "$suite" == "ios" ]]; then
+if [[ "$suite" == "all" || "$suite" == "ios" || "$suite" == "ios-share" ]]; then
   if run_ios_tests; then
     printf '%s\n' 'iOS UI tests passed.'
   else
