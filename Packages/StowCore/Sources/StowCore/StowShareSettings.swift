@@ -14,9 +14,9 @@ public struct StowShareSettings {
         }
         #if targetEnvironment(simulator)
         self.defaults = nil
-        let simulatorID = ProcessInfo.processInfo.environment["SIMULATOR_UDID"] ?? "unknown"
-        simulatorFileURL = URL(fileURLWithPath: "/tmp/StowSimulatorAppGroup/\(simulatorID)", isDirectory: true)
-            .appendingPathComponent("ShareSettings/saveImmediately", isDirectory: false)
+        simulatorFileURL = StowSharedStorage.simulatorContainerURL(
+            simulatorUDID: ProcessInfo.processInfo.environment["SIMULATOR_UDID"]
+        ).appendingPathComponent("ShareSettings/saveImmediately", isDirectory: false)
         #else
         self.defaults = UserDefaults(suiteName: StowSharedStorage.appGroupIdentifier) ?? .standard
         simulatorFileURL = nil

@@ -265,22 +265,22 @@ final class ShareCaptureModel {
 
     private static func defaultStorageRoot() throws -> URL {
         #if targetEnvironment(simulator)
-        let simulatorID = ProcessInfo.processInfo.environment["SIMULATOR_UDID"] ?? "unknown"
-        return URL(fileURLWithPath: "/tmp/StowSimulatorAppGroup/\(simulatorID)", isDirectory: true)
-        #else
-        if let groupURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: StowSharedStorage.appGroupIdentifier
-        ) {
-            return groupURL
-        }
-        #if DEBUG && os(macOS)
-        return FileManager.default.temporaryDirectory.appendingPathComponent(
-            "StowDevelopmentAppGroup",
-            isDirectory: true
+        return StowSharedStorage.simulatorContainerURL(
+            simulatorUDID: ProcessInfo.processInfo.environment["SIMULATOR_UDID"]
         )
         #else
-        return FileManager.default.temporaryDirectory.appendingPathComponent("StowShared", isDirectory: true)
+        #if DEBUG && os(macOS)
+        let fallback = StowSharedStorage.developmentFallbackContainerURL()
+        #else
+        let fallback = FileManager.default.temporaryDirectory
+            .appendingPathComponent("StowShared", isDirectory: true)
         #endif
+        return StowSharedStorage.sharedContainerURL(
+            appGroupContainerURL: FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: StowSharedStorage.appGroupIdentifier
+            ),
+            fallbackURL: fallback
+        )
         #endif
     }
 }
