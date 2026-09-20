@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "B85C78F25B372CE8122E5908"
+               BlueprintIdentifier = "EAEE01F6C64611BFE6E3ABC5"
                BuildableName = "stow"
                BlueprintName = "StowCLI"
                ReferencedContainer = "container:Stow.xcodeproj">
@@ -30,7 +30,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "B85C78F25B372CE8122E5908"
+            BlueprintIdentifier = "EAEE01F6C64611BFE6E3ABC5"
             BuildableName = "stow"
             BlueprintName = "StowCLI"
             ReferencedContainer = "container:Stow.xcodeproj">
@@ -53,7 +53,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "B85C78F25B372CE8122E5908"
+            BlueprintIdentifier = "EAEE01F6C64611BFE6E3ABC5"
             BuildableName = "stow"
             BlueprintName = "StowCLI"
             ReferencedContainer = "container:Stow.xcodeproj">
@@ -70,7 +70,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "B85C78F25B372CE8122E5908"
+            BlueprintIdentifier = "EAEE01F6C64611BFE6E3ABC5"
             BuildableName = "stow"
             BlueprintName = "StowCLI"
             ReferencedContainer = "container:Stow.xcodeproj">

@@ -5,6 +5,8 @@ import UIKit
 final class ShareViewController: UIViewController {
     private let model = ShareCaptureModel()
     private var host: UIHostingController<AnyView>?
+    private var loadingTask: Task<Void, Never>?
+    private var didFinish = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -12,9 +14,14 @@ final class ShareViewController: UIViewController {
         installHost(rootView: saveImmediately ? AnyView(DirectShareSaveProgressView()) : confirmationView())
 
         let items = extensionContext?.inputItems.compactMap { $0 as? NSExtensionItem } ?? []
-        Task { [weak self] in
+        loadingTask = Task { [weak self] in
             await self?.load(items: items, saveImmediately: saveImmediately)
         }
+    }
+
+    deinit {
+        loadingTask?.cancel()
+        Task { @MainActor [model] in model.cancel() }
     }
 
     private func installHost(rootView: AnyView) {
@@ -34,9 +41,10 @@ final class ShareViewController: UIViewController {
 
     private func load(items: [NSExtensionItem], saveImmediately: Bool) async {
         await model.load(from: items)
+        guard !Task.isCancelled, !didFinish else { return }
         guard saveImmediately else { return }
 
-        guard model.errorMessage == nil else {
+        guard model.loadErrorMessage == nil else {
             host?.rootView = confirmationView()
             return
         }
@@ -44,7 +52,6 @@ final class ShareViewController: UIViewController {
             try model.save()
             finish(saved: true)
         } catch {
-            model.errorMessage = error.localizedDescription
             host?.rootView = confirmationView()
         }
     }
@@ -56,6 +63,11 @@ final class ShareViewController: UIViewController {
     }
 
     private func finish(saved: Bool) {
+        guard !didFinish else { return }
+        didFinish = true
+        loadingTask?.cancel()
+        loadingTask = nil
+        model.cancel()
         if saved {
             extensionContext?.completeRequest(returningItems: nil)
         } else {

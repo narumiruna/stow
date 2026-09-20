@@ -40,6 +40,29 @@ final class SearchServiceTests: XCTestCase {
         XCTAssertEqual(halfwidthQuery, [fullwidthContent.id])
     }
 
+    func testTextBindingPreservesEmbeddedNULAndOtherUTF8Boundaries() async throws {
+        let url = temporaryURL()
+        defer { removeDatabaseFiles(at: url) }
+        let index = try SQLiteSearchIndex(url: url)
+        let embeddedNUL = document(content: "beforeToken\0afterToken")
+        let empty = document(content: "")
+        let nonASCII = document(content: "咖啡 手帳")
+        let ordinary = document(content: "ordinary searchable text")
+        try await index.rebuild([embeddedNUL, empty, nonASCII, ordinary])
+
+        let beforeNULResults = try await index.search(SearchQuery(text: "beforeToken"))
+        let afterNULResults = try await index.search(SearchQuery(text: "afterToken"))
+        let nonASCIIResults = try await index.search(SearchQuery(text: "咖啡"))
+        let ordinaryResults = try await index.search(SearchQuery(text: "ordinary"))
+        let documentCount = try await index.documentCount()
+
+        XCTAssertEqual(beforeNULResults, [embeddedNUL.id])
+        XCTAssertEqual(afterNULResults, [embeddedNUL.id])
+        XCTAssertEqual(nonASCIIResults, [nonASCII.id])
+        XCTAssertEqual(ordinaryResults, [ordinary.id])
+        XCTAssertEqual(documentCount, 4)
+    }
+
     func testTrashIsExcludedByDefaultAndCanBeRequested() async throws {
         let index = try SQLiteSearchIndex(url: temporaryURL())
         let live = document(content: "receipt", status: .archived)
@@ -85,5 +108,11 @@ final class SearchServiceTests: XCTestCase {
         FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("sqlite")
+    }
+
+    private func removeDatabaseFiles(at url: URL) {
+        for suffix in ["", "-shm", "-wal"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
     }
 }

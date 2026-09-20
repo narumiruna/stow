@@ -41,28 +41,32 @@ public enum StowEnvironment {
     static func sharedContainerURL() -> URL {
         #if os(macOS)
         #if DEBUG
-        if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--stow-shared-container-path=") }),
-           let path = argument.split(separator: "=", maxSplits: 1).last,
-           !path.isEmpty {
-            let override = URL(fileURLWithPath: String(path), isDirectory: true).standardizedFileURL
-            try? FileManager.default.createDirectory(at: override, withIntermediateDirectories: true)
-            return override
-        }
+        let overridePath = ProcessInfo.processInfo.arguments
+            .first(where: { $0.hasPrefix("--stow-shared-container-path=") })?
+            .split(separator: "=", maxSplits: 1)
+            .last
+            .flatMap { $0.isEmpty ? nil : String($0) }
+        #else
+        let overridePath: String? = nil
         #endif
-        return StowSharedStorage.macOSContainerURL()
+        return StowSharedStorage.macOSContainerURL(developmentOverridePath: overridePath)
         #elseif targetEnvironment(simulator)
-        let simulatorID = ProcessInfo.processInfo.environment["SIMULATOR_UDID"] ?? "unknown"
-        let simulatorURL = URL(fileURLWithPath: "/tmp/StowSimulatorAppGroup/\(simulatorID)", isDirectory: true)
+        let simulatorURL = StowSharedStorage.simulatorContainerURL(
+            simulatorUDID: ProcessInfo.processInfo.environment["SIMULATOR_UDID"]
+        )
         try? FileManager.default.createDirectory(at: simulatorURL, withIntermediateDirectories: true)
         return simulatorURL
         #else
-        if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
-            return groupURL
-        }
         let fallback = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Stow", isDirectory: true)
-        try? FileManager.default.createDirectory(at: fallback, withIntermediateDirectories: true)
-        return fallback
+        let container = StowSharedStorage.sharedContainerURL(
+            appGroupContainerURL: FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: appGroupIdentifier
+            ),
+            fallbackURL: fallback
+        )
+        try? FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        return container
         #endif
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import XCTest
 @testable import StowCore
 
@@ -140,16 +141,35 @@ final class CaptureSpoolTests: XCTestCase {
         XCTAssertNil(try repository.allItems().first?.lastCapturedAt)
     }
 
-    func testInterruptedTemporaryDirectoryIsIgnoredAndRemovedByMaintenance() throws {
+    func testInterruptedStagingCleanupPreservesFreshWorkAndRemovesExpiredWork() throws {
         let root = temporaryDirectory().appendingPathComponent("Spool")
-        let spool = try CaptureSpool(rootURL: root)
-        let interrupted = root.appendingPathComponent(".staging-interrupted", isDirectory: true)
-        try FileManager.default.createDirectory(at: interrupted, withIntermediateDirectories: true)
-        try Data("partial".utf8).write(to: interrupted.appendingPathComponent("manifest.json"))
+        let now = Date(timeIntervalSince1970: 10_000)
+        let spool = try CaptureSpool(rootURL: root, stagingExpiration: 300, now: { now })
+        let fresh = root.appendingPathComponent(".staging-fresh", isDirectory: true)
+        let expired = root.appendingPathComponent(".staging-expired", isDirectory: true)
+        try FileManager.default.createDirectory(at: fresh, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: expired, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-299)], ofItemAtPath: fresh.path)
+        try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-301)], ofItemAtPath: expired.path)
 
         XCTAssertEqual(try spool.pendingCount(), 0)
         XCTAssertEqual(try spool.removeInterruptedStaging(), 1)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: interrupted.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fresh.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: expired.path))
+    }
+
+    func testStagingUsesUniqueDirectoryWithoutDeletingAnotherAttempt() throws {
+        let root = temporaryDirectory().appendingPathComponent("Spool")
+        let captureID = UUID()
+        let otherAttempt = root.appendingPathComponent(".staging-\(captureID.uuidString)-other", isDirectory: true)
+        let spool = try CaptureSpool(rootURL: root)
+        try FileManager.default.createDirectory(at: otherAttempt, withIntermediateDirectories: true)
+        try Data("partial".utf8).write(to: otherAttempt.appendingPathComponent("manifest.json"))
+
+        try spool.stage(CaptureDraft(id: captureID, type: .text, title: "Current", textContent: "body"))
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: otherAttempt.path))
+        XCTAssertEqual(try spool.pendingCount(), 1)
     }
 
     func testMalformedManifestMovesToQuarantineWithoutBlockingValidCapture() throws {
@@ -158,15 +178,182 @@ final class CaptureSpoolTests: XCTestCase {
         let bad = root.appendingPathComponent("Pending/bad", isDirectory: true)
         try FileManager.default.createDirectory(at: bad, withIntermediateDirectories: true)
         try Data("not-json".utf8).write(to: bad.appendingPathComponent("manifest.json"))
-        try spool.stage(CaptureDraft(type: .text, title: "Good", textContent: "body"), at: Date(timeIntervalSince1970: 100))
+        let validID = UUID()
+        try spool.stage(CaptureDraft(id: validID, type: .text, title: "Good", textContent: "body"), at: Date(timeIntervalSince1970: 100))
 
         let container = try StowContainerFactory.inMemory()
         let result = spool.ingestAll(into: StowRepository(modelContext: container.mainContext))
 
         XCTAssertEqual(result.ingested, 1)
         XCTAssertEqual(result.failures.count, 1)
+        XCTAssertEqual(result.outcomes.count, 2)
+        XCTAssertTrue(result.outcomes.contains(.ingested(captureID: validID)))
+        guard case .quarantined(nil, "bad", _) = result.outcomes.first(where: {
+            if case .quarantined = $0 { return true }
+            return false
+        }) else {
+            return XCTFail("Expected a typed quarantined outcome")
+        }
         XCTAssertEqual(try spool.pendingCount(), 0)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("Quarantine").path).count, 1)
+    }
+
+    func testUnsafeAttachmentPathIsQuarantinedWithoutReadingOutsidePendingDirectory() throws {
+        let root = temporaryDirectory()
+        let spoolRoot = root.appendingPathComponent("Spool")
+        let source = root.appendingPathComponent("source.txt")
+        try Data("safe".utf8).write(to: source)
+        let captureID = UUID()
+        let spool = try CaptureSpool(rootURL: spoolRoot)
+        try spool.stage(
+            CaptureDraft(
+                id: captureID,
+                type: .file,
+                title: "Unsafe",
+                stagedAttachmentName: "source.txt",
+                attachmentByteCount: 4,
+                fileName: "source.txt"
+            ),
+            attachmentURL: source
+        )
+        let manifestURL = spoolRoot.appendingPathComponent("Pending/\(captureID.uuidString)/manifest.json")
+        var manifest = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any]
+        )
+        manifest["attachmentFileName"] = "../outside.txt"
+        try JSONSerialization.data(withJSONObject: manifest).write(to: manifestURL)
+
+        let container = try StowContainerFactory.inMemory()
+        let result = spool.ingestAll(into: StowRepository(modelContext: container.mainContext))
+
+        guard case .quarantined(captureID, _, _) = result.outcomes.first else {
+            return XCTFail("Expected unsafe attachment path to be quarantined")
+        }
+        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<StowItem>()).isEmpty)
+        XCTAssertEqual(try spool.pendingCount(), 0)
+    }
+
+    func testOversizedPendingAttachmentIsQuarantined() throws {
+        let root = temporaryDirectory()
+        let spoolRoot = root.appendingPathComponent("Spool")
+        let source = root.appendingPathComponent("source.bin")
+        try Data([0]).write(to: source)
+        let captureID = UUID()
+        let spool = try CaptureSpool(rootURL: spoolRoot)
+        try spool.stage(
+            CaptureDraft(
+                id: captureID,
+                type: .file,
+                title: "Oversized",
+                stagedAttachmentName: "source.bin",
+                attachmentByteCount: 1,
+                fileName: "source.bin"
+            ),
+            attachmentURL: source
+        )
+        let attachment = spoolRoot.appendingPathComponent("Pending/\(captureID.uuidString)/attachment.bin")
+        let handle = try FileHandle(forWritingTo: attachment)
+        try handle.truncate(atOffset: UInt64(CaptureLimits.maximumAttachmentBytes + 1))
+        try handle.close()
+
+        let container = try StowContainerFactory.inMemory()
+        let result = spool.ingestAll(into: StowRepository(modelContext: container.mainContext))
+
+        guard case .quarantined(captureID, _, _) = result.outcomes.first else {
+            return XCTFail("Expected oversized attachment to be quarantined")
+        }
+        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<StowItem>()).isEmpty)
+        XCTAssertEqual(try spool.pendingCount(), 0)
+    }
+
+    func testPersistenceFailureDefersCaptureUntilWritableRepositoryRecovers() throws {
+        let root = temporaryDirectory().appendingPathComponent("Spool")
+        let spool = try CaptureSpool(rootURL: root)
+        let captureID = UUID()
+        try spool.stage(CaptureDraft(id: captureID, type: .text, title: "Retry", textContent: "body"))
+
+        let storeURL = root.appendingPathComponent("ReadOnly.store")
+        do {
+            _ = try StowContainerFactory.local(url: storeURL)
+        }
+        let schema = Schema(versionedSchema: StowSchemaV2.self)
+        let readOnly = ModelConfiguration("Stow", schema: schema, url: storeURL, allowsSave: false)
+        let readOnlyContainer = try ModelContainer(
+            for: schema,
+            migrationPlan: StowMigrationPlan.self,
+            configurations: [readOnly]
+        )
+        let deferred = spool.ingestAll(into: StowRepository(modelContext: readOnlyContainer.mainContext))
+
+        XCTAssertEqual(deferred.ingested, 0)
+        guard case .deferred(captureID, _, _) = deferred.outcomes.first else {
+            return XCTFail("Expected a typed deferred outcome")
+        }
+        XCTAssertEqual(try spool.pendingCount(), 1)
+
+        let writableContainer = try StowContainerFactory.inMemory()
+        let writableRepository = StowRepository(modelContext: writableContainer.mainContext)
+        XCTAssertEqual(spool.ingestAll(into: writableRepository).ingested, 1)
+        XCTAssertEqual(try writableRepository.allItems().map(\.captureID), [captureID])
+        XCTAssertEqual(spool.ingestAll(into: writableRepository).ingested, 0)
+    }
+
+    func testFilesystemReadFailureDefersCaptureInPending() throws {
+        let root = temporaryDirectory().appendingPathComponent("Spool")
+        let spool = try CaptureSpool(rootURL: root)
+        let captureID = UUID()
+        let pending = root.appendingPathComponent("Pending/\(captureID.uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: pending, withIntermediateDirectories: true)
+
+        let container = try StowContainerFactory.inMemory()
+        let result = spool.ingestAll(into: StowRepository(modelContext: container.mainContext))
+
+        guard case .deferred(captureID, _, _) = result.outcomes.first else {
+            return XCTFail("Expected a typed deferred outcome")
+        }
+        XCTAssertEqual(try spool.pendingCount(), 1)
+        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<StowItem>()).isEmpty)
+    }
+
+    func testQuarantineMoveFailurePreservesInvalidCapture() throws {
+        struct QuarantineError: LocalizedError {
+            var errorDescription: String? { "Injected quarantine failure" }
+        }
+        let root = temporaryDirectory().appendingPathComponent("Spool")
+        let spool = try CaptureSpool(rootURL: root, quarantineMove: { _, _ in throw QuarantineError() })
+        let bad = root.appendingPathComponent("Pending/bad", isDirectory: true)
+        try FileManager.default.createDirectory(at: bad, withIntermediateDirectories: true)
+        try Data("not-json".utf8).write(to: bad.appendingPathComponent("manifest.json"))
+
+        let container = try StowContainerFactory.inMemory()
+        let result = spool.ingestAll(into: StowRepository(modelContext: container.mainContext))
+
+        guard case .deferred(nil, "bad", let message) = result.outcomes.first else {
+            return XCTFail("Expected quarantine failure to be retryable")
+        }
+        XCTAssertTrue(message.contains("Injected quarantine failure"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: bad.path))
+        XCTAssertEqual(try spool.pendingCount(), 1)
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("Quarantine").path).isEmpty)
+    }
+
+    func testFocusedIngestionIgnoresUnrelatedMalformedCapture() throws {
+        let root = temporaryDirectory().appendingPathComponent("Spool")
+        let spool = try CaptureSpool(rootURL: root)
+        let bad = root.appendingPathComponent("Pending/bad", isDirectory: true)
+        try FileManager.default.createDirectory(at: bad, withIntermediateDirectories: true)
+        try Data("not-json".utf8).write(to: bad.appendingPathComponent("manifest.json"))
+        let captureID = UUID()
+        try spool.stage(CaptureDraft(id: captureID, type: .text, title: "Current", textContent: "body"))
+
+        let container = try StowContainerFactory.inMemory()
+        let repository = StowRepository(modelContext: container.mainContext)
+        let result = spool.ingest(captureID: captureID, into: repository)
+
+        XCTAssertEqual(result.outcomes, [.ingested(captureID: captureID)])
+        XCTAssertTrue(result.failures.isEmpty)
+        XCTAssertEqual(try repository.allItems().map(\.captureID), [captureID])
+        XCTAssertEqual(try spool.pendingCount(), 1)
     }
 
     private func temporaryDirectory() -> URL {

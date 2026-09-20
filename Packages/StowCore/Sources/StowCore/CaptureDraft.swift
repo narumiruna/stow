@@ -1,5 +1,9 @@
 import Foundation
 
+public enum CaptureLimits {
+    public static let maximumAttachmentBytes = 100 * 1_024 * 1_024
+}
+
 public enum CaptureValidationError: Error, Equatable, LocalizedError, Sendable {
     case missingText
     case invalidURL
@@ -69,7 +73,7 @@ public struct CaptureDraft: Codable, Equatable, Identifiable, Sendable {
         self.directlyArchive = directlyArchive
     }
 
-    public func normalized(maxAttachmentBytes: Int = 100 * 1_024 * 1_024) throws -> CaptureDraft {
+    public func normalized(maxAttachmentBytes: Int = CaptureLimits.maximumAttachmentBytes) throws -> CaptureDraft {
         var result = self
         result.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         result.note = Self.nilIfEmpty(note)

@@ -5,6 +5,7 @@ require "xcodeproj"
 require "digest"
 require "fileutils"
 require "pathname"
+require "tmpdir"
 
 class StowXcodeProject < Xcodeproj::Project
   def generate_available_uuid_list(count = 100)
@@ -20,10 +21,27 @@ class StowXcodeProject < Xcodeproj::Project
 end
 
 ROOT = File.expand_path("..", __dir__)
-PROJECT_PATH = File.join(ROOT, "Stow.xcodeproj")
-FileUtils.rm_rf(PROJECT_PATH)
+DEFAULT_PROJECT_PATH = File.join(ROOT, "Stow.xcodeproj")
 
-project = StowXcodeProject.new(PROJECT_PATH)
+mode, requested_path = if ARGV.empty?
+                         [:generate, DEFAULT_PROJECT_PATH]
+                       elsif ARGV == ["--check"]
+                         [:check, DEFAULT_PROJECT_PATH]
+                       elsif ARGV.length == 2 && ARGV[0] == "--check"
+                         [:check, File.expand_path(ARGV[1])]
+                       elsif ARGV.length == 2 && ARGV[0] == "--output"
+                         [:generate, File.expand_path(ARGV[1])]
+                       else
+                         warn "Usage: ruby Scripts/generate_project.rb [--check [PROJECT_PATH] | --output PROJECT_PATH]"
+                         exit 64
+                       end
+
+temporary_root = mode == :check ? Dir.mktmpdir("stow-project-check-") : nil
+at_exit { FileUtils.rm_rf(temporary_root) if temporary_root }
+project_path = temporary_root ? File.join(temporary_root, "Stow.xcodeproj") : requested_path
+FileUtils.rm_rf(project_path)
+
+project = StowXcodeProject.new(project_path)
 project.root_object.attributes["LastSwiftUpdateCheck"] = "2660"
 project.root_object.attributes["LastUpgradeCheck"] = "2660"
 
@@ -164,6 +182,14 @@ unit_tests.build_configurations.each do |configuration|
   configuration.build_settings["BUNDLE_LOADER"] = "$(TEST_HOST)"
 end
 
+share_tests = project.new_target(:unit_test_bundle, "StowShareTests", :osx, "14.0")
+configure_target(share_tests, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow.tests.share", info_plist: "Configuration/Test-Info.plist", module_name: "StowShareTests")
+add_sources(tests_group, share_tests, ROOT, ["StowShareTests"], source_root: "Tests")
+share_model_group = sources_group.groups.find { |group| group.path == "StowShare/Shared" }
+share_model_reference = share_model_group.files.find { |file| file.path == "ShareCaptureModel.swift" }
+share_tests.add_file_references([share_model_reference])
+add_package(project, share_tests, package_ref, "StowCore")
+
 ui_tests = project.new_target(:ui_test_bundle, "StowUITests", :ios, "17.0")
 configure_target(ui_tests, platform: :ios, deployment: "17.0", bundle_id: "dev.narumi.stow.tests.ui.ios", info_plist: "Configuration/Test-Info.plist", module_name: "StowUITests")
 add_sources(tests_group, ui_tests, ROOT, ["StowUITests"], source_root: "Tests")
@@ -191,10 +217,32 @@ privacy_manifest = config_group.new_file("PrivacyInfo.xcprivacy")
 
 project.save
 project.recreate_user_schemes(visible: true)
-shared_schemes = File.join(PROJECT_PATH, "xcshareddata", "xcschemes")
+shared_schemes = File.join(project_path, "xcshareddata", "xcschemes")
 FileUtils.mkdir_p(shared_schemes)
-Dir.glob(File.join(PROJECT_PATH, "xcuserdata", "**", "xcschemes", "*.xcscheme")).each do |scheme|
+Dir.glob(File.join(project_path, "xcuserdata", "**", "xcschemes", "*.xcscheme")).each do |scheme|
   FileUtils.cp(scheme, shared_schemes)
 end
-FileUtils.rm_rf(File.join(PROJECT_PATH, "xcuserdata"))
-puts "Generated #{PROJECT_PATH}"
+FileUtils.rm_rf(File.join(project_path, "xcuserdata"))
+
+if mode == :check
+  generated_paths = ["project.pbxproj"] + Dir.glob(File.join(project_path, "xcshareddata", "xcschemes", "*.xcscheme")).map do |path|
+    Pathname.new(path).relative_path_from(Pathname.new(project_path)).to_s
+  end
+  expected_paths = ["project.pbxproj"] + Dir.glob(File.join(requested_path, "xcshareddata", "xcschemes", "*.xcscheme")).map do |path|
+    Pathname.new(path).relative_path_from(Pathname.new(requested_path)).to_s
+  end
+  differing_paths = (generated_paths | expected_paths).sort.select do |relative|
+    generated = File.join(project_path, relative)
+    expected = File.join(requested_path, relative)
+    !File.file?(generated) || !File.file?(expected) || !FileUtils.compare_file(generated, expected)
+  end
+  if differing_paths.empty?
+    puts "Xcode project is up to date"
+  else
+    warn "Xcode project differs:"
+    differing_paths.each { |path| warn "  #{path}" }
+    exit 1
+  end
+else
+  puts "Generated #{project_path}"
+end

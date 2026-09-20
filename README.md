@@ -39,6 +39,18 @@ Generate the Xcode project after adding targets or source files:
 ruby Scripts/generate_project.rb
 ```
 
+Check generated project drift without changing the working tree:
+
+```sh
+ruby Scripts/generate_project.rb --check
+```
+
+Run the generator's argument and drift-detection tests:
+
+```sh
+Scripts/generate_project_tests.sh
+```
+
 Run the non-interactive quality gate used by CI:
 
 ```sh

@@ -2,11 +2,7 @@ import QuickLook
 import SwiftData
 import SwiftUI
 import StowCore
-#if os(iOS)
 import UIKit
-#elseif os(macOS)
-import AppKit
-#endif
 
 struct StowItemDetailView: View {
     @Environment(AppModel.self) private var appModel
@@ -19,6 +15,7 @@ struct StowItemDetailView: View {
     @State private var text: String
     @State private var language: String
     @State private var editing = false
+    @State private var editorTransition = EditorTransitionModel()
     @State private var previewURL: URL?
     @State private var imageScale: CGFloat = 1
 
@@ -45,13 +42,14 @@ struct StowItemDetailView: View {
         .quickLookPreview($previewURL)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(editing ? "Done" : "Edit") {
-                    if editing { appModel.save(item, title: title, note: note, text: text, language: language) }
-                    editing.toggle()
-                }
+                Button(editing ? "Done" : "Edit", action: toggleEditing)
             }
             ToolbarItem { Button { appModel.togglePin(item) } label: { Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.fill" : "pin") } }
         }
+        .onChange(of: title) { _, _ in markEditorDirty() }
+        .onChange(of: note) { _, _ in markEditorDirty() }
+        .onChange(of: text) { _, _ in markEditorDirty() }
+        .onChange(of: language) { _, _ in markEditorDirty() }
     }
 
     @ViewBuilder
@@ -180,6 +178,33 @@ struct StowItemDetailView: View {
         return entries
     }
 
+    private func toggleEditing() {
+        guard editing else {
+            editorTransition.reset()
+            editing = true
+            return
+        }
+
+        editorTransition.beginSave(then: .finishEditing)
+        let saved = appModel.save(
+            item,
+            title: title,
+            note: note,
+            text: text,
+            language: language
+        )
+        guard saved || appModel.presentedError != nil else { return }
+        let destination = editorTransition.finishSave(
+            errorMessage: saved ? nil : appModel.presentedError
+        )
+        if destination == .finishEditing { editing = false }
+    }
+
+    private func markEditorDirty() {
+        guard editing else { return }
+        editorTransition.updateDirty(true)
+    }
+
     private var editor: some View {
         VStack(alignment: .leading, spacing: 16) {
             TextField("Title", text: $title)
@@ -254,7 +279,6 @@ struct StowItemDetailView: View {
             }
         }
         StowShareButton(item: item, attachment: attachments.first, fillsWidth: fillsWidth)
-        #if os(iOS)
         if item.type == .image, let data = attachments.first?.data {
             Button {
                 appModel.performUse(item, action: .open, metric: .itemOpened) {
@@ -264,7 +288,6 @@ struct StowItemDetailView: View {
                 actionLabel("Save Image", systemImage: "photo.badge.arrow.down", fillsWidth: fillsWidth)
             }
         }
-        #endif
         Button { appModel.archiveOrRestore(item) } label: {
             actionLabel(item.status == .archived ? "Restore" : "Archive", systemImage: "archivebox", fillsWidth: fillsWidth)
         }
@@ -285,11 +308,7 @@ struct StowItemDetailView: View {
     }
 
     private var isCompactLayout: Bool {
-        #if os(iOS)
         horizontalSizeClass == .compact
-        #else
-        false
-        #endif
     }
 
     private func metadataRow(_ label: String, _ value: String) -> some View {
@@ -313,13 +332,8 @@ struct StowItemDetailView: View {
     }
 
     private func platformImage(data: Data) -> Image? {
-        #if os(iOS)
         guard let image = UIImage(data: data) else { return nil }
         return Image(uiImage: image)
-        #elseif os(macOS)
-        guard let image = NSImage(data: data) else { return nil }
-        return Image(nsImage: image)
-        #endif
     }
 }
 
@@ -330,16 +344,6 @@ private struct ItemMetadataEntry: Identifiable {
     var id: String { label }
 }
 
-extension StowItem {
-    var displayTitle: String {
-        type == .link ? HTMLMetadataParser.decodeCharacterReferences(title) : title
-    }
-
-    var displayLinkDescription: String? {
-        linkDescription.map(HTMLMetadataParser.decodeCharacterReferences)
-    }
-}
-
 private final class DragSuccessToken: @unchecked Sendable {
     private let success: @MainActor () -> Void
 
@@ -347,30 +351,5 @@ private final class DragSuccessToken: @unchecked Sendable {
 
     nonisolated func record() {
         Task { @MainActor in success() }
-    }
-}
-
-enum SimpleSyntaxHighlighter {
-    static func highlight(_ source: String) -> AttributedString {
-        var result = AttributedString(source)
-        result.font = .system(.body, design: .monospaced)
-        apply(#"\b(?:let|var|func|class|struct|enum|if|else|for|while|return|import|public|private|async|await|throws)\b"#, color: .purple, bold: true, source: source, result: &result)
-        apply(#"\b\d+(?:\.\d+)?\b"#, color: .orange, source: source, result: &result)
-        apply(#"\"(?:\\.|[^\"\\])*\""#, color: .green, source: source, result: &result)
-        apply(#"//[^\n]*|/\*[\s\S]*?\*/"#, color: .secondary, source: source, result: &result)
-        return result
-    }
-
-    private static func apply(_ pattern: String, color: Color, bold: Bool = false, source: String, result: inout AttributedString) {
-        guard let expression = try? NSRegularExpression(pattern: pattern) else { return }
-        let matches = expression.matches(in: source, range: NSRange(source.startIndex..., in: source))
-        for match in matches {
-            guard let sourceRange = Range(match.range, in: source),
-                  let lower = AttributedString.Index(sourceRange.lowerBound, within: result),
-                  let upper = AttributedString.Index(sourceRange.upperBound, within: result) else { continue }
-            let range = lower..<upper
-            result[range].foregroundColor = color
-            if bold { result[range].font = .system(.body, design: .monospaced).bold() }
-        }
     }
 }

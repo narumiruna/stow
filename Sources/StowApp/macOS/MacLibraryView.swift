@@ -315,10 +315,9 @@ struct MacLibraryView: View {
     }
 
     private var visibleItems: [StowItem] {
-        allItems.filter { item in
+        appModel.selection.sortedItems(allItems.filter { item in
             MacLibraryPolicy.includes(item, in: appModel.selection) && filtersInclude(item) && searchIncludes(item)
-        }
-        .sorted(by: sectionSort)
+        })
     }
 
     private var selectedItems: [StowItem] {
@@ -361,13 +360,6 @@ struct MacLibraryView: View {
                 let value = $0.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? $0
                 return value.localizedCaseInsensitiveContains(query)
             }
-    }
-
-    private func sectionSort(_ lhs: StowItem, _ rhs: StowItem) -> Bool {
-        if appModel.selection == .recent {
-            return (lhs.lastUsedAt ?? .distantPast) > (rhs.lastUsedAt ?? .distantPast)
-        }
-        return lhs.createdAt > rhs.createdAt
     }
 
     private func setPinned(_ items: [StowItem], pinned: Bool) {
@@ -432,18 +424,14 @@ struct MacLibraryView: View {
     }
 
     private var searchToken: String {
-        var versionHasher = Hasher()
-        for item in allItems {
-            versionHasher.combine(item.id)
-            versionHasher.combine(item.updatedAt)
-        }
+        let itemRevision = SearchItemRevision(items: allItems)
         return [
             appModel.selection.rawValue,
             appModel.searchText,
             appModel.typeFilter?.rawValue ?? "",
             appModel.sourceFilter ?? "",
             appModel.dateFilter.rawValue,
-            "\(allItems.count):\(versionHasher.finalize())"
+            itemRevision.token
         ].joined(separator: "¦")
     }
 }

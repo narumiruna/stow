@@ -12,18 +12,14 @@ struct StowRootView: View {
     var body: some View {
         @Bindable var appModel = appModel
         Group {
-            #if os(iOS)
             if horizontalSizeClass == .compact {
                 compactNavigation
             } else {
                 splitNavigation
             }
-            #else
-            splitNavigation
-            #endif
         }
         .searchable(text: $appModel.searchText, prompt: "Search saved content")
-        .stowQuickAddSheet(isPresented: $appModel.isAdding)
+        .sheet(isPresented: $appModel.isAdding) { QuickAddView() }
         .alert("Stow couldn't complete that action", isPresented: Binding(
             get: { appModel.presentedError != nil },
             set: { if !$0 { appModel.presentedError = nil } }
@@ -35,15 +31,6 @@ struct StowRootView: View {
         .task(id: searchToken) { await appModel.updateSearch(items: allItems) }
         .onChange(of: scenePhase) { _, phase in if phase == .active { appModel.runMaintenance() } }
         .privacySensitive()
-        #if DEBUG && os(macOS)
-        .overlay(alignment: .topTrailing) {
-            if ProcessInfo.processInfo.arguments.contains("--ui-testing-drop-target") {
-                PanelDropTestTarget()
-                    .padding(24)
-            }
-        }
-        #endif
-        #if os(iOS)
         .overlay {
             if scenePhase != .active {
                 ZStack {
@@ -53,7 +40,6 @@ struct StowRootView: View {
                 .accessibilityHidden(true)
             }
         }
-        #endif
     }
 
     private var compactNavigation: some View {
@@ -118,45 +104,22 @@ struct StowRootView: View {
     }
 
     private var visibleItems: [StowItem] {
-        allItems.filter { item in
-            sectionIncludes(item) && (appModel.searchResultIDs?.contains(item.id) ?? true)
-        }
-        .sorted(by: sectionSort)
+        appModel.selection.sortedItems(allItems.filter { item in
+            appModel.selection.includes(item) && (appModel.searchResultIDs?.contains(item.id) ?? true)
+        })
     }
 
     private var availableSources: [String] {
         Array(Set(allItems.compactMap(\.sourceApp))).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
-    private func sectionIncludes(_ item: StowItem) -> Bool {
-        switch appModel.selection {
-        case .inbox: item.status == .inbox
-        case .recent: item.status != .trashed && item.lastUsedAt != nil
-        case .pinned: item.status != .trashed && item.isPinned
-        case .archive: item.status == .archived
-        case .trash: item.status == .trashed
-        case .settings: false
-        }
-    }
-
     private func showQuickAdd() {
-        #if os(macOS)
-        NotificationCenter.default.post(name: .stowShowQuickAdd, object: nil)
-        #else
         appModel.isAdding = true
-        #endif
     }
 
     private var searchToken: String {
-        var versionHasher = Hasher()
-        for item in allItems { versionHasher.combine(item.id); versionHasher.combine(item.updatedAt) }
-        let itemVersion = "\(allItems.count):\(versionHasher.finalize())"
-        return [appModel.selection.rawValue, appModel.searchText, appModel.typeFilter?.rawValue ?? "", appModel.sourceFilter ?? "", appModel.dateFilter.rawValue, itemVersion].joined(separator: "¦")
-    }
-
-    private func sectionSort(_ lhs: StowItem, _ rhs: StowItem) -> Bool {
-        if appModel.selection == .recent { return (lhs.lastUsedAt ?? .distantPast) > (rhs.lastUsedAt ?? .distantPast) }
-        return lhs.createdAt > rhs.createdAt
+        let itemRevision = SearchItemRevision(items: allItems)
+        return [appModel.selection.rawValue, appModel.searchText, appModel.typeFilter?.rawValue ?? "", appModel.sourceFilter ?? "", appModel.dateFilter.rawValue, itemRevision.token].joined(separator: "¦")
     }
 
     private var privacyFooter: some View {
@@ -165,37 +128,5 @@ struct StowRootView: View {
             .foregroundStyle(.secondary)
             .padding()
             .accessibilityLabel(appModel.privacyStorageText)
-    }
-}
-
-#if DEBUG && os(macOS)
-struct PanelDropTestTarget: View {
-    @State private var accepted = false
-
-    var body: some View {
-        Text(accepted ? "Drop accepted" : "Panel drop target")
-            .font(.headline)
-            .padding(.horizontal, 24)
-            .frame(width: 260, height: 120)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.blue, style: StrokeStyle(lineWidth: 2, dash: [6])))
-            .dropDestination(for: String.self) { values, _ in
-                guard !values.isEmpty else { return false }
-                accepted = true
-                return true
-            }
-            .accessibilityIdentifier("panel-drop-target")
-    }
-}
-#endif
-
-private extension View {
-    @ViewBuilder
-    func stowQuickAddSheet(isPresented: Binding<Bool>) -> some View {
-        #if os(iOS)
-        sheet(isPresented: isPresented) { QuickAddView() }
-        #else
-        self
-        #endif
     }
 }
