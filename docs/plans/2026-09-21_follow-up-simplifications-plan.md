@@ -59,9 +59,11 @@ Copy evidence: 3 orchestration tests, 2 platform paste tests, and 2 package acti
 
 ### 2. Use one shortcut configuration value
 
-- [ ] Replace `MacShortcutConfiguration` and `GlobalHotKeyService.Configuration` with one mutable value used by `MacSettingsView`, `MacAppCoordinator`, `MacShortcutTransaction`, and `GlobalHotKeyService`; acceptance: no pair-to-pair conversion or duplicated default identifiers remain.
-- [ ] Consolidate configuration loading and persistence without moving preference writes into registration; acceptance: existing preference keys, raw values, unknown-key fallback, registration labels, error messages, and rollback behavior remain unchanged.
-- [ ] Run isolated `GlobalHotKeyServiceTests` and `MacSettingsModelsTests`, extending fixtures for absent and unknown preference values; acceptance: both candidate-conflict positions, restoration failure, explicit registration without preference writes, and preservation of unrelated defaults pass.
+- [x] Replace `MacShortcutConfiguration` and `GlobalHotKeyService.Configuration` with one mutable value used by `MacSettingsView`, `MacAppCoordinator`, `MacShortcutTransaction`, and `GlobalHotKeyService`; acceptance: no pair-to-pair conversion or duplicated default identifiers remain.
+- [x] Consolidate configuration loading and persistence without moving preference writes into registration; acceptance: existing preference keys, raw values, unknown-key fallback, registration labels, error messages, and rollback behavior remain unchanged.
+- [x] Run isolated `GlobalHotKeyServiceTests` and `MacSettingsModelsTests`, extending fixtures for absent and unknown preference values; acceptance: both candidate-conflict positions, restoration failure, explicit registration without preference writes, and preservation of unrelated defaults pass.
+
+Shortcut evidence: all 9 registration/settings tests passed with fake backends and isolated defaults, including missing/unknown values and both rollback conflict positions. Settings and coordinator already consumed the retained value type, so no changes to their UI/transaction callers were needed.
 
 ### 3. Share the local-search fallback
 

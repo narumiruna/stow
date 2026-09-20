@@ -5,14 +5,11 @@ import XCTest
 final class GlobalHotKeyServiceTests: XCTestCase {
     func testExplicitConfigurationRegistersBothShortcutsWithoutReadingOrWritingDefaults() throws {
         let defaults = try makeDefaults()
-        defaults.set("sentinel-add", forKey: GlobalHotKeyService.quickAddDefaultsKey)
-        defaults.set("sentinel-panel", forKey: GlobalHotKeyService.quickPanelDefaultsKey)
+        defaults.set("sentinel-add", forKey: MacShortcutConfiguration.quickAddDefaultsKey)
+        defaults.set("sentinel-panel", forKey: MacShortcutConfiguration.quickPanelDefaultsKey)
         let backend = FakeHotKeyRegistrationBackend()
         let service = GlobalHotKeyService(backend: backend, defaults: defaults)
-        let candidate = GlobalHotKeyService.Configuration(
-            quickAddKey: "controlOptionS",
-            quickPanelKey: "optionCommandV"
-        )
+        let candidate = MacShortcutConfiguration(quickAdd: "controlOptionS", quickPanel: "optionCommandV")
 
         try service.apply(candidate)
 
@@ -21,22 +18,19 @@ final class GlobalHotKeyServiceTests: XCTestCase {
             GlobalHotKeyService.Action.quickAdd.rawValue,
             GlobalHotKeyService.Action.quickPanel.rawValue,
         ])
-        XCTAssertEqual(defaults.string(forKey: GlobalHotKeyService.quickAddDefaultsKey), "sentinel-add")
-        XCTAssertEqual(defaults.string(forKey: GlobalHotKeyService.quickPanelDefaultsKey), "sentinel-panel")
+        XCTAssertEqual(defaults.string(forKey: MacShortcutConfiguration.quickAddDefaultsKey), "sentinel-add")
+        XCTAssertEqual(defaults.string(forKey: MacShortcutConfiguration.quickPanelDefaultsKey), "sentinel-panel")
     }
 
     func testFirstCandidateConflictRestoresPreviousValidPair() throws {
         let backend = FakeHotKeyRegistrationBackend()
         let service = GlobalHotKeyService(backend: backend)
-        let previous = GlobalHotKeyService.Configuration(
-            quickAddKey: "optionShiftS",
-            quickPanelKey: "commandShiftV"
-        )
+        let previous = MacShortcutConfiguration()
         try service.apply(previous)
         backend.failRegistrationAttempts = [3]
 
         XCTAssertThrowsError(
-            try service.apply(.init(quickAddKey: "controlOptionS", quickPanelKey: "optionCommandV"))
+            try service.apply(.init(quickAdd: "controlOptionS", quickPanel: "optionCommandV"))
         ) { error in
             XCTAssertEqual(error as? GlobalHotKeyService.RegistrationError, .unavailable("⌃⌥S"))
         }
@@ -48,15 +42,12 @@ final class GlobalHotKeyServiceTests: XCTestCase {
     func testSecondCandidateConflictRemovesPartialCandidateAndRestoresPreviousValidPair() throws {
         let backend = FakeHotKeyRegistrationBackend()
         let service = GlobalHotKeyService(backend: backend)
-        let previous = GlobalHotKeyService.Configuration(
-            quickAddKey: "controlOptionS",
-            quickPanelKey: "controlShiftV"
-        )
+        let previous = MacShortcutConfiguration(quickAdd: "controlOptionS", quickPanel: "controlShiftV")
         try service.apply(previous)
         backend.failRegistrationAttempts = [4]
 
         XCTAssertThrowsError(
-            try service.apply(.init(quickAddKey: "commandOptionS", quickPanelKey: "optionCommandV"))
+            try service.apply(.init(quickAdd: "commandOptionS", quickPanel: "optionCommandV"))
         ) { error in
             XCTAssertEqual(error as? GlobalHotKeyService.RegistrationError, .unavailable("⌥⌘V"))
         }
@@ -69,15 +60,12 @@ final class GlobalHotKeyServiceTests: XCTestCase {
     func testRestorationFailureIsReportedAndDoesNotClaimARegisteredConfiguration() throws {
         let backend = FakeHotKeyRegistrationBackend()
         let service = GlobalHotKeyService(backend: backend)
-        let previous = GlobalHotKeyService.Configuration(
-            quickAddKey: "optionShiftS",
-            quickPanelKey: "commandShiftV"
-        )
+        let previous = MacShortcutConfiguration()
         try service.apply(previous)
         backend.failRegistrationAttempts = [4, 5]
 
         XCTAssertThrowsError(
-            try service.apply(.init(quickAddKey: "commandOptionS", quickPanelKey: "controlShiftV"))
+            try service.apply(.init(quickAdd: "commandOptionS", quickPanel: "controlShiftV"))
         ) { error in
             guard case let GlobalHotKeyService.RegistrationError.restorationFailed(candidate, restoration) = error else {
                 return XCTFail("Expected restoration failure, got \(error)")
@@ -98,16 +86,23 @@ final class GlobalHotKeyServiceTests: XCTestCase {
 
         try service.registerDefaults()
         XCTAssertEqual(backend.active.map(\.label), ["⌥⇧S", "⌘⇧V"])
+        XCTAssertEqual(service.registeredConfiguration, MacShortcutConfiguration())
+        XCTAssertNil(defaults.object(forKey: MacShortcutConfiguration.quickAddDefaultsKey))
+        XCTAssertNil(defaults.object(forKey: MacShortcutConfiguration.quickPanelDefaultsKey))
 
         let configurations: [(String, String, String, String)] = [
+            ("unknown-add", "unknown-panel", "⌥⇧S", "⌘⇧V"),
             ("controlOptionS", "optionCommandV", "⌃⌥S", "⌥⌘V"),
             ("commandOptionS", "controlShiftV", "⌘⌥S", "⌃⇧V"),
         ]
         for (addKey, panelKey, addLabel, panelLabel) in configurations {
-            defaults.set(addKey, forKey: GlobalHotKeyService.quickAddDefaultsKey)
-            defaults.set(panelKey, forKey: GlobalHotKeyService.quickPanelDefaultsKey)
+            defaults.set(addKey, forKey: MacShortcutConfiguration.quickAddDefaultsKey)
+            defaults.set(panelKey, forKey: MacShortcutConfiguration.quickPanelDefaultsKey)
             try service.registerDefaults()
             XCTAssertEqual(backend.active.map(\.label), [addLabel, panelLabel])
+            XCTAssertEqual(service.registeredConfiguration, MacShortcutConfiguration(quickAdd: addKey, quickPanel: panelKey))
+            XCTAssertEqual(defaults.string(forKey: MacShortcutConfiguration.quickAddDefaultsKey), addKey)
+            XCTAssertEqual(defaults.string(forKey: MacShortcutConfiguration.quickPanelDefaultsKey), panelKey)
         }
     }
 

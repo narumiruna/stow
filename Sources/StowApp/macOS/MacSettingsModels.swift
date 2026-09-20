@@ -19,22 +19,24 @@ enum MacSettingsPage: String, CaseIterable, Identifiable {
 }
 
 struct MacShortcutConfiguration: Equatable, Sendable {
+    static let quickAddDefaultsKey = "quickAddShortcut"
+    static let quickPanelDefaultsKey = "quickPanelShortcut"
     static let defaultQuickAdd = "optionShiftS"
     static let defaultQuickPanel = "commandShiftV"
 
-    var quickAdd: String
-    var quickPanel: String
+    var quickAdd: String = defaultQuickAdd
+    var quickPanel: String = defaultQuickPanel
 
     static func current(defaults: UserDefaults = .standard) -> Self {
         Self(
-            quickAdd: defaults.string(forKey: GlobalHotKeyService.quickAddDefaultsKey) ?? defaultQuickAdd,
-            quickPanel: defaults.string(forKey: GlobalHotKeyService.quickPanelDefaultsKey) ?? defaultQuickPanel
+            quickAdd: defaults.string(forKey: quickAddDefaultsKey) ?? defaultQuickAdd,
+            quickPanel: defaults.string(forKey: quickPanelDefaultsKey) ?? defaultQuickPanel
         )
     }
 
     func persist(to defaults: UserDefaults = .standard) {
-        defaults.set(quickAdd, forKey: GlobalHotKeyService.quickAddDefaultsKey)
-        defaults.set(quickPanel, forKey: GlobalHotKeyService.quickPanelDefaultsKey)
+        defaults.set(quickAdd, forKey: Self.quickAddDefaultsKey)
+        defaults.set(quickPanel, forKey: Self.quickPanelDefaultsKey)
     }
 }
 
@@ -53,10 +55,7 @@ enum MacShortcutTransaction {
         defaults: UserDefaults = .standard
     ) -> MacShortcutApplyResult {
         do {
-            try service.apply(GlobalHotKeyService.Configuration(
-                quickAddKey: candidate.quickAdd,
-                quickPanelKey: candidate.quickPanel
-            ))
+            try service.apply(candidate)
             candidate.persist(to: defaults)
             return .success
         } catch {
