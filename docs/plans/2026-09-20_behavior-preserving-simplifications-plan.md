@@ -105,7 +105,7 @@ flowchart TD
 
 ## Execution Evidence
 
-- The implementation is split across the dependency-ordered branches recorded in the stacked pull requests; no branch has been merged as part of this execution.
+- The implementation is split across dependency-ordered pull requests [#21](https://github.com/narumiruna/stow/pull/21) through [#31](https://github.com/narumiruna/stow/pull/31); no branch has been merged as part of this execution.
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ci.sh` passed on the final implementation.
 - `StowAppTests` passed 78 tests. The final iOS UI suite passed 14 tests, including both share-extension scenarios.
 - `ruby Scripts/generate_project.rb --check` and `git diff --check` passed, and the generator check left `git status` unchanged.
