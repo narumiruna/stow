@@ -208,7 +208,16 @@ public actor SQLiteSearchIndex {
             let index = Int32(offset + 1)
             let result: Int32
             switch value {
-            case .text(let value): result = sqlite3_bind_text(statement, index, value, -1, transient)
+            case .text(let value):
+                guard let byteCount = Int32(exactly: value.utf8.count) else {
+                    throw SearchIndexError(
+                        operation: "bind",
+                        message: "Text exceeds SQLite's maximum binding length"
+                    )
+                }
+                result = value.utf8CString.withUnsafeBufferPointer { buffer in
+                    sqlite3_bind_text(statement, index, buffer.baseAddress, byteCount, transient)
+                }
             case .double(let value): result = sqlite3_bind_double(statement, index, value)
             case .integer(let value): result = sqlite3_bind_int64(statement, index, value)
             case .null: result = sqlite3_bind_null(statement, index)
