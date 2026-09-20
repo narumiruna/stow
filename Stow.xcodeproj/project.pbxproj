@@ -7,298 +7,319 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0000A022020A552CD7C0E4FE /* StowRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62770EB4996C3073DB0C5D8F /* StowRootView.swift */; };
-		02EA8A82E0DE124114963779 /* ShareCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9112EA9711ECC8A4CEC53D /* ShareCaptureView.swift */; };
-		02F41832A3322681501ED2A6 /* StowCLI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117F6D5238FBEDD7DDA4F0D7 /* StowCLI.swift */; };
-		071E92B783A1D45A9F2F628C /* StowShare-macOS.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 2C4CA1D0548D990E1A2C30B9 /* StowShare-macOS.appex */; };
+		0000A022020A552CD7C0E4FE /* SearchCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65609923175544A55AAF431B /* SearchCoordinator.swift */; };
+		02F41832A3322681501ED2A6 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB73C3653F14A20F8F824CAC /* Cocoa.framework */; };
+		03869120D78AA51C7E46635D /* StowCLI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3126F13DCA028092A0616FF /* StowCLI.swift */; };
+		03ED641FD6F9CCDFEDA0A6D5 /* StowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9488C505F63E73C12DEC0DDD /* StowUITests.swift */; };
+		04159F53C9D66A6EB44369C5 /* MacSettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B4B73C1069B4D2153F35D1A /* MacSettingsModels.swift */; };
 		082D29CEE8ACF133A0FE294E /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A788C3A02C767C90473AE2 /* AppModel.swift */; };
-		121BCC372F99A382F2B4CAD7 /* StowEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65609923175544A55AAF431B /* StowEnvironment.swift */; };
-		137B4B0E0758527FB3BBFD7E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D63FF3A30CD66FC6F69C4665 /* PrivacyInfo.xcprivacy */; };
-		15D1166F1EBF75006BB7021F /* StowItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EB6C816F13BF14CFFA69C7 /* StowItemDetailView.swift */; };
-		18D22349BBF50A1B0A68CED5 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88F25BA270A74D95A16A1E66 /* Cocoa.framework */; };
-		1A2E4B0B353AE15F54CC08E5 /* QuickPanelInteractionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42E1B8DDC8BF8D6E9CD4E3F9 /* QuickPanelInteractionPolicy.swift */; };
-		20040E91D435B86B5BE96D0D /* StowMacUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87559EB611D76A67B7C3F100 /* StowMacUITests.swift */; };
-		268260F7BD36B9B6A27FD979 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88F25BA270A74D95A16A1E66 /* Cocoa.framework */; };
-		288DF73937247A46479D8679 /* DirectPasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8F85AB2B2B8C312C6807D6 /* DirectPasteService.swift */; };
-		293FE42FD8747627690B68A3 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = A5111F307BE4DFA431F98260 /* StowCore */; };
-		2A50B7C5E2381A382DCB09A4 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B4DCA92EEDEC4752023861 /* ShareViewController.swift */; };
-		2A615329E3B3562FD933D24E /* StowAutomationHostServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20861C0C7D42B4D7AE5436A5 /* StowAutomationHostServiceTests.swift */; };
-		2BC1E3DB2E1DDFCC2A484AAD /* StowAutomationHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A5337097E5F31A93A2033B /* StowAutomationHostService.swift */; };
-		2E745EA8446DDF61C91C6B51 /* MacAppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2D74B59FF32398BE1C3BC9 /* MacAppCoordinator.swift */; };
-		3587364194B208AF10331645 /* QuickAddView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 642C909D2A33BCFA13AED8BF /* QuickAddView.swift */; };
-		36B7D47042399432C651013E /* StowShare-iOS.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 909F664C7DE4664231DE0DDA /* StowShare-iOS.appex */; };
-		39DFBFD7338E2874A2239D6E /* PlatformActionsPasteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88BBBA7F5A5C0A8B4EBD08C8 /* PlatformActionsPasteTests.swift */; };
+		0CC25AF3F07CE83453CCC6AA /* StowShare-iOS.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = EAAEDFA2CD3B9F2AD9D3ADEF /* StowShare-iOS.appex */; };
+		121BCC372F99A382F2B4CAD7 /* PlatformActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4A54AE40FC6465A7533342 /* PlatformActions.swift */; };
+		137B4B0E0758527FB3BBFD7E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 81EC5FE39BFDCBA8F8F62A1E /* PrivacyInfo.xcprivacy */; };
+		15D1166F1EBF75006BB7021F /* QuickAddView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 642C909D2A33BCFA13AED8BF /* QuickAddView.swift */; };
+		16AEC1F17B131C4B78B37300 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 81EC5FE39BFDCBA8F8F62A1E /* PrivacyInfo.xcprivacy */; };
+		173118C86FEDD468E0A1834D /* RetrievalPastePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0891392F0F09730234B8CD5 /* RetrievalPastePolicyTests.swift */; };
+		1F9F9F6B2E421C9F487757F1 /* StowSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1EBB22F5F7039DDD1E4C99C /* StowSettingsView.swift */; };
+		20040E91D435B86B5BE96D0D /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB73C3653F14A20F8F824CAC /* Cocoa.framework */; };
+		2040699D34DC4691D17EC53C /* StowAutomationHostServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20305C706F19993CD27B0AB /* StowAutomationHostServiceTests.swift */; };
+		20861C0C7D42B4D7AE5436A5 /* SearchIndexRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8811DB521C3C05AA75AB215 /* SearchIndexRecoveryTests.swift */; };
+		27B7A1140B9E6274309B71DF /* StowCLIOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 293FE42FD8747627690B68A3 /* StowCLIOutput.swift */; };
+		2A50B7C5E2381A382DCB09A4 /* ShareCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B4DCA92EEDEC4752023861 /* ShareCaptureView.swift */; };
+		2BD28696172EFAF834904242 /* GlobalHotKeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E745EA8446DDF61C91C6B51 /* GlobalHotKeyService.swift */; };
+		2D2A72722E81FF057C814AB5 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 447D1E8970F5FEA7414F5D7C /* StowCore */; };
+		3009824E255176B20F234EF6 /* ShareCaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05C650E58C822B72ED72876 /* ShareCaptureModel.swift */; };
+		3199F91B513E811538896E33 /* StowShareButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9690B273E3B422F650F6EC0D /* StowShareButton.swift */; };
+		32160B1FE80E7FE187769E2B /* GlobalHotKeyServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BA26FF6642532251BA86AC /* GlobalHotKeyServiceTests.swift */; };
+		3587364194B208AF10331645 /* LinkMetadataEnricher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC9CBC468614B5247D69062 /* LinkMetadataEnricher.swift */; };
+		39F81DC4C7481BE31BAC9FD1 /* QuickPanelInteractionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4266C990498CCCCE80A37B5A /* QuickPanelInteractionPolicy.swift */; };
 		4185E44A7F618A73A764B0BB /* LinkMetadataEnricher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC9CBC468614B5247D69062 /* LinkMetadataEnricher.swift */; };
-		4266C990498CCCCE80A37B5A /* RetrievalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571648D88CEDE083A904CD5E /* RetrievalPanel.swift */; };
-		443BD966D5B29992F31F9E25 /* RetrievalPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39F81DC4C7481BE31BAC9FD1 /* RetrievalPanelController.swift */; };
-		49642C8D13298848FBCF2A98 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D36769836B9B583C2DBDF0A3 /* Foundation.framework */; };
+		42E1B8DDC8BF8D6E9CD4E3F9 /* MacVisualStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA34C017DDB8B9968355778 /* MacVisualStyle.swift */; };
 		4A78367CA533EFDF4A24CBCF /* QuickAddView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 642C909D2A33BCFA13AED8BF /* QuickAddView.swift */; };
-		4BDC4E3043365F3AA0E181E6 /* MacLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65DE82C2D88B50242DC118F1 /* MacLibraryView.swift */; };
-		5210F58E78013EB653A24411 /* MacVisualStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04159F53C9D66A6EB44369C5 /* MacVisualStyle.swift */; };
-		524FFD1DB063D5EA584BC453 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D36769836B9B583C2DBDF0A3 /* Foundation.framework */; };
-		56C5E5C38F176F1ABB8A9CB3 /* StowMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70941375C228F11F7D9C372C /* StowMacApp.swift */; };
-		57DE962389CB9CD9E199AB3B /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88F25BA270A74D95A16A1E66 /* Cocoa.framework */; };
-		6084AD12814B16C184ABFD6F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D63FF3A30CD66FC6F69C4665 /* PrivacyInfo.xcprivacy */; };
-		63732287991F47CF78A8E642 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6A269231D0AC4CBA230342CE /* Assets.xcassets */; };
-		69570EAB317871AC7D481EB8 /* StowItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EB6C816F13BF14CFFA69C7 /* StowItemDetailView.swift */; };
-		6AFCAB1BA0CC7E7801205C50 /* MacLibraryPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BD28696172EFAF834904242 /* MacLibraryPresentation.swift */; };
-		781B0389836AED519646E23B /* StowEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65609923175544A55AAF431B /* StowEnvironment.swift */; };
-		7B98E0CC1F819C99BABD6F2A /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9657CA1729E7964460D1E599 /* StowCore */; };
-		7DA07133D77A780E2040383E /* GlobalHotKeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCD997ABEE9CDC74D5E46 /* GlobalHotKeyService.swift */; };
-		81EC5FE39BFDCBA8F8F62A1E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D63FF3A30CD66FC6F69C4665 /* PrivacyInfo.xcprivacy */; };
-		8570C9E809B2BEE838315ECD /* PlatformActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4A54AE40FC6465A7533342 /* PlatformActions.swift */; };
-		8B4B73C1069B4D2153F35D1A /* MacSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0296D3DEFBC555181CD4351 /* MacSettingsView.swift */; };
-		8F81C3780BA53192C7526A6D /* ShareCaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00E9CD4640AA8DA5F6CA82D /* ShareCaptureModel.swift */; };
-		9C9E044853868B3A10789617 /* RetrievalPastePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F7230ED27654007800CC99 /* RetrievalPastePolicy.swift */; };
-		A0891392F0F09730234B8CD5 /* SearchIndexRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F132BFC993710BA2389D44C /* SearchIndexRecoveryTests.swift */; };
-		A161A39A2726A44D95CC80AD /* ShareCaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00E9CD4640AA8DA5F6CA82D /* ShareCaptureModel.swift */; };
-		A3126F13DCA028092A0616FF /* StowCLIArguments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C408365B7751A864B789F1D /* StowCLIArguments.swift */; };
-		A4F9632688769CEB8E8D03AC /* RetrievalPastePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928EF9DF210766C0C8370C11 /* RetrievalPastePolicyTests.swift */; };
-		A63F5FD5CC41C1A2F24D0403 /* StowCLIOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6660F23F777BE9A4EE938C64 /* StowCLIOutput.swift */; };
-		A6AB2DCFC7432EC9EB98C1AF /* LinkMetadataEnricher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC9CBC468614B5247D69062 /* LinkMetadataEnricher.swift */; };
+		4D52B78EE43BAC5A13212936 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E26AEA4F1C10B16C0CE3A2 /* ShareViewController.swift */; };
+		4FBA2CF41EEC1E2F46E98F83 /* MacLibraryPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BDC4E3043365F3AA0E181E6 /* MacLibraryPresentation.swift */; };
+		500C1BBFCFC4402E903DF2B6 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB363791AA22090C79D9D07 /* StowCore */; };
+		571648D88CEDE083A904CD5E /* QuickPanelClosePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2E4B0B353AE15F54CC08E5 /* QuickPanelClosePolicy.swift */; };
+		5825DF98C9B70D69A982450B /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7055BFC93122B90B4571D72D /* StowCore */; };
+		58AE85D0C91B9D1179EABF51 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = D7939A46D387B931EDA357A7 /* StowCore */; };
+		58E9B455C370359A947BF338 /* StowMacUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C2C9C60CC7B2E21F7EEB61 /* StowMacUITests.swift */; };
+		63732287991F47CF78A8E642 /* stow in Embed Stow CLI */ = {isa = PBXBuildFile; fileRef = EAEE01F6C64611BFE6E3ABC5 /* stow */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		65DE82C2D88B50242DC118F1 /* MacAppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AFCAB1BA0CC7E7801205C50 /* MacAppCoordinator.swift */; };
+		662F08B7826B526C29B01BF6 /* StowMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74A1D411A5B9CD061F1A385 /* StowMacApp.swift */; };
+		6660F23F777BE9A4EE938C64 /* StowCLIArguments.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AD6FA654A8BA85C2C822A5 /* StowCLIArguments.swift */; };
+		69570EAB317871AC7D481EB8 /* StowEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EB6C816F13BF14CFFA69C7 /* StowEnvironment.swift */; };
+		70941375C228F11F7D9C372C /* StowAutomationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BC1E3DB2E1DDFCC2A484AAD /* StowAutomationController.swift */; };
+		713E1F9C4AFB81D0F5056E37 /* PlatformActionsPasteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9AAE3D959DE9809309FB0B5 /* PlatformActionsPasteTests.swift */; };
+		73D1FDB5FCE2DAB4FA1BF38A /* StowAutomationHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56C5E5C38F176F1ABB8A9CB3 /* StowAutomationHostService.swift */; };
+		781B0389836AED519646E23B /* SearchCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65609923175544A55AAF431B /* SearchCoordinator.swift */; };
+		7B98E0CC1F819C99BABD6F2A /* StowIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9657CA1729E7964460D1E599 /* StowIOSApp.swift */; };
+		7BAF05A1E718374342238EDB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3524C6AB332196EC21353A4A /* Assets.xcassets */; };
+		80C2B28CC43A22C93D1D90D1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3524C6AB332196EC21353A4A /* Assets.xcassets */; };
+		8570C9E809B2BEE838315ECD /* ItemCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 061D790D7B2D6919DD72F0A5 /* ItemCollectionView.swift */; };
+		88BBBA7F5A5C0A8B4EBD08C8 /* MacLibraryPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDD4899E3D9881AEC8116D19 /* MacLibraryPresentationTests.swift */; };
+		8F132BFC993710BA2389D44C /* QuickPanelInteractionPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4F9632688769CEB8E8D03AC /* QuickPanelInteractionPolicyTests.swift */; };
+		928EF9DF210766C0C8370C11 /* QuickPanelClosePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46D039A98563E55B5DCBCB4 /* QuickPanelClosePolicyTests.swift */; };
+		9548A44E512CA4728F1F6455 /* ClipboardCapturePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA4C4CFED93C441F7F5667B /* ClipboardCapturePolicyTests.swift */; };
+		96BACF26E7EBB7FE1621E5EC /* ShareCaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05C650E58C822B72ED72876 /* ShareCaptureModel.swift */; };
+		98254CC13B60279F39D366E1 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = BE4970498475F2E337A37C97 /* StowCore */; };
+		99D16B4D139A504E85F533A7 /* MacSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5210F58E78013EB653A24411 /* MacSettingsView.swift */; };
+		A032EB00A95D25FEBBDBAC99 /* StowAppSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A615329E3B3562FD933D24E /* StowAppSmokeTests.swift */; };
+		A5111F307BE4DFA431F98260 /* StowCLIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63F5FD5CC41C1A2F24D0403 /* StowCLIClient.swift */; };
+		A6AB2DCFC7432EC9EB98C1AF /* CloudSyncMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F147E3BB48B5B946CE29B474 /* CloudSyncMonitor.swift */; };
 		A99B7AF63195EFEF03B5E22F /* ItemCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 061D790D7B2D6919DD72F0A5 /* ItemCollectionView.swift */; };
-		AFC4C386ECFBCA4EC3EA3C64 /* StowSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE50CB633249D9FBB7D981D /* StowSettingsView.swift */; };
-		B1EBE7D451A342C1BEED25D8 /* CloudSyncMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F147E3BB48B5B946CE29B474 /* CloudSyncMonitor.swift */; };
-		B20305C706F19993CD27B0AB /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = A032EB00A95D25FEBBDBAC99 /* StowCore */; };
-		B276616F4661F3701DF38BEC /* ItemCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 061D790D7B2D6919DD72F0A5 /* ItemCollectionView.swift */; };
-		B74A1D411A5B9CD061F1A385 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 73D1FDB5FCE2DAB4FA1BF38A /* StowCore */; };
-		B7C62B7BC894267E34EFC29F /* StowSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE50CB633249D9FBB7D981D /* StowSettingsView.swift */; };
-		B91C380B76F1026EC5F8857A /* StowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5C0DE98ABB35C2A1C56411 /* StowUITests.swift */; };
-		B9F5D2150A0AD1BA3871AD20 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88F25BA270A74D95A16A1E66 /* Cocoa.framework */; };
-		BA8BC0203B15487FFBC1AFC1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D63FF3A30CD66FC6F69C4665 /* PrivacyInfo.xcprivacy */; };
-		BAF74C77D682986981AA2D39 /* StowRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62770EB4996C3073DB0C5D8F /* StowRootView.swift */; };
-		BD2CEE72A8182D5EA32B4BFC /* StowShareButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1EBB22F5F7039DDD1E4C99C /* StowShareButton.swift */; };
-		BD603001EB08CE1AD84F86E0 /* MacSettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FBA2CF41EEC1E2F46E98F83 /* MacSettingsModels.swift */; };
-		BDA862F0948BB2AF6B6A0FEB /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BACF26E7EBB7FE1621E5EC /* ShareViewController.swift */; };
-		BF13D6B90DFC1386141F149E /* StowAutomationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85C78F25B372CE8122E5908 /* StowAutomationController.swift */; };
+		AABBCD997ABEE9CDC74D5E46 /* ClipboardCapturePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 288DF73937247A46479D8679 /* ClipboardCapturePolicy.swift */; };
+		ABFB95EA738D087F367B44B2 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7DBE43A6C71918C581D5F9DF /* StowCore */; };
+		AFC4C386ECFBCA4EC3EA3C64 /* StowEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EB6C816F13BF14CFFA69C7 /* StowEnvironment.swift */; };
+		B1EBE7D451A342C1BEED25D8 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB73C3653F14A20F8F824CAC /* Cocoa.framework */; };
+		B276616F4661F3701DF38BEC /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A788C3A02C767C90473AE2 /* AppModel.swift */; };
+		B3A5337097E5F31A93A2033B /* RetrievalPastePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF13D6B90DFC1386141F149E /* RetrievalPastePolicy.swift */; };
+		B7C62B7BC894267E34EFC29F /* StowRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE50CB633249D9FBB7D981D /* StowRootView.swift */; };
+		B85C78F25B372CE8122E5908 /* RetrievalPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C9E044853868B3A10789617 /* RetrievalPanelController.swift */; };
+		B91C380B76F1026EC5F8857A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D36769836B9B583C2DBDF0A3 /* Foundation.framework */; };
+		BAF74C77D682986981AA2D39 /* StowItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62770EB4996C3073DB0C5D8F /* StowItemDetailView.swift */; };
+		BD2CEE72A8182D5EA32B4BFC /* StowItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62770EB4996C3073DB0C5D8F /* StowItemDetailView.swift */; };
+		BDA862F0948BB2AF6B6A0FEB /* ShareCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B4DCA92EEDEC4752023861 /* ShareCaptureView.swift */; };
 		BFCC329BACC1291E451CF58C /* CloudSyncMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F147E3BB48B5B946CE29B474 /* CloudSyncMonitor.swift */; };
-		C05C650E58C822B72ED72876 /* ShareCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9112EA9711ECC8A4CEC53D /* ShareCaptureView.swift */; };
-		C187AE432F4733FD6FFE18B1 /* ClipboardCapturePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38D6A71B9F0AE1BACB3E422 /* ClipboardCapturePolicyTests.swift */; };
+		C187AE432F4733FD6FFE18B1 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB73C3653F14A20F8F824CAC /* Cocoa.framework */; };
 		C49A82B97998A654C647C4AB /* PlatformActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4A54AE40FC6465A7533342 /* PlatformActions.swift */; };
-		C5920C9752B2A448AF5CD10B /* stow in Embed Stow CLI */ = {isa = PBXBuildFile; fileRef = DA95BB2F6B765A09D9B065E2 /* stow */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		C9AAE3D959DE9809309FB0B5 /* QuickPanelClosePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1DB628DA3C756799712159F /* QuickPanelClosePolicyTests.swift */; };
-		C9BA26FF6642532251BA86AC /* MacLibraryPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9548A44E512CA4728F1F6455 /* MacLibraryPresentationTests.swift */; };
-		CA8C060E7D7676F2CE98E7F4 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4B51E86890624AE86FF65984 /* StowCore */; };
-		D11BF9657D7BF4731857B331 /* ShareCaptureModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3311808967ABA498D7E6DA8 /* ShareCaptureModelTests.swift */; };
+		C523AE6F9AD24CE8686FD0A7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 81EC5FE39BFDCBA8F8F62A1E /* PrivacyInfo.xcprivacy */; };
+		D11BF9657D7BF4731857B331 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB73C3653F14A20F8F824CAC /* Cocoa.framework */; };
 		D14406266C6BBD9F98587BD3 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D36769836B9B583C2DBDF0A3 /* Foundation.framework */; };
-		D46D039A98563E55B5DCBCB4 /* QuickPanelInteractionPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 713E1F9C4AFB81D0F5056E37 /* QuickPanelInteractionPolicyTests.swift */; };
-		D9E26AEA4F1C10B16C0CE3A2 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6AAC6B35EA8B999E976854AE /* StowCore */; };
-		DBA34C017DDB8B9968355778 /* QuickPanelClosePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99D16B4D139A504E85F533A7 /* QuickPanelClosePolicy.swift */; };
-		DEA4C4CFED93C441F7F5667B /* GlobalHotKeyServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E3E27FBE9EC95BA0A16898F /* GlobalHotKeyServiceTests.swift */; };
-		E24BCF496FDB2534023436F1 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88F25BA270A74D95A16A1E66 /* Cocoa.framework */; };
-		E93DE6BBE20208C04ECA89BC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6A269231D0AC4CBA230342CE /* Assets.xcassets */; };
-		EAEE01F6C64611BFE6E3ABC5 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88F25BA270A74D95A16A1E66 /* Cocoa.framework */; };
-		ED41C03F67A50F0A1B267E32 /* ClipboardCapturePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9F9F6B2E421C9F487757F1 /* ClipboardCapturePolicy.swift */; };
-		EDD4899E3D9881AEC8116D19 /* MacSettingsModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32160B1FE80E7FE187769E2B /* MacSettingsModelsTests.swift */; };
-		EF078FCDF21D0FA1DF9F10D0 /* ShareCaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00E9CD4640AA8DA5F6CA82D /* ShareCaptureModel.swift */; };
-		F0ED6D07067834B666E0CD1C /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 0371DB2A71163029C9B84363 /* StowCore */; };
-		F1AD1E5A72E0FF745A77BD6F /* StowShareButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1EBB22F5F7039DDD1E4C99C /* StowShareButton.swift */; };
-		F2AD6FA654A8BA85C2C822A5 /* StowCLIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03869120D78AA51C7E46635D /* StowCLIClient.swift */; };
-		F8811DB521C3C05AA75AB215 /* StowAppSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 173118C86FEDD468E0A1834D /* StowAppSmokeTests.swift */; };
-		FB73C3653F14A20F8F824CAC /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A788C3A02C767C90473AE2 /* AppModel.swift */; };
-		FD64EE610CCBC4743EAFE394 /* StowIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3199F91B513E811538896E33 /* StowIOSApp.swift */; };
+		E1F3C043D24CDEB9F7AE5F36 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 81EC5FE39BFDCBA8F8F62A1E /* PrivacyInfo.xcprivacy */; };
+		E69FEC8D6D5DE3F568D750A7 /* StowRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE50CB633249D9FBB7D981D /* StowRootView.swift */; };
+		E7F7230ED27654007800CC99 /* RetrievalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 443BD966D5B29992F31F9E25 /* RetrievalPanel.swift */; };
+		EC74EAE55CC475AF1F181090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB73C3653F14A20F8F824CAC /* Cocoa.framework */; };
+		ED41C03F67A50F0A1B267E32 /* StowShareButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9690B273E3B422F650F6EC0D /* StowShareButton.swift */; };
+		EF078FCDF21D0FA1DF9F10D0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D36769836B9B583C2DBDF0A3 /* Foundation.framework */; };
+		F0296D3DEFBC555181CD4351 /* MacLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD603001EB08CE1AD84F86E0 /* MacLibraryView.swift */; };
+		F03AEBB8168297D598236B72 /* StowShare-macOS.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 585F26011487F7F1300C21C8 /* StowShare-macOS.appex */; };
+		F0ED6D07067834B666E0CD1C /* ShareCaptureModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0371DB2A71163029C9B84363 /* ShareCaptureModelTests.swift */; };
+		F1AD1E5A72E0FF745A77BD6F /* StowSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1EBB22F5F7039DDD1E4C99C /* StowSettingsView.swift */; };
+		F1DB628DA3C756799712159F /* MacSettingsModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39DFBFD7338E2874A2239D6E /* MacSettingsModelsTests.swift */; };
+		F4FD05A591DECE17E4928A65 /* StowCore in Frameworks */ = {isa = PBXBuildFile; productRef = 0A123F75AB15183256D77A63 /* StowCore */; };
+		F5E3DD15D8FF6C335C2EDE96 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8C060E7D7676F2CE98E7F4 /* ShareViewController.swift */; };
+		FD4B30D93980AE2F28177A94 /* ShareCaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05C650E58C822B72ED72876 /* ShareCaptureModel.swift */; };
+		FE2D74B59FF32398BE1C3BC9 /* DirectPasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DA07133D77A780E2040383E /* DirectPasteService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		2040699D34DC4691D17EC53C /* PBXContainerItemProxy */ = {
+		071E92B783A1D45A9F2F628C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 09CD628746B000835BD7FAA5 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 0A123F75AB15183256D77A63;
+			remoteGlobalIDString = D5A9CF4CE2BDABE18FC81FFE;
+			remoteInfo = "StowShare-macOS";
+		};
+		22BB6C63488717FE8CC978A6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 09CD628746B000835BD7FAA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FB49305159D4C98993C01534;
 			remoteInfo = "Stow-macOS";
 		};
-		27B7A1140B9E6274309B71DF /* PBXContainerItemProxy */ = {
+		36B7D47042399432C651013E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 09CD628746B000835BD7FAA5 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 662F08B7826B526C29B01BF6;
+			remoteGlobalIDString = CC0B4946262A2CCBD2E94132;
+			remoteInfo = "StowShare-iOS";
+		};
+		4A970CCE534C065313B2EE24 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 09CD628746B000835BD7FAA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FB49305159D4C98993C01534;
+			remoteInfo = "Stow-macOS";
+		};
+		C5920C9752B2A448AF5CD10B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 09CD628746B000835BD7FAA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 04722B36F6A24EDB0CB47328;
 			remoteInfo = StowCLI;
 		};
-		3D41253378DE4C3E72DA1916 /* PBXContainerItemProxy */ = {
+		DA520B4F6B64A43DB4597EC0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 09CD628746B000835BD7FAA5 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = A441AE41BECF3A71B7CAF289;
 			remoteInfo = "Stow-iOS";
 		};
-		461158EC5E5303B98C3AB067 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 09CD628746B000835BD7FAA5 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 0A123F75AB15183256D77A63;
-			remoteInfo = "Stow-macOS";
-		};
-		4D52B78EE43BAC5A13212936 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 09CD628746B000835BD7FAA5 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E7CBF2CE99A182A6289C21E5;
-			remoteInfo = "StowShare-macOS";
-		};
-		F5E3DD15D8FF6C335C2EDE96 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 09CD628746B000835BD7FAA5 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 3524C6AB332196EC21353A4A;
-			remoteInfo = "StowShare-iOS";
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		5825DF98C9B70D69A982450B /* Embed App Extensions */ = {
+		8122A9B0C0B3F9825635FAC8 /* Embed App Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				071E92B783A1D45A9F2F628C /* StowShare-macOS.appex in Embed App Extensions */,
+				F03AEBB8168297D598236B72 /* StowShare-macOS.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		98254CC13B60279F39D366E1 /* Embed Stow CLI */ = {
+		CF0B90BD6DBDB3C2CE6F4AC6 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0CC25AF3F07CE83453CCC6AA /* StowShare-iOS.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E93DE6BBE20208C04ECA89BC /* Embed Stow CLI */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = Contents/Helpers;
 			dstSubfolderSpec = 1;
 			files = (
-				C5920C9752B2A448AF5CD10B /* stow in Embed Stow CLI */,
+				63732287991F47CF78A8E642 /* stow in Embed Stow CLI */,
 			);
 			name = "Embed Stow CLI";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		ABFB95EA738D087F367B44B2 /* Embed App Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				36B7D47042399432C651013E /* StowShare-iOS.appex in Embed App Extensions */,
-			);
-			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		03869120D78AA51C7E46635D /* StowCLIClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowCLIClient.swift; sourceTree = "<group>"; };
-		04159F53C9D66A6EB44369C5 /* MacVisualStyle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacVisualStyle.swift; sourceTree = "<group>"; };
+		0371DB2A71163029C9B84363 /* ShareCaptureModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareCaptureModelTests.swift; sourceTree = "<group>"; };
 		061D790D7B2D6919DD72F0A5 /* ItemCollectionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ItemCollectionView.swift; sourceTree = "<group>"; };
 		074E2C6917AEE20A6DD278AC /* Stow-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Stow-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		0AC9CBC468614B5247D69062 /* LinkMetadataEnricher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LinkMetadataEnricher.swift; sourceTree = "<group>"; };
-		0E5C0DE98ABB35C2A1C56411 /* StowUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowUITests.swift; sourceTree = "<group>"; };
-		117F6D5238FBEDD7DDA4F0D7 /* StowCLI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowCLI.swift; sourceTree = "<group>"; };
-		173118C86FEDD468E0A1834D /* StowAppSmokeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAppSmokeTests.swift; sourceTree = "<group>"; };
-		1B8F85AB2B2B8C312C6807D6 /* DirectPasteService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DirectPasteService.swift; sourceTree = "<group>"; };
-		1EE50CB633249D9FBB7D981D /* StowSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowSettingsView.swift; sourceTree = "<group>"; };
-		1F9F9F6B2E421C9F487757F1 /* ClipboardCapturePolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClipboardCapturePolicy.swift; sourceTree = "<group>"; };
-		20861C0C7D42B4D7AE5436A5 /* StowAutomationHostServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAutomationHostServiceTests.swift; sourceTree = "<group>"; };
-		2815E820FBD0EA174CB9F54E /* StowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StowUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		2BD28696172EFAF834904242 /* MacLibraryPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacLibraryPresentation.swift; sourceTree = "<group>"; };
-		2C4CA1D0548D990E1A2C30B9 /* StowShare-macOS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "StowShare-macOS.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
-		31570F054C36C78AEAA1A56C /* StowCLI.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = StowCLI.entitlements; sourceTree = "<group>"; };
-		3199F91B513E811538896E33 /* StowIOSApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowIOSApp.swift; sourceTree = "<group>"; };
-		32160B1FE80E7FE187769E2B /* MacSettingsModelsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacSettingsModelsTests.swift; sourceTree = "<group>"; };
-		3615FF1EAB9D63268DBC1A84 /* StowShare-iOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "StowShare-iOS.entitlements"; sourceTree = "<group>"; };
-		39F81DC4C7481BE31BAC9FD1 /* RetrievalPanelController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPanelController.swift; sourceTree = "<group>"; };
-		42E1B8DDC8BF8D6E9CD4E3F9 /* QuickPanelInteractionPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelInteractionPolicy.swift; sourceTree = "<group>"; };
-		457C662C381306E956260BB4 /* StowShare-macOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "StowShare-macOS.entitlements"; sourceTree = "<group>"; };
-		4A970CCE534C065313B2EE24 /* macOS-App-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "macOS-App-Info.plist"; sourceTree = "<group>"; };
-		4E3E27FBE9EC95BA0A16898F /* GlobalHotKeyServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyServiceTests.swift; sourceTree = "<group>"; };
-		4F0E3384367AA42397F5CD19 /* StowMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StowMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		4FBA2CF41EEC1E2F46E98F83 /* MacSettingsModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacSettingsModels.swift; sourceTree = "<group>"; };
-		571648D88CEDE083A904CD5E /* RetrievalPanel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPanel.swift; sourceTree = "<group>"; };
-		58E9B455C370359A947BF338 /* iOS-App-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "iOS-App-Info.plist"; sourceTree = "<group>"; };
-		5AA4E3F88A701621CF669EE0 /* StowAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StowAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		61DA884D5357A0305F36D0EE /* Stow-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Stow-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		62770EB4996C3073DB0C5D8F /* StowRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowRootView.swift; sourceTree = "<group>"; };
+		0D5A78160EFA0D3BA090CDB7 /* StowShareTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StowShareTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1A2E4B0B353AE15F54CC08E5 /* QuickPanelClosePolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelClosePolicy.swift; sourceTree = "<group>"; };
+		1EE50CB633249D9FBB7D981D /* StowRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowRootView.swift; sourceTree = "<group>"; };
+		288DF73937247A46479D8679 /* ClipboardCapturePolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClipboardCapturePolicy.swift; sourceTree = "<group>"; };
+		293FE42FD8747627690B68A3 /* StowCLIOutput.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowCLIOutput.swift; sourceTree = "<group>"; };
+		2A615329E3B3562FD933D24E /* StowAppSmokeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAppSmokeTests.swift; sourceTree = "<group>"; };
+		2BC1E3DB2E1DDFCC2A484AAD /* StowAutomationController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAutomationController.swift; sourceTree = "<group>"; };
+		2E745EA8446DDF61C91C6B51 /* GlobalHotKeyService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyService.swift; sourceTree = "<group>"; };
+		31570F054C36C78AEAA1A56C /* Test-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Test-Info.plist"; sourceTree = "<group>"; };
+		3524C6AB332196EC21353A4A /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3615FF1EAB9D63268DBC1A84 /* Stow-iOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "Stow-iOS.entitlements"; sourceTree = "<group>"; };
+		39DFBFD7338E2874A2239D6E /* MacSettingsModelsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacSettingsModelsTests.swift; sourceTree = "<group>"; };
+		4266C990498CCCCE80A37B5A /* QuickPanelInteractionPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelInteractionPolicy.swift; sourceTree = "<group>"; };
+		443BD966D5B29992F31F9E25 /* RetrievalPanel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPanel.swift; sourceTree = "<group>"; };
+		457C662C381306E956260BB4 /* Stow-macOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "Stow-macOS.entitlements"; sourceTree = "<group>"; };
+		4BDC4E3043365F3AA0E181E6 /* MacLibraryPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacLibraryPresentation.swift; sourceTree = "<group>"; };
+		5210F58E78013EB653A24411 /* MacSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacSettingsView.swift; sourceTree = "<group>"; };
+		56C5E5C38F176F1ABB8A9CB3 /* StowAutomationHostService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAutomationHostService.swift; sourceTree = "<group>"; };
+		585F26011487F7F1300C21C8 /* StowShare-macOS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "StowShare-macOS.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6084AD12814B16C184ABFD6F /* StowShare-macOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "StowShare-macOS.entitlements"; sourceTree = "<group>"; };
+		62770EB4996C3073DB0C5D8F /* StowItemDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowItemDetailView.swift; sourceTree = "<group>"; };
 		642C909D2A33BCFA13AED8BF /* QuickAddView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickAddView.swift; sourceTree = "<group>"; };
-		65609923175544A55AAF431B /* StowEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowEnvironment.swift; sourceTree = "<group>"; };
-		65DE82C2D88B50242DC118F1 /* MacLibraryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacLibraryView.swift; sourceTree = "<group>"; };
-		6660F23F777BE9A4EE938C64 /* StowCLIOutput.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowCLIOutput.swift; sourceTree = "<group>"; };
-		6A269231D0AC4CBA230342CE /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		6D588B86F57C9C8E6BA280CC /* Stow-macOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "Stow-macOS.entitlements"; sourceTree = "<group>"; };
-		70941375C228F11F7D9C372C /* StowMacApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowMacApp.swift; sourceTree = "<group>"; };
-		713E1F9C4AFB81D0F5056E37 /* QuickPanelInteractionPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelInteractionPolicyTests.swift; sourceTree = "<group>"; };
-		71B4DCA92EEDEC4752023861 /* ShareViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
-		7C408365B7751A864B789F1D /* StowCLIArguments.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowCLIArguments.swift; sourceTree = "<group>"; };
-		87559EB611D76A67B7C3F100 /* StowMacUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowMacUITests.swift; sourceTree = "<group>"; };
-		88BBBA7F5A5C0A8B4EBD08C8 /* PlatformActionsPasteTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlatformActionsPasteTests.swift; sourceTree = "<group>"; };
-		88F25BA270A74D95A16A1E66 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
-		8F132BFC993710BA2389D44C /* SearchIndexRecoveryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchIndexRecoveryTests.swift; sourceTree = "<group>"; };
-		909F664C7DE4664231DE0DDA /* StowShare-iOS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "StowShare-iOS.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
-		928EF9DF210766C0C8370C11 /* RetrievalPastePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPastePolicyTests.swift; sourceTree = "<group>"; };
-		9548A44E512CA4728F1F6455 /* MacLibraryPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacLibraryPresentationTests.swift; sourceTree = "<group>"; };
-		96BACF26E7EBB7FE1621E5EC /* ShareViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
-		99D16B4D139A504E85F533A7 /* QuickPanelClosePolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelClosePolicy.swift; sourceTree = "<group>"; };
-		A38D6A71B9F0AE1BACB3E422 /* ClipboardCapturePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClipboardCapturePolicyTests.swift; sourceTree = "<group>"; };
-		AABBCD997ABEE9CDC74D5E46 /* GlobalHotKeyService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyService.swift; sourceTree = "<group>"; };
-		B1EBB22F5F7039DDD1E4C99C /* StowShareButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowShareButton.swift; sourceTree = "<group>"; };
-		B3311808967ABA498D7E6DA8 /* ShareCaptureModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareCaptureModelTests.swift; sourceTree = "<group>"; };
-		B3A5337097E5F31A93A2033B /* StowAutomationHostService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAutomationHostService.swift; sourceTree = "<group>"; };
-		B85C78F25B372CE8122E5908 /* StowAutomationController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAutomationController.swift; sourceTree = "<group>"; };
-		C1EF460DD5C886149879FA9A /* Test-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Test-Info.plist"; sourceTree = "<group>"; };
-		CA45542BDE1B0C73D7AE584C /* StowShareTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StowShareTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D09D7216313DFFE4A6BD6F9A /* Stow-iOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "Stow-iOS.entitlements"; sourceTree = "<group>"; };
+		65609923175544A55AAF431B /* SearchCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchCoordinator.swift; sourceTree = "<group>"; };
+		6AFCAB1BA0CC7E7801205C50 /* MacAppCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacAppCoordinator.swift; sourceTree = "<group>"; };
+		6D588B86F57C9C8E6BA280CC /* macOS-Share-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "macOS-Share-Info.plist"; sourceTree = "<group>"; };
+		71B4DCA92EEDEC4752023861 /* ShareCaptureView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareCaptureView.swift; sourceTree = "<group>"; };
+		7DA07133D77A780E2040383E /* DirectPasteService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DirectPasteService.swift; sourceTree = "<group>"; };
+		81EC5FE39BFDCBA8F8F62A1E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		83CBDEFD5C405A0C3ECEBE29 /* StowAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StowAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8B4B73C1069B4D2153F35D1A /* MacSettingsModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacSettingsModels.swift; sourceTree = "<group>"; };
+		9488C505F63E73C12DEC0DDD /* StowUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowUITests.swift; sourceTree = "<group>"; };
+		9657CA1729E7964460D1E599 /* StowIOSApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowIOSApp.swift; sourceTree = "<group>"; };
+		9690B273E3B422F650F6EC0D /* StowShareButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowShareButton.swift; sourceTree = "<group>"; };
+		9C9E044853868B3A10789617 /* RetrievalPanelController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPanelController.swift; sourceTree = "<group>"; };
+		A0891392F0F09730234B8CD5 /* RetrievalPastePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPastePolicyTests.swift; sourceTree = "<group>"; };
+		A0F598A9652989C3BBF26AB1 /* StowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StowUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3126F13DCA028092A0616FF /* StowCLI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowCLI.swift; sourceTree = "<group>"; };
+		A4F9632688769CEB8E8D03AC /* QuickPanelInteractionPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelInteractionPolicyTests.swift; sourceTree = "<group>"; };
+		A63F5FD5CC41C1A2F24D0403 /* StowCLIClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowCLIClient.swift; sourceTree = "<group>"; };
+		B1EBB22F5F7039DDD1E4C99C /* StowSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowSettingsView.swift; sourceTree = "<group>"; };
+		B20305C706F19993CD27B0AB /* StowAutomationHostServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowAutomationHostServiceTests.swift; sourceTree = "<group>"; };
+		B74A1D411A5B9CD061F1A385 /* StowMacApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowMacApp.swift; sourceTree = "<group>"; };
+		B7C2C9C60CC7B2E21F7EEB61 /* StowMacUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowMacUITests.swift; sourceTree = "<group>"; };
+		BA8BC0203B15487FFBC1AFC1 /* StowShare-iOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "StowShare-iOS.entitlements"; sourceTree = "<group>"; };
+		BD603001EB08CE1AD84F86E0 /* MacLibraryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacLibraryView.swift; sourceTree = "<group>"; };
+		BF13D6B90DFC1386141F149E /* RetrievalPastePolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPastePolicy.swift; sourceTree = "<group>"; };
+		C05C650E58C822B72ED72876 /* ShareCaptureModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareCaptureModel.swift; sourceTree = "<group>"; };
+		C1EF460DD5C886149879FA9A /* macOS-App-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "macOS-App-Info.plist"; sourceTree = "<group>"; };
+		C9AAE3D959DE9809309FB0B5 /* PlatformActionsPasteTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlatformActionsPasteTests.swift; sourceTree = "<group>"; };
+		C9BA26FF6642532251BA86AC /* GlobalHotKeyServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyServiceTests.swift; sourceTree = "<group>"; };
+		CA8C060E7D7676F2CE98E7F4 /* ShareViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		D09D7216313DFFE4A6BD6F9A /* iOS-Share-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "iOS-Share-Info.plist"; sourceTree = "<group>"; };
 		D36769836B9B583C2DBDF0A3 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		D63FF3A30CD66FC6F69C4665 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		DA95BB2F6B765A09D9B065E2 /* stow */ = {isa = PBXFileReference; includeInIndex = 0; name = stow; path = stow; sourceTree = BUILT_PRODUCTS_DIR; };
-		E7EB6C816F13BF14CFFA69C7 /* StowItemDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowItemDetailView.swift; sourceTree = "<group>"; };
-		E7F7230ED27654007800CC99 /* RetrievalPastePolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetrievalPastePolicy.swift; sourceTree = "<group>"; };
-		EA9112EA9711ECC8A4CEC53D /* ShareCaptureView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareCaptureView.swift; sourceTree = "<group>"; };
+		D46D039A98563E55B5DCBCB4 /* QuickPanelClosePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelClosePolicyTests.swift; sourceTree = "<group>"; };
+		D63FF3A30CD66FC6F69C4665 /* StowCLI.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = StowCLI.entitlements; sourceTree = "<group>"; };
+		D9E26AEA4F1C10B16C0CE3A2 /* ShareViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		DBA34C017DDB8B9968355778 /* MacVisualStyle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacVisualStyle.swift; sourceTree = "<group>"; };
+		DEA4C4CFED93C441F7F5667B /* ClipboardCapturePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClipboardCapturePolicyTests.swift; sourceTree = "<group>"; };
+		E7EB6C816F13BF14CFFA69C7 /* StowEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowEnvironment.swift; sourceTree = "<group>"; };
+		EAAEDFA2CD3B9F2AD9D3ADEF /* StowShare-iOS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "StowShare-iOS.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EAEE01F6C64611BFE6E3ABC5 /* stow */ = {isa = PBXFileReference; includeInIndex = 0; name = stow; path = stow; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC4A54AE40FC6465A7533342 /* PlatformActions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlatformActions.swift; sourceTree = "<group>"; };
-		F00E9CD4640AA8DA5F6CA82D /* ShareCaptureModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareCaptureModel.swift; sourceTree = "<group>"; };
-		F0296D3DEFBC555181CD4351 /* MacSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacSettingsView.swift; sourceTree = "<group>"; };
-		F0D9B9C55D4EC532EBCF9E2A /* iOS-Share-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "iOS-Share-Info.plist"; sourceTree = "<group>"; };
+		EDD4899E3D9881AEC8116D19 /* MacLibraryPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacLibraryPresentationTests.swift; sourceTree = "<group>"; };
 		F147E3BB48B5B946CE29B474 /* CloudSyncMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CloudSyncMonitor.swift; sourceTree = "<group>"; };
 		F1A788C3A02C767C90473AE2 /* AppModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
-		F1DB628DA3C756799712159F /* QuickPanelClosePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickPanelClosePolicyTests.swift; sourceTree = "<group>"; };
-		F60EDE6BC940871DACF52608 /* macOS-Share-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "macOS-Share-Info.plist"; sourceTree = "<group>"; };
-		FE2D74B59FF32398BE1C3BC9 /* MacAppCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacAppCoordinator.swift; sourceTree = "<group>"; };
+		F2AD6FA654A8BA85C2C822A5 /* StowCLIArguments.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StowCLIArguments.swift; sourceTree = "<group>"; };
+		F363D1CF5D907F3401B55EF3 /* Stow-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Stow-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F60EDE6BC940871DACF52608 /* iOS-App-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "iOS-App-Info.plist"; sourceTree = "<group>"; };
+		F8811DB521C3C05AA75AB215 /* SearchIndexRecoveryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchIndexRecoveryTests.swift; sourceTree = "<group>"; };
+		FB73C3653F14A20F8F824CAC /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
+		FD2C9C90F741C078F300FFDB /* StowMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StowMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		12A67A6C33E0FA7014422E06 /* Frameworks */ = {
+		117F6D5238FBEDD7DDA4F0D7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				524FFD1DB063D5EA584BC453 /* Foundation.framework in Frameworks */,
-				CA8C060E7D7676F2CE98E7F4 /* StowCore in Frameworks */,
+				02F41832A3322681501ED2A6 /* Cocoa.framework in Frameworks */,
+				98254CC13B60279F39D366E1 /* StowCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3FC668A6993235FAC41BA43D /* Frameworks */ = {
+		1BBF5C7C7098F614632BC985 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				57DE962389CB9CD9E199AB3B /* Cocoa.framework in Frameworks */,
-				D9E26AEA4F1C10B16C0CE3A2 /* StowCore in Frameworks */,
+				D11BF9657D7BF4731857B331 /* Cocoa.framework in Frameworks */,
+				500C1BBFCFC4402E903DF2B6 /* StowCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		712173A238D42D732161F9AD /* Frameworks */ = {
+		22B502E9422511D5623FD2E9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				18D22349BBF50A1B0A68CED5 /* Cocoa.framework in Frameworks */,
-				F0ED6D07067834B666E0CD1C /* StowCore in Frameworks */,
+				20040E91D435B86B5BE96D0D /* Cocoa.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		93B6B9B1B5DD15BFB3832C2E /* Frameworks */ = {
+		53F61275A5381D01A9B277BF /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B9F5D2150A0AD1BA3871AD20 /* Cocoa.framework in Frameworks */,
-				B20305C706F19993CD27B0AB /* StowCore in Frameworks */,
+				C187AE432F4733FD6FFE18B1 /* Cocoa.framework in Frameworks */,
+				2D2A72722E81FF057C814AB5 /* StowCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A16A5690F16B112D591F8587 /* Frameworks */ = {
+		7DAF7A9598D9FE73B0B91304 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				268260F7BD36B9B6A27FD979 /* Cocoa.framework in Frameworks */,
+				EF078FCDF21D0FA1DF9F10D0 /* Foundation.framework in Frameworks */,
+				ABFB95EA738D087F367B44B2 /* StowCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8F81C3780BA53192C7526A6D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EC74EAE55CC475AF1F181090 /* Cocoa.framework in Frameworks */,
+				5825DF98C9B70D69A982450B /* StowCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A4AFDB712C09838BCCACA16A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1EBE7D451A342C1BEED25D8 /* Cocoa.framework in Frameworks */,
+				58AE85D0C91B9D1179EABF51 /* StowCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -307,71 +328,87 @@
 			buildActionMask = 2147483647;
 			files = (
 				D14406266C6BBD9F98587BD3 /* Foundation.framework in Frameworks */,
-				7B98E0CC1F819C99BABD6F2A /* StowCore in Frameworks */,
+				F4FD05A591DECE17E4928A65 /* StowCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B299554E793B70AAC1FAA217 /* Frameworks */ = {
+		E4C75F01D268010919EF5BC0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				49642C8D13298848FBCF2A98 /* Foundation.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		B967F1C79A0D60966EC96A48 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				EAEE01F6C64611BFE6E3ABC5 /* Cocoa.framework in Frameworks */,
-				293FE42FD8747627690B68A3 /* StowCore in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		F363D1CF5D907F3401B55EF3 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				E24BCF496FDB2534023436F1 /* Cocoa.framework in Frameworks */,
-				B74A1D411A5B9CD061F1A385 /* StowCore in Frameworks */,
+				B91C380B76F1026EC5F8857A /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		1BBF5C7C7098F614632BC985 /* StowShareTests */ = {
+		1B8F85AB2B2B8C312C6807D6 /* macOS */ = {
 			isa = PBXGroup;
 			children = (
-				B3311808967ABA498D7E6DA8 /* ShareCaptureModelTests.swift */,
+				288DF73937247A46479D8679 /* ClipboardCapturePolicy.swift */,
+				7DA07133D77A780E2040383E /* DirectPasteService.swift */,
+				2E745EA8446DDF61C91C6B51 /* GlobalHotKeyService.swift */,
+				6AFCAB1BA0CC7E7801205C50 /* MacAppCoordinator.swift */,
+				4BDC4E3043365F3AA0E181E6 /* MacLibraryPresentation.swift */,
+				BD603001EB08CE1AD84F86E0 /* MacLibraryView.swift */,
+				8B4B73C1069B4D2153F35D1A /* MacSettingsModels.swift */,
+				5210F58E78013EB653A24411 /* MacSettingsView.swift */,
+				DBA34C017DDB8B9968355778 /* MacVisualStyle.swift */,
+				1A2E4B0B353AE15F54CC08E5 /* QuickPanelClosePolicy.swift */,
+				4266C990498CCCCE80A37B5A /* QuickPanelInteractionPolicy.swift */,
+				443BD966D5B29992F31F9E25 /* RetrievalPanel.swift */,
+				9C9E044853868B3A10789617 /* RetrievalPanelController.swift */,
+				BF13D6B90DFC1386141F149E /* RetrievalPastePolicy.swift */,
+				2BC1E3DB2E1DDFCC2A484AAD /* StowAutomationController.swift */,
+				56C5E5C38F176F1ABB8A9CB3 /* StowAutomationHostService.swift */,
+				B74A1D411A5B9CD061F1A385 /* StowMacApp.swift */,
 			);
-			name = StowShareTests;
-			path = StowShareTests;
+			name = macOS;
+			path = StowApp/macOS;
 			sourceTree = "<group>";
 		};
-		22B502E9422511D5623FD2E9 /* StowMacUITests */ = {
+		3D41253378DE4C3E72DA1916 /* StowUITests */ = {
 			isa = PBXGroup;
 			children = (
-				87559EB611D76A67B7C3F100 /* StowMacUITests.swift */,
+				9488C505F63E73C12DEC0DDD /* StowUITests.swift */,
+			);
+			name = StowUITests;
+			path = StowUITests;
+			sourceTree = "<group>";
+		};
+		461158EC5E5303B98C3AB067 /* StowMacUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B7C2C9C60CC7B2E21F7EEB61 /* StowMacUITests.swift */,
 			);
 			name = StowMacUITests;
 			path = StowMacUITests;
 			sourceTree = "<group>";
 		};
-		53F61275A5381D01A9B277BF /* StowAppTests */ = {
+		4B51E86890624AE86FF65984 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
-				A38D6A71B9F0AE1BACB3E422 /* ClipboardCapturePolicyTests.swift */,
-				4E3E27FBE9EC95BA0A16898F /* GlobalHotKeyServiceTests.swift */,
-				9548A44E512CA4728F1F6455 /* MacLibraryPresentationTests.swift */,
-				32160B1FE80E7FE187769E2B /* MacSettingsModelsTests.swift */,
-				88BBBA7F5A5C0A8B4EBD08C8 /* PlatformActionsPasteTests.swift */,
-				F1DB628DA3C756799712159F /* QuickPanelClosePolicyTests.swift */,
-				713E1F9C4AFB81D0F5056E37 /* QuickPanelInteractionPolicyTests.swift */,
-				928EF9DF210766C0C8370C11 /* RetrievalPastePolicyTests.swift */,
-				8F132BFC993710BA2389D44C /* SearchIndexRecoveryTests.swift */,
-				173118C86FEDD468E0A1834D /* StowAppSmokeTests.swift */,
-				20861C0C7D42B4D7AE5436A5 /* StowAutomationHostServiceTests.swift */,
+				CA8C060E7D7676F2CE98E7F4 /* ShareViewController.swift */,
+			);
+			name = iOS;
+			path = StowShare/iOS;
+			sourceTree = "<group>";
+		};
+		4E3E27FBE9EC95BA0A16898F /* StowAppTests */ = {
+			isa = PBXGroup;
+			children = (
+				DEA4C4CFED93C441F7F5667B /* ClipboardCapturePolicyTests.swift */,
+				C9BA26FF6642532251BA86AC /* GlobalHotKeyServiceTests.swift */,
+				EDD4899E3D9881AEC8116D19 /* MacLibraryPresentationTests.swift */,
+				39DFBFD7338E2874A2239D6E /* MacSettingsModelsTests.swift */,
+				C9AAE3D959DE9809309FB0B5 /* PlatformActionsPasteTests.swift */,
+				D46D039A98563E55B5DCBCB4 /* QuickPanelClosePolicyTests.swift */,
+				A4F9632688769CEB8E8D03AC /* QuickPanelInteractionPolicyTests.swift */,
+				A0891392F0F09730234B8CD5 /* RetrievalPastePolicyTests.swift */,
+				F8811DB521C3C05AA75AB215 /* SearchIndexRecoveryTests.swift */,
+				2A615329E3B3562FD933D24E /* StowAppSmokeTests.swift */,
+				B20305C706F19993CD27B0AB /* StowAutomationHostServiceTests.swift */,
 			);
 			name = StowAppTests;
 			path = StowAppTests;
@@ -380,7 +417,7 @@
 		5AFE86524C94F5957A625C4B /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				6A269231D0AC4CBA230342CE /* Assets.xcassets */,
+				3524C6AB332196EC21353A4A /* Assets.xcassets */,
 			);
 			name = Resources;
 			path = Resources;
@@ -395,14 +432,24 @@
 				0AC9CBC468614B5247D69062 /* LinkMetadataEnricher.swift */,
 				EC4A54AE40FC6465A7533342 /* PlatformActions.swift */,
 				642C909D2A33BCFA13AED8BF /* QuickAddView.swift */,
-				65609923175544A55AAF431B /* StowEnvironment.swift */,
-				E7EB6C816F13BF14CFFA69C7 /* StowItemDetailView.swift */,
-				62770EB4996C3073DB0C5D8F /* StowRootView.swift */,
-				1EE50CB633249D9FBB7D981D /* StowSettingsView.swift */,
-				B1EBB22F5F7039DDD1E4C99C /* StowShareButton.swift */,
+				65609923175544A55AAF431B /* SearchCoordinator.swift */,
+				E7EB6C816F13BF14CFFA69C7 /* StowEnvironment.swift */,
+				62770EB4996C3073DB0C5D8F /* StowItemDetailView.swift */,
+				1EE50CB633249D9FBB7D981D /* StowRootView.swift */,
+				B1EBB22F5F7039DDD1E4C99C /* StowSettingsView.swift */,
+				9690B273E3B422F650F6EC0D /* StowShareButton.swift */,
 			);
 			name = Shared;
 			path = StowApp/Shared;
+			sourceTree = "<group>";
+		};
+		6AAC6B35EA8B999E976854AE /* macOS */ = {
+			isa = PBXGroup;
+			children = (
+				D9E26AEA4F1C10B16C0CE3A2 /* ShareViewController.swift */,
+			);
+			name = macOS;
+			path = StowShare/macOS;
 			sourceTree = "<group>";
 		};
 		78058F75C5DA47EEFDDB6ADD = {
@@ -414,32 +461,34 @@
 				9A26247E8D6CB7A9706BDF2E /* Tests */,
 				C01B090543476E617E65F227 /* Configuration */,
 				5AFE86524C94F5957A625C4B /* Resources */,
-				8B39A3D3B7396B470776763B /* StowCLI */,
+				7C408365B7751A864B789F1D /* StowCLI */,
 			);
 			sourceTree = "<group>";
 		};
-		7DAF7A9598D9FE73B0B91304 /* Shared */ = {
+		7C408365B7751A864B789F1D /* StowCLI */ = {
 			isa = PBXGroup;
 			children = (
-				F00E9CD4640AA8DA5F6CA82D /* ShareCaptureModel.swift */,
-				EA9112EA9711ECC8A4CEC53D /* ShareCaptureView.swift */,
+				A3126F13DCA028092A0616FF /* StowCLI.swift */,
+				F2AD6FA654A8BA85C2C822A5 /* StowCLIArguments.swift */,
+				A63F5FD5CC41C1A2F24D0403 /* StowCLIClient.swift */,
+				293FE42FD8747627690B68A3 /* StowCLIOutput.swift */,
 			);
-			name = Shared;
-			path = StowShare/Shared;
+			name = StowCLI;
+			path = Packages/StowCore/Sources/StowCLI;
 			sourceTree = "<group>";
 		};
 		7F7EB6523FD779BA04AF07CA /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				074E2C6917AEE20A6DD278AC /* Stow-iOS.app */,
-				61DA884D5357A0305F36D0EE /* Stow-macOS.app */,
-				DA95BB2F6B765A09D9B065E2 /* stow */,
-				909F664C7DE4664231DE0DDA /* StowShare-iOS.appex */,
-				2C4CA1D0548D990E1A2C30B9 /* StowShare-macOS.appex */,
-				5AA4E3F88A701621CF669EE0 /* StowAppTests.xctest */,
-				CA45542BDE1B0C73D7AE584C /* StowShareTests.xctest */,
-				2815E820FBD0EA174CB9F54E /* StowUITests.xctest */,
-				4F0E3384367AA42397F5CD19 /* StowMacUITests.xctest */,
+				F363D1CF5D907F3401B55EF3 /* Stow-macOS.app */,
+				EAEE01F6C64611BFE6E3ABC5 /* stow */,
+				EAAEDFA2CD3B9F2AD9D3ADEF /* StowShare-iOS.appex */,
+				585F26011487F7F1300C21C8 /* StowShare-macOS.appex */,
+				83CBDEFD5C405A0C3ECEBE29 /* StowAppTests.xctest */,
+				0D5A78160EFA0D3BA090CDB7 /* StowShareTests.xctest */,
+				A0F598A9652989C3BBF26AB1 /* StowUITests.xctest */,
+				FD2C9C90F741C078F300FFDB /* StowMacUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -448,71 +497,51 @@
 			isa = PBXGroup;
 			children = (
 				5FB44A67206DCCFC7FB84AAB /* Shared */,
-				9690B273E3B422F650F6EC0D /* iOS */,
-				E69FEC8D6D5DE3F568D750A7 /* macOS */,
-				7DAF7A9598D9FE73B0B91304 /* Shared */,
-				FD4B30D93980AE2F28177A94 /* iOS */,
-				EC74EAE55CC475AF1F181090 /* macOS */,
+				FD64EE610CCBC4743EAFE394 /* iOS */,
+				1B8F85AB2B2B8C312C6807D6 /* macOS */,
+				EA9112EA9711ECC8A4CEC53D /* Shared */,
+				4B51E86890624AE86FF65984 /* iOS */,
+				6AAC6B35EA8B999E976854AE /* macOS */,
 			);
 			name = Sources;
 			path = Sources;
 			sourceTree = "<group>";
 		};
-		8B39A3D3B7396B470776763B /* StowCLI */ = {
-			isa = PBXGroup;
-			children = (
-				117F6D5238FBEDD7DDA4F0D7 /* StowCLI.swift */,
-				7C408365B7751A864B789F1D /* StowCLIArguments.swift */,
-				03869120D78AA51C7E46635D /* StowCLIClient.swift */,
-				6660F23F777BE9A4EE938C64 /* StowCLIOutput.swift */,
-			);
-			name = StowCLI;
-			path = Packages/StowCore/Sources/StowCLI;
-			sourceTree = "<group>";
-		};
-		9690B273E3B422F650F6EC0D /* iOS */ = {
-			isa = PBXGroup;
-			children = (
-				3199F91B513E811538896E33 /* StowIOSApp.swift */,
-			);
-			name = iOS;
-			path = StowApp/iOS;
-			sourceTree = "<group>";
-		};
 		9A26247E8D6CB7A9706BDF2E /* Tests */ = {
 			isa = PBXGroup;
 			children = (
-				53F61275A5381D01A9B277BF /* StowAppTests */,
-				1BBF5C7C7098F614632BC985 /* StowShareTests */,
-				E4C75F01D268010919EF5BC0 /* StowUITests */,
-				22B502E9422511D5623FD2E9 /* StowMacUITests */,
+				4E3E27FBE9EC95BA0A16898F /* StowAppTests */,
+				A161A39A2726A44D95CC80AD /* StowShareTests */,
+				3D41253378DE4C3E72DA1916 /* StowUITests */,
+				461158EC5E5303B98C3AB067 /* StowMacUITests */,
 			);
 			name = Tests;
 			path = Tests;
 			sourceTree = "<group>";
 		};
-		A4AFDB712C09838BCCACA16A /* OS X */ = {
+		A161A39A2726A44D95CC80AD /* StowShareTests */ = {
 			isa = PBXGroup;
 			children = (
-				88F25BA270A74D95A16A1E66 /* Cocoa.framework */,
+				0371DB2A71163029C9B84363 /* ShareCaptureModelTests.swift */,
 			);
-			name = "OS X";
+			name = StowShareTests;
+			path = StowShareTests;
 			sourceTree = "<group>";
 		};
 		C01B090543476E617E65F227 /* Configuration */ = {
 			isa = PBXGroup;
 			children = (
-				58E9B455C370359A947BF338 /* iOS-App-Info.plist */,
-				4A970CCE534C065313B2EE24 /* macOS-App-Info.plist */,
-				F0D9B9C55D4EC532EBCF9E2A /* iOS-Share-Info.plist */,
-				F60EDE6BC940871DACF52608 /* macOS-Share-Info.plist */,
-				C1EF460DD5C886149879FA9A /* Test-Info.plist */,
-				D09D7216313DFFE4A6BD6F9A /* Stow-iOS.entitlements */,
-				6D588B86F57C9C8E6BA280CC /* Stow-macOS.entitlements */,
-				31570F054C36C78AEAA1A56C /* StowCLI.entitlements */,
-				3615FF1EAB9D63268DBC1A84 /* StowShare-iOS.entitlements */,
-				457C662C381306E956260BB4 /* StowShare-macOS.entitlements */,
-				D63FF3A30CD66FC6F69C4665 /* PrivacyInfo.xcprivacy */,
+				F60EDE6BC940871DACF52608 /* iOS-App-Info.plist */,
+				C1EF460DD5C886149879FA9A /* macOS-App-Info.plist */,
+				D09D7216313DFFE4A6BD6F9A /* iOS-Share-Info.plist */,
+				6D588B86F57C9C8E6BA280CC /* macOS-Share-Info.plist */,
+				31570F054C36C78AEAA1A56C /* Test-Info.plist */,
+				3615FF1EAB9D63268DBC1A84 /* Stow-iOS.entitlements */,
+				457C662C381306E956260BB4 /* Stow-macOS.entitlements */,
+				D63FF3A30CD66FC6F69C4665 /* StowCLI.entitlements */,
+				BA8BC0203B15487FFBC1AFC1 /* StowShare-iOS.entitlements */,
+				6084AD12814B16C184ABFD6F /* StowShare-macOS.entitlements */,
+				81EC5FE39BFDCBA8F8F62A1E /* PrivacyInfo.xcprivacy */,
 			);
 			name = Configuration;
 			path = Configuration;
@@ -526,176 +555,69 @@
 			name = iOS;
 			sourceTree = "<group>";
 		};
-		E4C75F01D268010919EF5BC0 /* StowUITests */ = {
+		E24BCF496FDB2534023436F1 /* OS X */ = {
 			isa = PBXGroup;
 			children = (
-				0E5C0DE98ABB35C2A1C56411 /* StowUITests.swift */,
+				FB73C3653F14A20F8F824CAC /* Cocoa.framework */,
 			);
-			name = StowUITests;
-			path = StowUITests;
+			name = "OS X";
 			sourceTree = "<group>";
 		};
-		E69FEC8D6D5DE3F568D750A7 /* macOS */ = {
+		EA9112EA9711ECC8A4CEC53D /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				1F9F9F6B2E421C9F487757F1 /* ClipboardCapturePolicy.swift */,
-				1B8F85AB2B2B8C312C6807D6 /* DirectPasteService.swift */,
-				AABBCD997ABEE9CDC74D5E46 /* GlobalHotKeyService.swift */,
-				FE2D74B59FF32398BE1C3BC9 /* MacAppCoordinator.swift */,
-				2BD28696172EFAF834904242 /* MacLibraryPresentation.swift */,
-				65DE82C2D88B50242DC118F1 /* MacLibraryView.swift */,
-				4FBA2CF41EEC1E2F46E98F83 /* MacSettingsModels.swift */,
-				F0296D3DEFBC555181CD4351 /* MacSettingsView.swift */,
-				04159F53C9D66A6EB44369C5 /* MacVisualStyle.swift */,
-				99D16B4D139A504E85F533A7 /* QuickPanelClosePolicy.swift */,
-				42E1B8DDC8BF8D6E9CD4E3F9 /* QuickPanelInteractionPolicy.swift */,
-				571648D88CEDE083A904CD5E /* RetrievalPanel.swift */,
-				39F81DC4C7481BE31BAC9FD1 /* RetrievalPanelController.swift */,
-				E7F7230ED27654007800CC99 /* RetrievalPastePolicy.swift */,
-				B85C78F25B372CE8122E5908 /* StowAutomationController.swift */,
-				B3A5337097E5F31A93A2033B /* StowAutomationHostService.swift */,
-				70941375C228F11F7D9C372C /* StowMacApp.swift */,
+				C05C650E58C822B72ED72876 /* ShareCaptureModel.swift */,
+				71B4DCA92EEDEC4752023861 /* ShareCaptureView.swift */,
 			);
-			name = macOS;
-			path = StowApp/macOS;
-			sourceTree = "<group>";
-		};
-		EC74EAE55CC475AF1F181090 /* macOS */ = {
-			isa = PBXGroup;
-			children = (
-				96BACF26E7EBB7FE1621E5EC /* ShareViewController.swift */,
-			);
-			name = macOS;
-			path = StowShare/macOS;
+			name = Shared;
+			path = StowShare/Shared;
 			sourceTree = "<group>";
 		};
 		F7693BB2A8CC1381E2C685EE /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				C59555F1E57ECE6BAA83D012 /* iOS */,
-				A4AFDB712C09838BCCACA16A /* OS X */,
+				E24BCF496FDB2534023436F1 /* OS X */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		FD4B30D93980AE2F28177A94 /* iOS */ = {
+		FD64EE610CCBC4743EAFE394 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
-				71B4DCA92EEDEC4752023861 /* ShareViewController.swift */,
+				9657CA1729E7964460D1E599 /* StowIOSApp.swift */,
 			);
 			name = iOS;
-			path = StowShare/iOS;
+			path = StowApp/iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		03ED641FD6F9CCDFEDA0A6D5 /* StowMacUITests */ = {
+		008E4A32C265AEB64DFA15D2 /* StowUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DA520B4F6B64A43DB4597EC0 /* Build configuration list for PBXNativeTarget "StowMacUITests" */;
+			buildConfigurationList = 2815E820FBD0EA174CB9F54E /* Build configuration list for PBXNativeTarget "StowUITests" */;
 			buildPhases = (
-				5723011899A5D4A2EDBCAB27 /* Sources */,
-				A16A5690F16B112D591F8587 /* Frameworks */,
-				FD2C9C90F741C078F300FFDB /* Resources */,
+				49642C8D13298848FBCF2A98 /* Sources */,
+				E4C75F01D268010919EF5BC0 /* Frameworks */,
+				0E5C0DE98ABB35C2A1C56411 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				B7C2C9C60CC7B2E21F7EEB61 /* PBXTargetDependency */,
-			);
-			name = StowMacUITests;
-			productName = StowMacUITests;
-			productReference = 4F0E3384367AA42397F5CD19 /* StowMacUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
-		0A123F75AB15183256D77A63 /* Stow-macOS */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = F4FD05A591DECE17E4928A65 /* Build configuration list for PBXNativeTarget "Stow-macOS" */;
-			buildPhases = (
-				B8BE8B97B3DB82DC525430C5 /* Sources */,
-				F363D1CF5D907F3401B55EF3 /* Frameworks */,
-				512EE1CD8928579B71882D69 /* Resources */,
-				98254CC13B60279F39D366E1 /* Embed Stow CLI */,
-				5825DF98C9B70D69A982450B /* Embed App Extensions */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				BE4970498475F2E337A37C97 /* PBXTargetDependency */,
-				7055BFC93122B90B4571D72D /* PBXTargetDependency */,
-			);
-			name = "Stow-macOS";
-			packageProductDependencies = (
-				73D1FDB5FCE2DAB4FA1BF38A /* StowCore */,
-			);
-			productName = "Stow-macOS";
-			productReference = 61DA884D5357A0305F36D0EE /* Stow-macOS.app */;
-			productType = "com.apple.product-type.application";
-		};
-		2D2A72722E81FF057C814AB5 /* StowShareTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 22BB6C63488717FE8CC978A6 /* Build configuration list for PBXNativeTarget "StowShareTests" */;
-			buildPhases = (
-				C083FF575AC83D8EAF141345 /* Sources */,
-				712173A238D42D732161F9AD /* Frameworks */,
-				0D5A78160EFA0D3BA090CDB7 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = StowShareTests;
-			packageProductDependencies = (
-				0371DB2A71163029C9B84363 /* StowCore */,
-			);
-			productName = StowShareTests;
-			productReference = CA45542BDE1B0C73D7AE584C /* StowShareTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		3009824E255176B20F234EF6 /* StowUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 4CB363791AA22090C79D9D07 /* Build configuration list for PBXNativeTarget "StowUITests" */;
-			buildPhases = (
-				ED3565F64F56BD1F2D177D78 /* Sources */,
-				B299554E793B70AAC1FAA217 /* Frameworks */,
-				A0F598A9652989C3BBF26AB1 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				9488C505F63E73C12DEC0DDD /* PBXTargetDependency */,
+				B2844B0AA0E5D79096A65EAA /* PBXTargetDependency */,
 			);
 			name = StowUITests;
 			productName = StowUITests;
-			productReference = 2815E820FBD0EA174CB9F54E /* StowUITests.xctest */;
+			productReference = A0F598A9652989C3BBF26AB1 /* StowUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		3524C6AB332196EC21353A4A /* StowShare-iOS */ = {
+		04722B36F6A24EDB0CB47328 /* StowCLI */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 80C2B28CC43A22C93D1D90D1 /* Build configuration list for PBXNativeTarget "StowShare-iOS" */;
+			buildConfigurationList = DA95BB2F6B765A09D9B065E2 /* Build configuration list for PBXNativeTarget "StowCLI" */;
 			buildPhases = (
-				66FA28339005F538F8FDBA09 /* Sources */,
-				12A67A6C33E0FA7014422E06 /* Frameworks */,
-				EAAEDFA2CD3B9F2AD9D3ADEF /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = "StowShare-iOS";
-			packageProductDependencies = (
-				4B51E86890624AE86FF65984 /* StowCore */,
-			);
-			productName = "StowShare-iOS";
-			productReference = 909F664C7DE4664231DE0DDA /* StowShare-iOS.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
-		662F08B7826B526C29B01BF6 /* StowCLI */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = D7939A46D387B931EDA357A7 /* Build configuration list for PBXNativeTarget "StowCLI" */;
-			buildPhases = (
-				E6E3A9F6FD22EDA93666188A /* Sources */,
-				B967F1C79A0D60966EC96A48 /* Frameworks */,
+				8B39A3D3B7396B470776763B /* Sources */,
+				117F6D5238FBEDD7DDA4F0D7 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -703,11 +625,49 @@
 			);
 			name = StowCLI;
 			packageProductDependencies = (
-				A5111F307BE4DFA431F98260 /* StowCore */,
+				BE4970498475F2E337A37C97 /* StowCore */,
 			);
 			productName = StowCLI;
-			productReference = DA95BB2F6B765A09D9B065E2 /* stow */;
+			productReference = EAEE01F6C64611BFE6E3ABC5 /* stow */;
 			productType = "com.apple.product-type.tool";
+		};
+		5F8E7A499497446B57FCA3EB /* StowShareTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CA45542BDE1B0C73D7AE584C /* Build configuration list for PBXNativeTarget "StowShareTests" */;
+			buildPhases = (
+				18D22349BBF50A1B0A68CED5 /* Sources */,
+				1BBF5C7C7098F614632BC985 /* Frameworks */,
+				B3311808967ABA498D7E6DA8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = StowShareTests;
+			packageProductDependencies = (
+				4CB363791AA22090C79D9D07 /* StowCore */,
+			);
+			productName = StowShareTests;
+			productReference = 0D5A78160EFA0D3BA090CDB7 /* StowShareTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		9CAE77163D6DD5DA5DF9C136 /* StowMacUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F0E3384367AA42397F5CD19 /* Build configuration list for PBXNativeTarget "StowMacUITests" */;
+			buildPhases = (
+				268260F7BD36B9B6A27FD979 /* Sources */,
+				22B502E9422511D5623FD2E9 /* Frameworks */,
+				87559EB611D76A67B7C3F100 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F0D9B9C55D4EC532EBCF9E2A /* PBXTargetDependency */,
+			);
+			name = StowMacUITests;
+			productName = StowMacUITests;
+			productReference = FD2C9C90F741C078F300FFDB /* StowMacUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		A441AE41BECF3A71B7CAF289 /* Stow-iOS */ = {
 			isa = PBXNativeTarget;
@@ -716,49 +676,69 @@
 				EAB2D672CA4CE1A1B173EF07 /* Sources */,
 				AC28C9BD66416B2D3AF947B5 /* Frameworks */,
 				300A2094C2D5B1B2462858AC /* Resources */,
-				ABFB95EA738D087F367B44B2 /* Embed App Extensions */,
+				CF0B90BD6DBDB3C2CE6F4AC6 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				7DBE43A6C71918C581D5F9DF /* PBXTargetDependency */,
+				E7CBF2CE99A182A6289C21E5 /* PBXTargetDependency */,
 			);
 			name = "Stow-iOS";
 			packageProductDependencies = (
-				9657CA1729E7964460D1E599 /* StowCore */,
+				0A123F75AB15183256D77A63 /* StowCore */,
 			);
 			productName = "Stow-iOS";
 			productReference = 074E2C6917AEE20A6DD278AC /* Stow-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
-		D74F049CC6950130CE1287DD /* StowAppTests */ = {
+		ADB78E22AF47B6F12D985F40 /* StowAppTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 8122A9B0C0B3F9825635FAC8 /* Build configuration list for PBXNativeTarget "StowAppTests" */;
+			buildConfigurationList = 5AA4E3F88A701621CF669EE0 /* Build configuration list for PBXNativeTarget "StowAppTests" */;
 			buildPhases = (
-				180EC89D39B1B924BA17B0CC /* Sources */,
-				93B6B9B1B5DD15BFB3832C2E /* Frameworks */,
-				83CBDEFD5C405A0C3ECEBE29 /* Resources */,
+				B9F5D2150A0AD1BA3871AD20 /* Sources */,
+				53F61275A5381D01A9B277BF /* Frameworks */,
+				A38D6A71B9F0AE1BACB3E422 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				447D1E8970F5FEA7414F5D7C /* PBXTargetDependency */,
+				4C7FCF4EF5576824A9023641 /* PBXTargetDependency */,
 			);
 			name = StowAppTests;
 			packageProductDependencies = (
-				A032EB00A95D25FEBBDBAC99 /* StowCore */,
+				447D1E8970F5FEA7414F5D7C /* StowCore */,
 			);
 			productName = StowAppTests;
-			productReference = 5AA4E3F88A701621CF669EE0 /* StowAppTests.xctest */;
+			productReference = 83CBDEFD5C405A0C3ECEBE29 /* StowAppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		E7CBF2CE99A182A6289C21E5 /* StowShare-macOS */ = {
+		CC0B4946262A2CCBD2E94132 /* StowShare-iOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CF0B90BD6DBDB3C2CE6F4AC6 /* Build configuration list for PBXNativeTarget "StowShare-macOS" */;
+			buildConfigurationList = 909F664C7DE4664231DE0DDA /* Build configuration list for PBXNativeTarget "StowShare-iOS" */;
 			buildPhases = (
-				D5B9A4D6D534F508C1B8F948 /* Sources */,
-				3FC668A6993235FAC41BA43D /* Frameworks */,
-				585F26011487F7F1300C21C8 /* Resources */,
+				524FFD1DB063D5EA584BC453 /* Sources */,
+				7DAF7A9598D9FE73B0B91304 /* Frameworks */,
+				F00E9CD4640AA8DA5F6CA82D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "StowShare-iOS";
+			packageProductDependencies = (
+				7DBE43A6C71918C581D5F9DF /* StowCore */,
+			);
+			productName = "StowShare-iOS";
+			productReference = EAAEDFA2CD3B9F2AD9D3ADEF /* StowShare-iOS.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		D5A9CF4CE2BDABE18FC81FFE /* StowShare-macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2C4CA1D0548D990E1A2C30B9 /* Build configuration list for PBXNativeTarget "StowShare-macOS" */;
+			buildPhases = (
+				57DE962389CB9CD9E199AB3B /* Sources */,
+				8F81C3780BA53192C7526A6D /* Frameworks */,
+				02EA8A82E0DE124114963779 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -766,11 +746,35 @@
 			);
 			name = "StowShare-macOS";
 			packageProductDependencies = (
-				6AAC6B35EA8B999E976854AE /* StowCore */,
+				7055BFC93122B90B4571D72D /* StowCore */,
 			);
 			productName = "StowShare-macOS";
-			productReference = 2C4CA1D0548D990E1A2C30B9 /* StowShare-macOS.appex */;
+			productReference = 585F26011487F7F1300C21C8 /* StowShare-macOS.appex */;
 			productType = "com.apple.product-type.app-extension";
+		};
+		FB49305159D4C98993C01534 /* Stow-macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 660D5A56238C8BEF22055CBF /* Build configuration list for PBXNativeTarget "Stow-macOS" */;
+			buildPhases = (
+				512EE1CD8928579B71882D69 /* Sources */,
+				A4AFDB712C09838BCCACA16A /* Frameworks */,
+				88F25BA270A74D95A16A1E66 /* Resources */,
+				E93DE6BBE20208C04ECA89BC /* Embed Stow CLI */,
+				8122A9B0C0B3F9825635FAC8 /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6A269231D0AC4CBA230342CE /* PBXTargetDependency */,
+				D74F049CC6950130CE1287DD /* PBXTargetDependency */,
+			);
+			name = "Stow-macOS";
+			packageProductDependencies = (
+				D7939A46D387B931EDA357A7 /* StowCore */,
+			);
+			productName = "Stow-macOS";
+			productReference = F363D1CF5D907F3401B55EF3 /* Stow-macOS.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -800,20 +804,28 @@
 			projectRoot = "";
 			targets = (
 				A441AE41BECF3A71B7CAF289 /* Stow-iOS */,
-				0A123F75AB15183256D77A63 /* Stow-macOS */,
-				662F08B7826B526C29B01BF6 /* StowCLI */,
-				3524C6AB332196EC21353A4A /* StowShare-iOS */,
-				E7CBF2CE99A182A6289C21E5 /* StowShare-macOS */,
-				D74F049CC6950130CE1287DD /* StowAppTests */,
-				2D2A72722E81FF057C814AB5 /* StowShareTests */,
-				3009824E255176B20F234EF6 /* StowUITests */,
-				03ED641FD6F9CCDFEDA0A6D5 /* StowMacUITests */,
+				FB49305159D4C98993C01534 /* Stow-macOS */,
+				04722B36F6A24EDB0CB47328 /* StowCLI */,
+				CC0B4946262A2CCBD2E94132 /* StowShare-iOS */,
+				D5A9CF4CE2BDABE18FC81FFE /* StowShare-macOS */,
+				ADB78E22AF47B6F12D985F40 /* StowAppTests */,
+				5F8E7A499497446B57FCA3EB /* StowShareTests */,
+				008E4A32C265AEB64DFA15D2 /* StowUITests */,
+				9CAE77163D6DD5DA5DF9C136 /* StowMacUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		0D5A78160EFA0D3BA090CDB7 /* Resources */ = {
+		02EA8A82E0DE124114963779 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1F3C043D24CDEB9F7AE5F36 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0E5C0DE98ABB35C2A1C56411 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -824,158 +836,159 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E93DE6BBE20208C04ECA89BC /* Assets.xcassets in Resources */,
-				BA8BC0203B15487FFBC1AFC1 /* PrivacyInfo.xcprivacy in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		512EE1CD8928579B71882D69 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				63732287991F47CF78A8E642 /* Assets.xcassets in Resources */,
-				6084AD12814B16C184ABFD6F /* PrivacyInfo.xcprivacy in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		585F26011487F7F1300C21C8 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
+				80C2B28CC43A22C93D1D90D1 /* Assets.xcassets in Resources */,
 				137B4B0E0758527FB3BBFD7E /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		83CBDEFD5C405A0C3ECEBE29 /* Resources */ = {
+		87559EB611D76A67B7C3F100 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A0F598A9652989C3BBF26AB1 /* Resources */ = {
+		88F25BA270A74D95A16A1E66 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7BAF05A1E718374342238EDB /* Assets.xcassets in Resources */,
+				16AEC1F17B131C4B78B37300 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A38D6A71B9F0AE1BACB3E422 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		EAAEDFA2CD3B9F2AD9D3ADEF /* Resources */ = {
+		B3311808967ABA498D7E6DA8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				81EC5FE39BFDCBA8F8F62A1E /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FD2C9C90F741C078F300FFDB /* Resources */ = {
+		F00E9CD4640AA8DA5F6CA82D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C523AE6F9AD24CE8686FD0A7 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		180EC89D39B1B924BA17B0CC /* Sources */ = {
+		18D22349BBF50A1B0A68CED5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C187AE432F4733FD6FFE18B1 /* ClipboardCapturePolicyTests.swift in Sources */,
-				DEA4C4CFED93C441F7F5667B /* GlobalHotKeyServiceTests.swift in Sources */,
-				C9BA26FF6642532251BA86AC /* MacLibraryPresentationTests.swift in Sources */,
-				EDD4899E3D9881AEC8116D19 /* MacSettingsModelsTests.swift in Sources */,
-				39DFBFD7338E2874A2239D6E /* PlatformActionsPasteTests.swift in Sources */,
-				C9AAE3D959DE9809309FB0B5 /* QuickPanelClosePolicyTests.swift in Sources */,
-				D46D039A98563E55B5DCBCB4 /* QuickPanelInteractionPolicyTests.swift in Sources */,
-				A4F9632688769CEB8E8D03AC /* RetrievalPastePolicyTests.swift in Sources */,
-				A0891392F0F09730234B8CD5 /* SearchIndexRecoveryTests.swift in Sources */,
-				F8811DB521C3C05AA75AB215 /* StowAppSmokeTests.swift in Sources */,
-				2A615329E3B3562FD933D24E /* StowAutomationHostServiceTests.swift in Sources */,
+				F0ED6D07067834B666E0CD1C /* ShareCaptureModelTests.swift in Sources */,
+				3009824E255176B20F234EF6 /* ShareCaptureModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		5723011899A5D4A2EDBCAB27 /* Sources */ = {
+		268260F7BD36B9B6A27FD979 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				20040E91D435B86B5BE96D0D /* StowMacUITests.swift in Sources */,
+				58E9B455C370359A947BF338 /* StowMacUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		66FA28339005F538F8FDBA09 /* Sources */ = {
+		49642C8D13298848FBCF2A98 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EF078FCDF21D0FA1DF9F10D0 /* ShareCaptureModel.swift in Sources */,
-				C05C650E58C822B72ED72876 /* ShareCaptureView.swift in Sources */,
-				2A50B7C5E2381A382DCB09A4 /* ShareViewController.swift in Sources */,
+				03ED641FD6F9CCDFEDA0A6D5 /* StowUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B8BE8B97B3DB82DC525430C5 /* Sources */ = {
+		512EE1CD8928579B71882D69 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FB73C3653F14A20F8F824CAC /* AppModel.swift in Sources */,
-				B1EBE7D451A342C1BEED25D8 /* CloudSyncMonitor.swift in Sources */,
-				B276616F4661F3701DF38BEC /* ItemCollectionView.swift in Sources */,
-				A6AB2DCFC7432EC9EB98C1AF /* LinkMetadataEnricher.swift in Sources */,
-				8570C9E809B2BEE838315ECD /* PlatformActions.swift in Sources */,
-				3587364194B208AF10331645 /* QuickAddView.swift in Sources */,
-				121BCC372F99A382F2B4CAD7 /* StowEnvironment.swift in Sources */,
-				15D1166F1EBF75006BB7021F /* StowItemDetailView.swift in Sources */,
-				0000A022020A552CD7C0E4FE /* StowRootView.swift in Sources */,
-				AFC4C386ECFBCA4EC3EA3C64 /* StowSettingsView.swift in Sources */,
-				BD2CEE72A8182D5EA32B4BFC /* StowShareButton.swift in Sources */,
-				ED41C03F67A50F0A1B267E32 /* ClipboardCapturePolicy.swift in Sources */,
-				288DF73937247A46479D8679 /* DirectPasteService.swift in Sources */,
-				7DA07133D77A780E2040383E /* GlobalHotKeyService.swift in Sources */,
-				2E745EA8446DDF61C91C6B51 /* MacAppCoordinator.swift in Sources */,
-				6AFCAB1BA0CC7E7801205C50 /* MacLibraryPresentation.swift in Sources */,
-				4BDC4E3043365F3AA0E181E6 /* MacLibraryView.swift in Sources */,
-				BD603001EB08CE1AD84F86E0 /* MacSettingsModels.swift in Sources */,
-				8B4B73C1069B4D2153F35D1A /* MacSettingsView.swift in Sources */,
-				5210F58E78013EB653A24411 /* MacVisualStyle.swift in Sources */,
-				DBA34C017DDB8B9968355778 /* QuickPanelClosePolicy.swift in Sources */,
-				1A2E4B0B353AE15F54CC08E5 /* QuickPanelInteractionPolicy.swift in Sources */,
-				4266C990498CCCCE80A37B5A /* RetrievalPanel.swift in Sources */,
-				443BD966D5B29992F31F9E25 /* RetrievalPanelController.swift in Sources */,
-				9C9E044853868B3A10789617 /* RetrievalPastePolicy.swift in Sources */,
-				BF13D6B90DFC1386141F149E /* StowAutomationController.swift in Sources */,
-				2BC1E3DB2E1DDFCC2A484AAD /* StowAutomationHostService.swift in Sources */,
-				56C5E5C38F176F1ABB8A9CB3 /* StowMacApp.swift in Sources */,
+				B276616F4661F3701DF38BEC /* AppModel.swift in Sources */,
+				A6AB2DCFC7432EC9EB98C1AF /* CloudSyncMonitor.swift in Sources */,
+				8570C9E809B2BEE838315ECD /* ItemCollectionView.swift in Sources */,
+				3587364194B208AF10331645 /* LinkMetadataEnricher.swift in Sources */,
+				121BCC372F99A382F2B4CAD7 /* PlatformActions.swift in Sources */,
+				15D1166F1EBF75006BB7021F /* QuickAddView.swift in Sources */,
+				0000A022020A552CD7C0E4FE /* SearchCoordinator.swift in Sources */,
+				AFC4C386ECFBCA4EC3EA3C64 /* StowEnvironment.swift in Sources */,
+				BD2CEE72A8182D5EA32B4BFC /* StowItemDetailView.swift in Sources */,
+				E69FEC8D6D5DE3F568D750A7 /* StowRootView.swift in Sources */,
+				1F9F9F6B2E421C9F487757F1 /* StowSettingsView.swift in Sources */,
+				ED41C03F67A50F0A1B267E32 /* StowShareButton.swift in Sources */,
+				AABBCD997ABEE9CDC74D5E46 /* ClipboardCapturePolicy.swift in Sources */,
+				FE2D74B59FF32398BE1C3BC9 /* DirectPasteService.swift in Sources */,
+				2BD28696172EFAF834904242 /* GlobalHotKeyService.swift in Sources */,
+				65DE82C2D88B50242DC118F1 /* MacAppCoordinator.swift in Sources */,
+				4FBA2CF41EEC1E2F46E98F83 /* MacLibraryPresentation.swift in Sources */,
+				F0296D3DEFBC555181CD4351 /* MacLibraryView.swift in Sources */,
+				04159F53C9D66A6EB44369C5 /* MacSettingsModels.swift in Sources */,
+				99D16B4D139A504E85F533A7 /* MacSettingsView.swift in Sources */,
+				42E1B8DDC8BF8D6E9CD4E3F9 /* MacVisualStyle.swift in Sources */,
+				571648D88CEDE083A904CD5E /* QuickPanelClosePolicy.swift in Sources */,
+				39F81DC4C7481BE31BAC9FD1 /* QuickPanelInteractionPolicy.swift in Sources */,
+				E7F7230ED27654007800CC99 /* RetrievalPanel.swift in Sources */,
+				B85C78F25B372CE8122E5908 /* RetrievalPanelController.swift in Sources */,
+				B3A5337097E5F31A93A2033B /* RetrievalPastePolicy.swift in Sources */,
+				70941375C228F11F7D9C372C /* StowAutomationController.swift in Sources */,
+				73D1FDB5FCE2DAB4FA1BF38A /* StowAutomationHostService.swift in Sources */,
+				662F08B7826B526C29B01BF6 /* StowMacApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		C083FF575AC83D8EAF141345 /* Sources */ = {
+		524FFD1DB063D5EA584BC453 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D11BF9657D7BF4731857B331 /* ShareCaptureModelTests.swift in Sources */,
-				A161A39A2726A44D95CC80AD /* ShareCaptureModel.swift in Sources */,
+				FD4B30D93980AE2F28177A94 /* ShareCaptureModel.swift in Sources */,
+				2A50B7C5E2381A382DCB09A4 /* ShareCaptureView.swift in Sources */,
+				F5E3DD15D8FF6C335C2EDE96 /* ShareViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D5B9A4D6D534F508C1B8F948 /* Sources */ = {
+		57DE962389CB9CD9E199AB3B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8F81C3780BA53192C7526A6D /* ShareCaptureModel.swift in Sources */,
-				02EA8A82E0DE124114963779 /* ShareCaptureView.swift in Sources */,
-				BDA862F0948BB2AF6B6A0FEB /* ShareViewController.swift in Sources */,
+				96BACF26E7EBB7FE1621E5EC /* ShareCaptureModel.swift in Sources */,
+				BDA862F0948BB2AF6B6A0FEB /* ShareCaptureView.swift in Sources */,
+				4D52B78EE43BAC5A13212936 /* ShareViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E6E3A9F6FD22EDA93666188A /* Sources */ = {
+		8B39A3D3B7396B470776763B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				02F41832A3322681501ED2A6 /* StowCLI.swift in Sources */,
-				A3126F13DCA028092A0616FF /* StowCLIArguments.swift in Sources */,
-				F2AD6FA654A8BA85C2C822A5 /* StowCLIClient.swift in Sources */,
-				A63F5FD5CC41C1A2F24D0403 /* StowCLIOutput.swift in Sources */,
+				03869120D78AA51C7E46635D /* StowCLI.swift in Sources */,
+				6660F23F777BE9A4EE938C64 /* StowCLIArguments.swift in Sources */,
+				A5111F307BE4DFA431F98260 /* StowCLIClient.swift in Sources */,
+				27B7A1140B9E6274309B71DF /* StowCLIOutput.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B9F5D2150A0AD1BA3871AD20 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9548A44E512CA4728F1F6455 /* ClipboardCapturePolicyTests.swift in Sources */,
+				32160B1FE80E7FE187769E2B /* GlobalHotKeyServiceTests.swift in Sources */,
+				88BBBA7F5A5C0A8B4EBD08C8 /* MacLibraryPresentationTests.swift in Sources */,
+				F1DB628DA3C756799712159F /* MacSettingsModelsTests.swift in Sources */,
+				713E1F9C4AFB81D0F5056E37 /* PlatformActionsPasteTests.swift in Sources */,
+				928EF9DF210766C0C8370C11 /* QuickPanelClosePolicyTests.swift in Sources */,
+				8F132BFC993710BA2389D44C /* QuickPanelInteractionPolicyTests.swift in Sources */,
+				173118C86FEDD468E0A1834D /* RetrievalPastePolicyTests.swift in Sources */,
+				20861C0C7D42B4D7AE5436A5 /* SearchIndexRecoveryTests.swift in Sources */,
+				A032EB00A95D25FEBBDBAC99 /* StowAppSmokeTests.swift in Sources */,
+				2040699D34DC4691D17EC53C /* StowAutomationHostServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -989,117 +1002,110 @@
 				4185E44A7F618A73A764B0BB /* LinkMetadataEnricher.swift in Sources */,
 				C49A82B97998A654C647C4AB /* PlatformActions.swift in Sources */,
 				4A78367CA533EFDF4A24CBCF /* QuickAddView.swift in Sources */,
-				781B0389836AED519646E23B /* StowEnvironment.swift in Sources */,
-				69570EAB317871AC7D481EB8 /* StowItemDetailView.swift in Sources */,
-				BAF74C77D682986981AA2D39 /* StowRootView.swift in Sources */,
-				B7C62B7BC894267E34EFC29F /* StowSettingsView.swift in Sources */,
-				F1AD1E5A72E0FF745A77BD6F /* StowShareButton.swift in Sources */,
-				FD64EE610CCBC4743EAFE394 /* StowIOSApp.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		ED3565F64F56BD1F2D177D78 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B91C380B76F1026EC5F8857A /* StowUITests.swift in Sources */,
+				781B0389836AED519646E23B /* SearchCoordinator.swift in Sources */,
+				69570EAB317871AC7D481EB8 /* StowEnvironment.swift in Sources */,
+				BAF74C77D682986981AA2D39 /* StowItemDetailView.swift in Sources */,
+				B7C62B7BC894267E34EFC29F /* StowRootView.swift in Sources */,
+				F1AD1E5A72E0FF745A77BD6F /* StowSettingsView.swift in Sources */,
+				3199F91B513E811538896E33 /* StowShareButton.swift in Sources */,
+				7B98E0CC1F819C99BABD6F2A /* StowIOSApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		447D1E8970F5FEA7414F5D7C /* PBXTargetDependency */ = {
+		4C7FCF4EF5576824A9023641 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = "Stow-macOS";
-			target = 0A123F75AB15183256D77A63 /* Stow-macOS */;
-			targetProxy = 2040699D34DC4691D17EC53C /* PBXContainerItemProxy */;
+			target = FB49305159D4C98993C01534 /* Stow-macOS */;
+			targetProxy = 22BB6C63488717FE8CC978A6 /* PBXContainerItemProxy */;
 		};
-		7055BFC93122B90B4571D72D /* PBXTargetDependency */ = {
+		6A269231D0AC4CBA230342CE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			name = "StowShare-macOS";
-			target = E7CBF2CE99A182A6289C21E5 /* StowShare-macOS */;
-			targetProxy = 4D52B78EE43BAC5A13212936 /* PBXContainerItemProxy */;
+			name = StowCLI;
+			target = 04722B36F6A24EDB0CB47328 /* StowCLI */;
+			targetProxy = C5920C9752B2A448AF5CD10B /* PBXContainerItemProxy */;
 		};
-		7DBE43A6C71918C581D5F9DF /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = "StowShare-iOS";
-			target = 3524C6AB332196EC21353A4A /* StowShare-iOS */;
-			targetProxy = F5E3DD15D8FF6C335C2EDE96 /* PBXContainerItemProxy */;
-		};
-		9488C505F63E73C12DEC0DDD /* PBXTargetDependency */ = {
+		B2844B0AA0E5D79096A65EAA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = "Stow-iOS";
 			target = A441AE41BECF3A71B7CAF289 /* Stow-iOS */;
-			targetProxy = 3D41253378DE4C3E72DA1916 /* PBXContainerItemProxy */;
+			targetProxy = DA520B4F6B64A43DB4597EC0 /* PBXContainerItemProxy */;
 		};
-		B7C2C9C60CC7B2E21F7EEB61 /* PBXTargetDependency */ = {
+		D74F049CC6950130CE1287DD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "StowShare-macOS";
+			target = D5A9CF4CE2BDABE18FC81FFE /* StowShare-macOS */;
+			targetProxy = 071E92B783A1D45A9F2F628C /* PBXContainerItemProxy */;
+		};
+		E7CBF2CE99A182A6289C21E5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "StowShare-iOS";
+			target = CC0B4946262A2CCBD2E94132 /* StowShare-iOS */;
+			targetProxy = 36B7D47042399432C651013E /* PBXContainerItemProxy */;
+		};
+		F0D9B9C55D4EC532EBCF9E2A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = "Stow-macOS";
-			target = 0A123F75AB15183256D77A63 /* Stow-macOS */;
-			targetProxy = 461158EC5E5303B98C3AB067 /* PBXContainerItemProxy */;
-		};
-		BE4970498475F2E337A37C97 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = StowCLI;
-			target = 662F08B7826B526C29B01BF6 /* StowCLI */;
-			targetProxy = 27B7A1140B9E6274309B71DF /* PBXContainerItemProxy */;
+			target = FB49305159D4C98993C01534 /* Stow-macOS */;
+			targetProxy = 4A970CCE534C065313B2EE24 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		008E4A32C265AEB64DFA15D2 /* Debug */ = {
+		12A67A6C33E0FA7014422E06 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-iOS.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/iOS-Share-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.narumi.stow.share-ios";
+				PRODUCT_MODULE_NAME = StowShare;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		180EC89D39B1B924BA17B0CC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.ios;
-				PRODUCT_MODULE_NAME = StowUITests;
-				SDKROOT = iphoneos;
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Stow-iOS";
-			};
-			name = Debug;
-		};
-		04722B36F6A24EDB0CB47328 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CODE_SIGN_ENTITLEMENTS = Configuration/StowCLI.entitlements;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = NO;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.cli;
-				PRODUCT_MODULE_NAME = StowCLI;
-				PRODUCT_NAME = stow;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.unit;
+				PRODUCT_MODULE_NAME = StowAppTests;
 				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Stow-macOS.app/Contents/MacOS/Stow-macOS";
 			};
-			name = Debug;
+			name = Release;
 		};
-		0CC25AF3F07CE83453CCC6AA /* Release */ = {
+		3FC668A6993235FAC41BA43D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -1114,95 +1120,28 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 			};
-			name = Release;
-		};
-		4C7FCF4EF5576824A9023641 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Configuration/Test-Info.plist";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.share;
-				PRODUCT_MODULE_NAME = StowShareTests;
-				SDKROOT = macosx;
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
-			};
-			name = Release;
-		};
-		500C1BBFCFC4402E903DF2B6 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Configuration/Test-Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.ios;
-				PRODUCT_MODULE_NAME = StowUITests;
-				SDKROOT = iphoneos;
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Stow-iOS";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		58AE85D0C91B9D1179EABF51 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CODE_SIGN_ENTITLEMENTS = Configuration/StowCLI.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.cli;
-				PRODUCT_MODULE_NAME = StowCLI;
-				PRODUCT_NAME = stow;
-				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
-			};
-			name = Release;
-		};
-		5F8E7A499497446B57FCA3EB /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Configuration/Test-Info.plist";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.share;
-				PRODUCT_MODULE_NAME = StowShareTests;
-				SDKROOT = macosx;
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
-			};
 			name = Debug;
+		};
+		5723011899A5D4A2EDBCAB27 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/Test-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.macos;
+				PRODUCT_MODULE_NAME = StowMacUITests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = "Stow-macOS";
+			};
+			name = Release;
 		};
 		5FCA936FFBBDE177C20D2384 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1266,6 +1205,31 @@
 			};
 			name = Debug;
 		};
+		61DA884D5357A0305F36D0EE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Configuration/Stow-macOS.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/macOS-App-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
+				PRODUCT_MODULE_NAME = StowApp;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
 		6264C40FAD4DF624246C31B5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1321,7 +1285,122 @@
 			};
 			name = Release;
 		};
-		660D5A56238C8BEF22055CBF /* Debug */ = {
+		66FA28339005F538F8FDBA09 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-iOS.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/iOS-Share-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.narumi.stow.share-ios";
+				PRODUCT_MODULE_NAME = StowShare;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		712173A238D42D732161F9AD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/Test-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.share;
+				PRODUCT_MODULE_NAME = StowShareTests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		93B6B9B1B5DD15BFB3832C2E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/Test-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.unit;
+				PRODUCT_MODULE_NAME = StowAppTests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Stow-macOS.app/Contents/MacOS/Stow-macOS";
+			};
+			name = Debug;
+		};
+		A16A5690F16B112D591F8587 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/Test-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.macos;
+				PRODUCT_MODULE_NAME = StowMacUITests;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = "Stow-macOS";
+			};
+			name = Debug;
+		};
+		B299554E793B70AAC1FAA217 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/Test-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.ios;
+				PRODUCT_MODULE_NAME = StowUITests;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Stow-iOS";
+			};
+			name = Debug;
+		};
+		B8BE8B97B3DB82DC525430C5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -1347,96 +1426,28 @@
 			};
 			name = Debug;
 		};
-		7BAF05A1E718374342238EDB /* Release */ = {
+		B967F1C79A0D60966EC96A48 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-iOS.entitlements";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Configuration/iOS-Share-Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.narumi.stow.share-ios";
-				PRODUCT_MODULE_NAME = StowShare;
-				SDKROOT = iphoneos;
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		9CAE77163D6DD5DA5DF9C136 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_ENTITLEMENTS = Configuration/StowCLI.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Configuration/Test-Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.macos;
-				PRODUCT_MODULE_NAME = StowMacUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.cli;
+				PRODUCT_MODULE_NAME = StowCLI;
+				PRODUCT_NAME = stow;
 				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
-				TEST_TARGET_NAME = "Stow-macOS";
 			};
 			name = Debug;
-		};
-		ADB78E22AF47B6F12D985F40 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Configuration/Test-Info.plist";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.unit;
-				PRODUCT_MODULE_NAME = StowAppTests;
-				SDKROOT = macosx;
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Stow-macOS.app/Contents/MacOS/Stow-macOS";
-			};
-			name = Debug;
-		};
-		B2844B0AA0E5D79096A65EAA /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Configuration/Test-Info.plist";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.macos;
-				PRODUCT_MODULE_NAME = StowMacUITests;
-				SDKROOT = macosx;
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
-				TEST_TARGET_NAME = "Stow-macOS";
-			};
-			name = Release;
 		};
 		B9A747111ECA77E779A6C31F /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1465,36 +1476,31 @@
 			};
 			name = Debug;
 		};
-		CC0B4946262A2CCBD2E94132 /* Debug */ = {
+		C083FF575AC83D8EAF141345 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-iOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Configuration/iOS-Share-Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				INFOPLIST_FILE = "Configuration/Test-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.narumi.stow.share-ios";
-				PRODUCT_MODULE_NAME = StowShare;
-				SDKROOT = iphoneos;
-				SUPPORTS_MACCATALYST = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.share;
+				PRODUCT_MODULE_NAME = StowShareTests;
+				SDKROOT = macosx;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
 			};
-			name = Debug;
+			name = Release;
 		};
-		D5A9CF4CE2BDABE18FC81FFE /* Debug */ = {
+		D5B9A4D6D534F508C1B8F948 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_ENTITLEMENTS = "Configuration/StowShare-macOS.entitlements";
-				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -1509,7 +1515,7 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 			};
-			name = Debug;
+			name = Release;
 		};
 		E55167509D2D658C88A615EC /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -1539,50 +1545,50 @@
 			};
 			name = Release;
 		};
-		F03AEBB8168297D598236B72 /* Release */ = {
+		E6E3A9F6FD22EDA93666188A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_ENTITLEMENTS = Configuration/StowCLI.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.cli;
+				PRODUCT_MODULE_NAME = StowCLI;
+				PRODUCT_NAME = stow;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		ED3565F64F56BD1F2D177D78 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Configuration/Test-Info.plist";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.unit;
-				PRODUCT_MODULE_NAME = StowAppTests;
-				SDKROOT = macosx;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow.tests.ui.ios;
+				PRODUCT_MODULE_NAME = StowUITests;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Stow-macOS.app/Contents/MacOS/Stow-macOS";
-			};
-			name = Release;
-		};
-		FB49305159D4C98993C01534 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Configuration/Stow-macOS.entitlements";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Configuration/macOS-App-Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.stow;
-				PRODUCT_MODULE_NAME = StowApp;
-				SDKROOT = macosx;
-				SWIFT_STRICT_CONCURRENCY = complete;
-				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Stow-iOS";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -1607,74 +1613,74 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		22BB6C63488717FE8CC978A6 /* Build configuration list for PBXNativeTarget "StowShareTests" */ = {
+		2815E820FBD0EA174CB9F54E /* Build configuration list for PBXNativeTarget "StowUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				4C7FCF4EF5576824A9023641 /* Release */,
-				5F8E7A499497446B57FCA3EB /* Debug */,
+				ED3565F64F56BD1F2D177D78 /* Release */,
+				B299554E793B70AAC1FAA217 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		4CB363791AA22090C79D9D07 /* Build configuration list for PBXNativeTarget "StowUITests" */ = {
+		2C4CA1D0548D990E1A2C30B9 /* Build configuration list for PBXNativeTarget "StowShare-macOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				500C1BBFCFC4402E903DF2B6 /* Release */,
-				008E4A32C265AEB64DFA15D2 /* Debug */,
+				D5B9A4D6D534F508C1B8F948 /* Release */,
+				3FC668A6993235FAC41BA43D /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		80C2B28CC43A22C93D1D90D1 /* Build configuration list for PBXNativeTarget "StowShare-iOS" */ = {
+		4F0E3384367AA42397F5CD19 /* Build configuration list for PBXNativeTarget "StowMacUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				7BAF05A1E718374342238EDB /* Release */,
-				CC0B4946262A2CCBD2E94132 /* Debug */,
+				5723011899A5D4A2EDBCAB27 /* Release */,
+				A16A5690F16B112D591F8587 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		8122A9B0C0B3F9825635FAC8 /* Build configuration list for PBXNativeTarget "StowAppTests" */ = {
+		5AA4E3F88A701621CF669EE0 /* Build configuration list for PBXNativeTarget "StowAppTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F03AEBB8168297D598236B72 /* Release */,
-				ADB78E22AF47B6F12D985F40 /* Debug */,
+				180EC89D39B1B924BA17B0CC /* Release */,
+				93B6B9B1B5DD15BFB3832C2E /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		CF0B90BD6DBDB3C2CE6F4AC6 /* Build configuration list for PBXNativeTarget "StowShare-macOS" */ = {
+		660D5A56238C8BEF22055CBF /* Build configuration list for PBXNativeTarget "Stow-macOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				0CC25AF3F07CE83453CCC6AA /* Release */,
-				D5A9CF4CE2BDABE18FC81FFE /* Debug */,
+				61DA884D5357A0305F36D0EE /* Release */,
+				B8BE8B97B3DB82DC525430C5 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D7939A46D387B931EDA357A7 /* Build configuration list for PBXNativeTarget "StowCLI" */ = {
+		909F664C7DE4664231DE0DDA /* Build configuration list for PBXNativeTarget "StowShare-iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				58AE85D0C91B9D1179EABF51 /* Release */,
-				04722B36F6A24EDB0CB47328 /* Debug */,
+				66FA28339005F538F8FDBA09 /* Release */,
+				12A67A6C33E0FA7014422E06 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DA520B4F6B64A43DB4597EC0 /* Build configuration list for PBXNativeTarget "StowMacUITests" */ = {
+		CA45542BDE1B0C73D7AE584C /* Build configuration list for PBXNativeTarget "StowShareTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B2844B0AA0E5D79096A65EAA /* Release */,
-				9CAE77163D6DD5DA5DF9C136 /* Debug */,
+				C083FF575AC83D8EAF141345 /* Release */,
+				712173A238D42D732161F9AD /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F4FD05A591DECE17E4928A65 /* Build configuration list for PBXNativeTarget "Stow-macOS" */ = {
+		DA95BB2F6B765A09D9B065E2 /* Build configuration list for PBXNativeTarget "StowCLI" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FB49305159D4C98993C01534 /* Release */,
-				660D5A56238C8BEF22055CBF /* Debug */,
+				E6E3A9F6FD22EDA93666188A /* Release */,
+				B967F1C79A0D60966EC96A48 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -1689,37 +1695,37 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		0371DB2A71163029C9B84363 /* StowCore */ = {
+		0A123F75AB15183256D77A63 /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
 			productName = StowCore;
 		};
-		4B51E86890624AE86FF65984 /* StowCore */ = {
+		447D1E8970F5FEA7414F5D7C /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
 			productName = StowCore;
 		};
-		6AAC6B35EA8B999E976854AE /* StowCore */ = {
+		4CB363791AA22090C79D9D07 /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
 			productName = StowCore;
 		};
-		73D1FDB5FCE2DAB4FA1BF38A /* StowCore */ = {
+		7055BFC93122B90B4571D72D /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
 			productName = StowCore;
 		};
-		9657CA1729E7964460D1E599 /* StowCore */ = {
+		7DBE43A6C71918C581D5F9DF /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
 			productName = StowCore;
 		};
-		A032EB00A95D25FEBBDBAC99 /* StowCore */ = {
+		BE4970498475F2E337A37C97 /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
 			productName = StowCore;
 		};
-		A5111F307BE4DFA431F98260 /* StowCore */ = {
+		D7939A46D387B931EDA357A7 /* StowCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9E102710A357AAF429B9697E /* XCLocalSwiftPackageReference "StowCore" */;
 			productName = StowCore;

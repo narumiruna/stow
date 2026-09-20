@@ -1206,9 +1206,8 @@ struct RetrievalPanelView: View {
     }
 
     private var searchToken: String {
-        var hasher = Hasher()
-        for item in allItems { hasher.combine(item.id); hasher.combine(item.updatedAt) }
-        return [mode.rawValue, query, typeFilter?.rawValue ?? "", sourceFilter ?? "", dateFilter.rawValue, "\(hasher.finalize())"].joined(separator: "¦")
+        let itemRevision = SearchItemRevision(items: allItems)
+        return [mode.rawValue, query, typeFilter?.rawValue ?? "", sourceFilter ?? "", dateFilter.rawValue, itemRevision.token].joined(separator: "¦")
     }
 
     private var searchTaskToken: String { "\(searchToken)¦retry:\(searchRetryGeneration)" }

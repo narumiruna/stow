@@ -148,10 +148,8 @@ struct StowRootView: View {
     }
 
     private var searchToken: String {
-        var versionHasher = Hasher()
-        for item in allItems { versionHasher.combine(item.id); versionHasher.combine(item.updatedAt) }
-        let itemVersion = "\(allItems.count):\(versionHasher.finalize())"
-        return [appModel.selection.rawValue, appModel.searchText, appModel.typeFilter?.rawValue ?? "", appModel.sourceFilter ?? "", appModel.dateFilter.rawValue, itemVersion].joined(separator: "¦")
+        let itemRevision = SearchItemRevision(items: allItems)
+        return [appModel.selection.rawValue, appModel.searchText, appModel.typeFilter?.rawValue ?? "", appModel.sourceFilter ?? "", appModel.dateFilter.rawValue, itemRevision.token].joined(separator: "¦")
     }
 
     private func sectionSort(_ lhs: StowItem, _ rhs: StowItem) -> Bool {

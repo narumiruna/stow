@@ -31,24 +31,22 @@ final class AppModel {
     private var actionService: ItemActionService?
     private var spool: CaptureSpool?
     private var metrics: OnDeviceMetricsClient?
-    private var searchIndex: SQLiteSearchIndex?
-    private var indexedFingerprint = ""
+    private var searchCoordinator: SearchCoordinator?
     private var searchGeneration = 0
     private var retrievalSearchGeneration = 0
     private let syncMonitor = CloudSyncMonitor()
     @ObservationIgnored private let searchDocumentsOverride: (() throws -> [SearchDocument])?
-    @ObservationIgnored private let searchIndexRebuildOverride: (([SearchDocument]) async throws -> Void)?
     @ObservationIgnored private let captureSpoolOverride: CaptureSpool?
     @ObservationIgnored private let sharedContainerURLOverride: URL?
 
     init(
         searchDocuments: (() throws -> [SearchDocument])? = nil,
-        rebuildSearchIndex: (([SearchDocument]) async throws -> Void)? = nil,
+        searchCoordinator: SearchCoordinator? = nil,
         captureSpool: CaptureSpool? = nil,
         sharedContainerURL: URL? = nil
     ) {
         searchDocumentsOverride = searchDocuments
-        searchIndexRebuildOverride = rebuildSearchIndex
+        self.searchCoordinator = searchCoordinator
         captureSpoolOverride = captureSpool
         sharedContainerURLOverride = sharedContainerURL
     }
@@ -81,7 +79,10 @@ final class AppModel {
             let sharedURL = sharedContainerURLOverride ?? StowEnvironment.sharedContainerURL()
             spool = try captureSpoolOverride ?? CaptureSpool(rootURL: sharedURL.appendingPathComponent("CaptureSpool", isDirectory: true))
             metrics = try OnDeviceMetricsClient(url: sharedURL.appendingPathComponent("Metrics/v0.1.json"), enabled: UserDefaults.standard.object(forKey: "analyticsEnabled") as? Bool ?? true)
-            searchIndex = try SQLiteSearchIndex(url: sharedURL.appendingPathComponent("Search/v1.sqlite"))
+            if searchCoordinator == nil {
+                let searchIndex = try SQLiteSearchIndex(url: sharedURL.appendingPathComponent("Search/v1.sqlite"))
+                searchCoordinator = SearchCoordinator(index: searchIndex)
+            }
         } catch {
             presentedError = error.localizedDescription
         }
@@ -314,27 +315,16 @@ final class AppModel {
                 throw NSError(domain: "StowUITesting", code: 3, userInfo: [NSLocalizedDescriptionKey: "The test replacement index could not be written. Try again."])
             }
             #endif
-            let documents: [SearchDocument]
-            let replacementFingerprint: String?
+            let snapshot: SearchSnapshot
             if let searchDocumentsOverride {
-                documents = try searchDocumentsOverride()
-                replacementFingerprint = nil
+                snapshot = SearchSnapshot(documents: try searchDocumentsOverride())
             } else {
                 guard let repository else { throw SearchIndexRecoveryError.libraryUnavailable }
-                let items = try repository.allItems()
-                documents = items.map(SearchDocument.init(item:))
-                replacementFingerprint = searchFingerprint(for: items)
+                snapshot = SearchSnapshot(items: try repository.allItems())
             }
-
-            if let searchIndexRebuildOverride {
-                try await searchIndexRebuildOverride(documents)
-            } else {
-                guard let searchIndex else { throw SearchIndexRecoveryError.indexUnavailable }
-                try await searchIndex.rebuild(documents)
-            }
-
-            if let replacementFingerprint { indexedFingerprint = replacementFingerprint }
-            searchIndexRebuildState = .succeeded(documentCount: documents.count)
+            guard let searchCoordinator else { throw SearchIndexRecoveryError.indexUnavailable }
+            try await searchCoordinator.rebuild(snapshot)
+            searchIndexRebuildState = .succeeded(documentCount: snapshot.documents.count)
         } catch {
             searchIndexRebuildState = .failed(error.localizedDescription)
         }
@@ -346,7 +336,7 @@ final class AppModel {
     }
 
     func updateSearch(items: [StowItem]) async {
-        guard let searchIndex else { return }
+        guard let searchCoordinator else { return }
         searchGeneration += 1
         let generation = searchGeneration
         searchResultIDs = nil
@@ -355,39 +345,24 @@ final class AppModel {
         let requestedSource = sourceFilter
         let requestedDate = dateFilter
         let requestedSection = selection
-        let fingerprint = searchFingerprint(for: items)
         isSearching = true
         defer { if generation == searchGeneration { isSearching = false } }
         do {
             if !requestedText.isEmpty { try await Task.sleep(for: .milliseconds(120)) }
             guard generation == searchGeneration, !Task.isCancelled else { return }
-            if fingerprint != indexedFingerprint {
-                try await searchIndex.rebuild(items.map(SearchDocument.init(item:)))
-                indexedFingerprint = fingerprint
-            }
-            let calendar = Calendar.current
-            let now = Date()
-            let after: Date?
-            switch requestedDate {
-            case .anytime: after = nil
-            case .today: after = calendar.startOfDay(for: now)
-            case .week: after = calendar.date(byAdding: .day, value: -7, to: now)
-            case .month: after = calendar.date(byAdding: .month, value: -1, to: now)
-            }
-            let status: ItemStatus?
-            switch requestedSection {
-            case .inbox: status = .inbox
-            case .archive: status = .archived
-            case .trash: status = .trashed
-            case .recent, .pinned, .settings: status = nil
-            }
-            let started = ContinuousClock.now
-            let query = SearchQuery(text: requestedText, type: requestedType, sourceApp: requestedSource, addedAfter: after, status: status, limit: 10_000)
-            let ids = try await searchIndex.search(query)
+            let snapshot = SearchSnapshot(items: items)
+            let query = SearchQueryFactory.library(
+                text: requestedText,
+                type: requestedType,
+                source: requestedSource,
+                date: requestedDate,
+                section: requestedSection
+            )
+            let result = try await searchCoordinator.search(snapshot: snapshot, query: query)
             guard generation == searchGeneration, !Task.isCancelled else { return }
-            searchResultIDs = Set(ids)
-            try? metrics?.recordDuration(.searchDuration, seconds: started.duration(to: .now).secondsValue)
-            if !requestedText.isEmpty, !ids.isEmpty { try? metrics?.record(.searchSucceeded) }
+            searchResultIDs = Set(result.ids)
+            try? metrics?.recordDuration(.searchDuration, seconds: result.duration.secondsValue)
+            if !requestedText.isEmpty, !result.ids.isEmpty { try? metrics?.record(.searchSucceeded) }
         } catch {
             guard generation == searchGeneration, !Task.isCancelled else { return }
             searchResultIDs = nil
@@ -396,21 +371,12 @@ final class AppModel {
     }
 
     func searchForAutomation(items: [StowItem], payload: StowAutomationSearchPayload) async throws -> [UUID] {
-        guard let searchIndex else { throw SearchIndexRecoveryError.indexUnavailable }
-        let fingerprint = searchFingerprint(for: items)
-        if fingerprint != indexedFingerprint {
-            try await searchIndex.rebuild(items.map(SearchDocument.init(item:)))
-            indexedFingerprint = fingerprint
-        }
-        let status = payload.status?.itemStatus
-        let query = SearchQuery(
-            text: payload.query,
-            type: payload.type,
-            status: status,
-            includeTrashed: payload.status == .all,
-            limit: payload.limit
+        guard let searchCoordinator else { throw SearchIndexRecoveryError.indexUnavailable }
+        let result = try await searchCoordinator.search(
+            snapshot: SearchSnapshot(items: items),
+            query: SearchQueryFactory.automation(payload)
         )
-        return try await searchIndex.search(query)
+        return result.ids
     }
 
     func searchForRetrieval(
@@ -421,7 +387,7 @@ final class AppModel {
         date: DateAddedFilter,
         status: ItemStatus?
     ) async -> RetrievalSearchOutcome {
-        guard let searchIndex else { return .failure("The local search index is unavailable.") }
+        guard let searchCoordinator else { return .failure("The local search index is unavailable.") }
         retrievalSearchGeneration += 1
         let generation = retrievalSearchGeneration
         do {
@@ -432,44 +398,21 @@ final class AppModel {
                 throw NSError(domain: "StowUITesting", code: 2, userInfo: [NSLocalizedDescriptionKey: "The test search index is unavailable."])
             }
             #endif
-            let fingerprint = searchFingerprint(for: items)
-            if fingerprint != indexedFingerprint {
-                try await searchIndex.rebuild(items.map(SearchDocument.init(item:)))
-                indexedFingerprint = fingerprint
-            }
-            let calendar = Calendar.current
-            let now = Date()
-            let addedAfter: Date?
-            switch date {
-            case .anytime: addedAfter = nil
-            case .today: addedAfter = calendar.startOfDay(for: now)
-            case .week: addedAfter = calendar.date(byAdding: .day, value: -7, to: now)
-            case .month: addedAfter = calendar.date(byAdding: .month, value: -1, to: now)
-            }
-            let query = SearchQuery(
+            let snapshot = SearchSnapshot(items: items)
+            let query = SearchQueryFactory.retrieval(
                 text: text,
                 type: type,
-                sourceApp: source,
-                addedAfter: addedAfter,
-                status: status,
-                limit: 10_000
+                source: source,
+                date: date,
+                status: status
             )
-            let ids = try await searchIndex.search(query)
+            let result = try await searchCoordinator.search(snapshot: snapshot, query: query)
             guard generation == retrievalSearchGeneration, !Task.isCancelled else { return .success([]) }
-            return .success(ids)
+            return .success(result.ids)
         } catch {
             guard generation == retrievalSearchGeneration, !Task.isCancelled else { return .success([]) }
             return .failure("The local search index will be rebuilt. \(error.localizedDescription)")
         }
-    }
-
-    private func searchFingerprint(for items: [StowItem]) -> String {
-        var versionHasher = Hasher()
-        for item in items {
-            versionHasher.combine(item.id)
-            versionHasher.combine(item.updatedAt)
-        }
-        return "\(items.count):\(versionHasher.finalize())"
     }
 
     #if DEBUG
