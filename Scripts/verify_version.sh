@@ -38,13 +38,6 @@ if [[ -n "$expected_tag" ]]; then
   fi
 fi
 
-generator_setting_count="$(grep -Ec 'settings\["MARKETING_VERSION"\] = "[^"]+"' Scripts/generate_project.rb)"
-generator_version="$(sed -n 's/.*settings\["MARKETING_VERSION"\] = "\([^"]*\)".*/\1/p' Scripts/generate_project.rb | head -n 1)"
-if [[ "$generator_setting_count" -ne 1 || "$generator_version" != "$project_version" ]]; then
-  echo "Project generator version ${generator_version:-<missing>} does not match ${project_version}." >&2
-  exit 1
-fi
-
 version_setting_count="$(grep -Ec 'MARKETING_VERSION = ' Stow.xcodeproj/project.pbxproj)"
 matching_setting_count="$(grep -Fc "MARKETING_VERSION = ${project_version};" Stow.xcodeproj/project.pbxproj)"
 if [[ "$version_setting_count" -eq 0 || "$matching_setting_count" -ne "$version_setting_count" ]]; then

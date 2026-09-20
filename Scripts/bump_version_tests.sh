@@ -10,7 +10,7 @@ make_fixture() {
   mkdir -p "$fixture/Scripts" "$fixture/Stow.xcodeproj"
   printf '%s\n' "1.2.3" > "$fixture/VERSION"
   cat > "$fixture/Scripts/generate_project.rb" <<'RUBY'
-settings["MARKETING_VERSION"] = "1.2.3"
+# Sentinel: bumping must not read or rewrite generator source.
 RUBY
   cat > "$fixture/Stow.xcodeproj/project.pbxproj" <<'PBX'
 MARKETING_VERSION = 1.2.3;
@@ -25,7 +25,10 @@ assert_bump() {
   local fixture="$temporary/$bump_type"
   make_fixture "$fixture"
 
+  local generator_before
+  generator_before="$(cksum "$fixture/Scripts/generate_project.rb")"
   actual_version="$($fixture/Scripts/bump_version.sh "$bump_type")"
+  [[ "$(cksum "$fixture/Scripts/generate_project.rb")" == "$generator_before" ]]
   if [[ "$actual_version" != "$expected_version" ]]; then
     echo "Expected $bump_type bump $expected_version, got $actual_version." >&2
     exit 1
@@ -70,5 +73,36 @@ if [[ "$after" != "$before" ]]; then
   echo "Rejected bump changed inconsistent version files." >&2
   exit 1
 fi
+
+for failure in exit mismatch; do
+  fixture="$temporary/rollback-$failure"
+  make_fixture "$fixture"
+  mv "$fixture/Scripts/verify_version.sh" "$fixture/Scripts/verify_version_real.sh"
+  cat > "$fixture/Scripts/verify_version.sh" <<'SH'
+#!/bin/bash
+set -euo pipefail
+version="$("$(dirname "$0")/verify_version_real.sh")"
+if [[ "$version" != "1.2.3" ]]; then
+  if [[ "$FAILURE_MODE" == exit ]]; then exit 73; fi
+  printf '%s\n' '9.9.9'
+else
+  printf '%s\n' "$version"
+fi
+SH
+  chmod +x "$fixture/Scripts/verify_version.sh"
+  before="$(cksum "$fixture/VERSION" "$fixture/Stow.xcodeproj/project.pbxproj" "$fixture/Scripts/generate_project.rb")"
+  if FAILURE_MODE="$failure" "$fixture/Scripts/bump_version.sh" patch >/dev/null 2>&1; then
+    echo "Expected post-update $failure to reject the bump." >&2
+    exit 1
+  fi
+  [[ "$(cksum "$fixture/VERSION" "$fixture/Stow.xcodeproj/project.pbxproj" "$fixture/Scripts/generate_project.rb")" == "$before" ]]
+  [[ "$("$fixture/Scripts/verify_version_real.sh")" == 1.2.3 ]]
+done
+
+# Release scripts need no generator, Ruby, or xcodeproj installation.
+fixture="$temporary/no-generator"
+make_fixture "$fixture"
+rm "$fixture/Scripts/generate_project.rb"
+[[ "$("$fixture/Scripts/bump_version.sh" patch)" == 1.2.4 ]]
 
 printf '%s\n' "Version bump tests passed"

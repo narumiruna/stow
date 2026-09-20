@@ -36,6 +36,10 @@ mode, requested_path = if ARGV.empty?
                          exit 64
                        end
 
+version_line = File.read(File.join(ROOT, "VERSION"))
+abort "VERSION must contain one MAJOR.MINOR.PATCH line." unless version_line.match?(/\A(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\n\z/)
+MARKETING_VERSION = version_line.chomp.freeze
+
 temporary_root = mode == :check ? Dir.mktmpdir("stow-project-check-") : nil
 at_exit { FileUtils.rm_rf(temporary_root) if temporary_root }
 project_path = temporary_root ? File.join(temporary_root, "Stow.xcodeproj") : requested_path
@@ -105,7 +109,7 @@ def configure_target(target, platform:, deployment:, bundle_id:, info_plist:, en
     settings["CODE_SIGN_STYLE"] = "Automatic"
     settings["DEVELOPMENT_TEAM"] = ""
     settings["CURRENT_PROJECT_VERSION"] = "1"
-    settings["MARKETING_VERSION"] = "0.1.1"
+    settings["MARKETING_VERSION"] = MARKETING_VERSION
     settings["ENABLE_USER_SCRIPT_SANDBOXING"] = "YES"
     settings["ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS"] = "YES"
     settings["PRODUCT_MODULE_NAME"] = module_name if module_name

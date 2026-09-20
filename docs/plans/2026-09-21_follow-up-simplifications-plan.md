@@ -91,10 +91,12 @@ Drag evidence: real `NSItemProvider` loading passed for text, URL and binary att
 
 ### 6. Derive generator version input from VERSION
 
-- [ ] Read `VERSION` once in `Scripts/generate_project.rb` instead of embedding a release literal; acceptance: generation at the current version produces byte-for-byte identical project settings and schemes.
-- [ ] Remove generator-source replacement, backup, and literal parsing from `Scripts/bump_version.sh` and `Scripts/verify_version.sh`; acceptance: shell-only scripts still enforce strict version/tag syntax, consistent Xcode settings, existing bump arithmetic, and rollback on failed updates, without requiring Ruby or `xcodeproj` on Ubuntu.
-- [ ] Update version-test fixtures, `.github/workflows/bump-version.yml` staging paths, and README release instructions; acceptance: a bump changes only `VERSION` and the project's version settings, preserves output and tag conventions, and no longer stages generator source.
-- [ ] Run `Scripts/bump_version_tests.sh`, `Scripts/verify_version_tests.sh`, `Scripts/verify_version.sh`, `Scripts/generate_project_tests.sh`, and `ruby Scripts/generate_project.rb --check`; acceptance: all pass, rejected bumps leave fixtures unchanged, and isolated major/minor/patch fixtures agree with regenerated projects. Do not bump the working repository or publish a release to perform these checks.
+- [x] Read `VERSION` once in `Scripts/generate_project.rb` instead of embedding a release literal; acceptance: generation at the current version produces byte-for-byte identical project settings and schemes.
+- [x] Remove generator-source replacement, backup, and literal parsing from `Scripts/bump_version.sh` and `Scripts/verify_version.sh`; acceptance: shell-only scripts still enforce strict version/tag syntax, consistent Xcode settings, existing bump arithmetic, and rollback on failed updates, without requiring Ruby or `xcodeproj` on Ubuntu.
+- [x] Update version-test fixtures, `.github/workflows/bump-version.yml` staging paths, and README release instructions; acceptance: a bump changes only `VERSION` and the project's version settings, preserves output and tag conventions, and no longer stages generator source.
+- [x] Run `Scripts/bump_version_tests.sh`, `Scripts/verify_version_tests.sh`, `Scripts/verify_version.sh`, `Scripts/generate_project_tests.sh`, and `ruby Scripts/generate_project.rb --check`; acceptance: all pass, rejected bumps leave fixtures unchanged, and isolated major/minor/patch fixtures agree with regenerated projects. Do not bump the working repository or publish a release to perform these checks.
+
+Version evidence: all five prescribed script/generator checks passed, plus Bash/Ruby syntax checks. Shell fixtures prove source remains unchanged, no generator is required, and post-update failure/mismatched output restores both version files. Isolated major/minor/patch repositories pass generation drift checks after bumping. Malformed VERSION is rejected before the generator replaces output. Working VERSION remains `0.1.1`; CLI version remains unchanged.
 
 ### 7. Verify the complete implementation
 
