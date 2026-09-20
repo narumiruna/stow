@@ -931,16 +931,9 @@ private struct MacLibraryDetailView: View {
     }
 
     private func dragProvider(_ attachment: StowAttachment? = nil) -> NSItemProvider {
-        let success = MacLibraryDragSuccessToken { appModel.markUsed(item, metric: .itemDragged) }
-        let provider = NSItemProvider()
-        let payload = DragPayload(item: item, attachment: attachment)
-        provider.suggestedName = payload.suggestedName
-        provider.registerDataRepresentation(forTypeIdentifier: payload.typeIdentifier, visibility: .all) { completion in
-            completion(payload.data, nil)
-            success.record()
-            return nil
+        LibraryDragProvider.make(payload: DragPayload(item: item, attachment: attachment)) {
+            appModel.markUsed(item, metric: .itemDragged)
         }
-        return provider
     }
 }
 
@@ -1032,17 +1025,6 @@ private struct MacLibraryEditSheet: View {
         } else {
             dismiss()
         }
-    }
-}
-
-@MainActor
-private final class MacLibraryDragSuccessToken: @unchecked Sendable {
-    private let success: @MainActor () -> Void
-
-    init(success: @escaping @MainActor () -> Void) { self.success = success }
-
-    nonisolated func record() {
-        Task { @MainActor in success() }
     }
 }
 

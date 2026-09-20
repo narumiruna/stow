@@ -83,9 +83,11 @@ iOS evidence: the simulator app build passed for both architectures. The new cod
 
 ### 5. Share Library drag-provider construction
 
-- [ ] Add a shared Library `NSItemProvider` helper accepting `DragPayload` and a main-actor callback, then delegate both Library detail views to it; acceptance: one implementation registers the data representation and suggested name, and the two forwarding success-token classes are removed without replacement unchecked-concurrency wrappers.
-- [ ] Add non-interactive provider-loading tests and run package `DragPayloadTests`; acceptance: bytes, type identifier, suggested name, visibility, and callback order/frequency remain unchanged, with no callback before a load and one callback for each load request.
-- [ ] Keep Quick Panel's `PanelCardDragSourceView` and `NSDraggingSession` completion handling separate; acceptance: no changes to destination-acceptance accounting, cancellation, panel closing, or temporary-file cleanup in that path.
+- [x] Add a shared Library `NSItemProvider` helper accepting `DragPayload` and a main-actor callback, then delegate both Library detail views to it; acceptance: one implementation registers the data representation and suggested name, and the two forwarding success-token classes are removed without replacement unchecked-concurrency wrappers.
+- [x] Add non-interactive provider-loading tests and run package `DragPayloadTests`; acceptance: bytes, type identifier, suggested name, visibility, and callback order/frequency remain unchanged, with no callback before a load and one callback for each load request.
+- [x] Keep Quick Panel's `PanelCardDragSourceView` and `NSDraggingSession` completion handling separate; acceptance: no changes to destination-acceptance accounting, cancellation, panel closing, or temporary-file cleanup in that path.
+
+Drag evidence: real `NSItemProvider` loading passed for text, URL and binary attachment payloads, two requests apiece, with no callback at construction; both package payload tests passed. Static review confirms unchanged `.all` visibility and completion-before-main-actor-task order in the single registration handler. Foundation can deliver its public client callback later than that handler's completion, so an initial test incorrectly requiring client delivery before accounting was removed; that stronger ordering was never guaranteed by either old implementation. No provider backend or unchecked forwarding wrapper was added; native panel drag handling is untouched.
 
 ### 6. Derive generator version input from VERSION
 
