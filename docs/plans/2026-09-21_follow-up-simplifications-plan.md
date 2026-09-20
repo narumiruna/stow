@@ -67,9 +67,11 @@ Shortcut evidence: all 9 registration/settings tests passed with fake backends a
 
 ### 3. Share the local-search fallback
 
-- [ ] Extract domain-specific metadata and per-field text predicates from `MacLibraryView` and `RetrievalPanel`; acceptance: both call the same implementation for type/source/date filtering and width-normalized substring matching, with collection membership, result freshness, fallback selection, and ordering still owned by the callers.
-- [ ] Add table-driven fallback tests using fixed dates; acceptance: title, text, URL, source domain, note, and filename each match as before, including empty queries, fullwidth text, punctuation, exact source comparison, and date boundaries. Preserve per-field matching rather than joining fields or applying SQLite token/prefix rules.
-- [ ] Run the new isolated fallback tests, `SearchIndexRecoveryTests`, and package `SearchServiceTests`; acceptance: local matching and indexed search retain their separate semantics and cancellation/recovery behavior.
+- [x] Extract domain-specific metadata and per-field text predicates from `MacLibraryView` and `RetrievalPanel`; acceptance: both call the same implementation for type/source/date filtering and width-normalized substring matching, with collection membership, result freshness, fallback selection, and ordering still owned by the callers.
+- [x] Add table-driven fallback tests using fixed dates; acceptance: title, text, URL, source domain, note, and filename each match as before, including empty queries, fullwidth text, punctuation, exact source comparison, and date boundaries. Preserve per-field matching rather than joining fields or applying SQLite token/prefix rules.
+- [x] Run the new isolated fallback tests, `SearchIndexRecoveryTests`, and package `SearchServiceTests`; acceptance: local matching and indexed search retain their separate semantics and cancellation/recovery behavior.
+
+Search evidence: 4 local fallback tests, 9 search recovery tests, and 6 package search tests passed. Fixed Gregorian/UTC fixtures cover exact lower boundaries and the existing inclusion of future dates; fields remain independently matched. Caller-specific indexed-result freshness, membership and ordering are unchanged.
 
 ### 4. Remove unused iOS editor transition state
 

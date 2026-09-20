@@ -337,21 +337,15 @@ struct MacLibraryView: View {
     }
 
     private func filtersInclude(_ item: StowItem) -> Bool {
-        (appModel.typeFilter == nil || item.type == appModel.typeFilter) &&
-            (appModel.sourceFilter == nil || item.sourceApp == appModel.sourceFilter) &&
-            appModel.dateFilter.includes(item.createdAt)
+        LocalItemSearch.matchesMetadata(
+            item, type: appModel.typeFilter, source: appModel.sourceFilter, date: appModel.dateFilter
+        )
     }
 
     private func searchIncludes(_ item: StowItem) -> Bool {
         guard !appModel.searchText.isEmpty else { return true }
         if let resultIDs = appModel.searchResultIDs { return resultIDs.contains(item.id) }
-        let query = appModel.searchText.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? appModel.searchText
-        return [item.title, item.textContent, item.urlString, item.sourceDomain, item.note, item.fileName]
-            .compactMap { $0 }
-            .contains {
-                let value = $0.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? $0
-                return value.localizedCaseInsensitiveContains(query)
-            }
+        return LocalItemSearch.matchesText(item, query: appModel.searchText)
     }
 
     private func setPinned(_ items: [StowItem], pinned: Bool) {
