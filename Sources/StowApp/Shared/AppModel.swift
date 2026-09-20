@@ -38,13 +38,19 @@ final class AppModel {
     private let syncMonitor = CloudSyncMonitor()
     @ObservationIgnored private let searchDocumentsOverride: (() throws -> [SearchDocument])?
     @ObservationIgnored private let searchIndexRebuildOverride: (([SearchDocument]) async throws -> Void)?
+    @ObservationIgnored private let captureSpoolOverride: CaptureSpool?
+    @ObservationIgnored private let sharedContainerURLOverride: URL?
 
     init(
         searchDocuments: (() throws -> [SearchDocument])? = nil,
-        rebuildSearchIndex: (([SearchDocument]) async throws -> Void)? = nil
+        rebuildSearchIndex: (([SearchDocument]) async throws -> Void)? = nil,
+        captureSpool: CaptureSpool? = nil,
+        sharedContainerURL: URL? = nil
     ) {
         searchDocumentsOverride = searchDocuments
         searchIndexRebuildOverride = rebuildSearchIndex
+        captureSpoolOverride = captureSpool
+        sharedContainerURLOverride = sharedContainerURL
     }
 
     func markLaunchReady() {
@@ -72,8 +78,8 @@ final class AppModel {
         }
         #endif
         do {
-            let sharedURL = StowEnvironment.sharedContainerURL()
-            spool = try CaptureSpool(rootURL: sharedURL.appendingPathComponent("CaptureSpool", isDirectory: true))
+            let sharedURL = sharedContainerURLOverride ?? StowEnvironment.sharedContainerURL()
+            spool = try captureSpoolOverride ?? CaptureSpool(rootURL: sharedURL.appendingPathComponent("CaptureSpool", isDirectory: true))
             metrics = try OnDeviceMetricsClient(url: sharedURL.appendingPathComponent("Metrics/v0.1.json"), enabled: UserDefaults.standard.object(forKey: "analyticsEnabled") as? Bool ?? true)
             searchIndex = try SQLiteSearchIndex(url: sharedURL.appendingPathComponent("Search/v1.sqlite"))
         } catch {
@@ -153,7 +159,7 @@ final class AppModel {
                 intent: intent
             )
             try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
-            let result = captureSpool.ingestAll(into: repository)
+            let result = captureSpool.ingest(captureID: draft.id, into: repository)
             if let failure = result.failures.first { throw NSError(domain: "StowCapture", code: 1, userInfo: [NSLocalizedDescriptionKey: failure]) }
             presentedError = nil
             try? metrics?.record(.captureSucceeded)
