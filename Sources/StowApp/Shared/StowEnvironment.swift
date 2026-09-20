@@ -8,11 +8,32 @@ public enum StowEnvironment {
     public static let cloudKitContainerIdentifier = StowSharedStorage.cloudKitContainerIdentifier
     @MainActor static private(set) var currentContainerUsesCloud = false
 
+    static var isUnitTestHost: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+        #else
+        false
+        #endif
+    }
+
+    private static let testRoot: URL = {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("StowTestHost-\(UUID().uuidString)", isDirectory: true)
+        atexit { try? FileManager.default.removeItem(at: StowEnvironment.testRoot) }
+        return root
+    }()
+
+    static var temporaryDirectory: URL {
+        isUnitTestHost ? testRoot.appendingPathComponent("Temporary", isDirectory: true)
+            : FileManager.default.temporaryDirectory
+    }
+
     @MainActor
     static func makeContainer() -> ModelContainer {
         currentContainerUsesCloud = false
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+        if isUnitTestHost || ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             return try! StowContainerFactory.inMemory()
         }
         #endif
@@ -39,6 +60,7 @@ public enum StowEnvironment {
     }
 
     static func sharedContainerURL() -> URL {
+        if isUnitTestHost { return testRoot.appendingPathComponent("Shared", isDirectory: true) }
         #if os(macOS)
         #if DEBUG
         let overridePath = ProcessInfo.processInfo.arguments

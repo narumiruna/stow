@@ -105,11 +105,14 @@ final class StowAutomationHostServiceTests: XCTestCase {
 
     func testControllerPeriodicallyRemovesExpiredArtifactsWithoutRestart() async throws {
         let container = try StowContainerFactory.inMemory()
-        let model = AppModel()
-        model.connect(ModelContext(container))
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("StowAutomationControllerTests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            .appendingPathComponent("StowAutomationControllerTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = AppModel(runtimePaths: StowRuntimePaths(
+            sharedContainer: root.appendingPathComponent("Shared"),
+            temporaryDirectory: root.appendingPathComponent("Temporary")
+        ))
+        model.connect(ModelContext(container))
         let controller = try StowAutomationController(
             model: model,
             rootURL: root,
@@ -173,11 +176,14 @@ final class StowAutomationHostServiceTests: XCTestCase {
 
     private func makeService() throws -> (service: StowAutomationHostService, model: AppModel) {
         let container = try StowContainerFactory.inMemory()
-        let model = AppModel()
-        model.connect(ModelContext(container))
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("StowAutomationHostServiceTests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            .appendingPathComponent("StowAutomationHostServiceTests-\(UUID().uuidString)", isDirectory: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let model = AppModel(runtimePaths: StowRuntimePaths(
+            sharedContainer: root.appendingPathComponent("Shared"),
+            temporaryDirectory: root.appendingPathComponent("Temporary")
+        ))
+        model.connect(ModelContext(container))
         let spool = try StowAutomationSpool(rootURL: root)
         return (StowAutomationHostService(model: model, spool: spool, hostVersion: "test"), model)
     }

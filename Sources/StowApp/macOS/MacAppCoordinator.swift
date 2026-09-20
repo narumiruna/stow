@@ -24,6 +24,7 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     private var clipboardStartupTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !StowEnvironment.isUnitTestHost else { return }
         retrievalPanel.destinationHandler = { [weak self] destination in
             self?.present(destination)
         }
@@ -90,6 +91,7 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard !StowEnvironment.isUnitTestHost else { return false }
         if automationController?.hasPendingRequests == true { return false }
         if !flag { retrievalPanel.openLibrary() }
         return true
@@ -112,6 +114,7 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
     }
 
     func configure(model: AppModel, container: ModelContainer) {
+        guard !StowEnvironment.isUnitTestHost else { return }
         self.model = model
         self.container = container
         registerHotKeys()

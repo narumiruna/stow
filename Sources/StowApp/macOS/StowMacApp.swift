@@ -2,6 +2,19 @@ import SwiftData
 import SwiftUI
 
 @main
+@MainActor
+private enum StowMacEntryPoint {
+    static func main() {
+        if StowEnvironment.isUnitTestHost {
+            // XCTest needs an application event loop, not the live app's scenes or services.
+            NSApplication.shared.setActivationPolicy(.prohibited)
+            NSApplication.shared.run()
+        } else {
+            StowMacApp.main()
+        }
+    }
+}
+
 struct StowMacApp: App {
     @NSApplicationDelegateAdaptor(MacAppCoordinator.self) private var appDelegate
     @State private var model: AppModel
