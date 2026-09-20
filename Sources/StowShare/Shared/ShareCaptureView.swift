@@ -43,10 +43,10 @@ struct ShareCaptureView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { onComplete(false) } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        do { try model.save(); onComplete(true) }
-                        catch { model.errorMessage = error.localizedDescription }
+                        guard (try? model.save()) != nil else { return }
+                        onComplete(true)
                     }
-                    .disabled(model.isLoading || model.isSaving || model.errorMessage != nil)
+                    .disabled(!model.canSave)
                     .keyboardShortcut(.defaultAction)
                 }
             }

@@ -21,6 +21,7 @@ Scripts/generate_project_tests.sh
 ruby Scripts/generate_project.rb --check
 swift test --package-path Packages/StowCore
 xcodebuild -project Stow.xcodeproj -scheme StowAppTests CODE_SIGNING_ALLOWED=NO test
+xcodebuild -project Stow.xcodeproj -scheme StowShareTests CODE_SIGNING_ALLOWED=NO test
 xcodebuild -project Stow.xcodeproj -scheme Stow-macOS -configuration Debug CODE_SIGNING_ALLOWED=NO build
 xcodebuild -project Stow.xcodeproj -scheme Stow-iOS -configuration Debug -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
 Scripts/verify_entitlements.sh

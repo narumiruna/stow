@@ -182,6 +182,14 @@ unit_tests.build_configurations.each do |configuration|
   configuration.build_settings["BUNDLE_LOADER"] = "$(TEST_HOST)"
 end
 
+share_tests = project.new_target(:unit_test_bundle, "StowShareTests", :osx, "14.0")
+configure_target(share_tests, platform: :macos, deployment: "14.0", bundle_id: "dev.narumi.stow.tests.share", info_plist: "Configuration/Test-Info.plist", module_name: "StowShareTests")
+add_sources(tests_group, share_tests, ROOT, ["StowShareTests"], source_root: "Tests")
+share_model_group = sources_group.groups.find { |group| group.path == "StowShare/Shared" }
+share_model_reference = share_model_group.files.find { |file| file.path == "ShareCaptureModel.swift" }
+share_tests.add_file_references([share_model_reference])
+add_package(project, share_tests, package_ref, "StowCore")
+
 ui_tests = project.new_target(:ui_test_bundle, "StowUITests", :ios, "17.0")
 configure_target(ui_tests, platform: :ios, deployment: "17.0", bundle_id: "dev.narumi.stow.tests.ui.ios", info_plist: "Configuration/Test-Info.plist", module_name: "StowUITests")
 add_sources(tests_group, ui_tests, ROOT, ["StowUITests"], source_root: "Tests")
