@@ -11,7 +11,9 @@ struct StowSettingsView: View {
     @Environment(AppModel.self) private var model
     @AppStorage("analyticsEnabled") private var analyticsEnabled = true
     @Query private var attachments: [StowAttachment]
-    #if os(macOS)
+    #if os(iOS)
+    @State private var savesSharedItemsImmediately = StowShareSettings().savesSharedItemsImmediately
+    #elseif os(macOS)
     @AppStorage("quickAddShortcut") private var quickAddShortcut = "optionShiftS"
     @AppStorage("quickPanelShortcut") private var quickPanelShortcut = "commandShiftV"
     @AppStorage("clipboardMonitoringEnabled") private var clipboardMonitoringEnabled = true
@@ -26,6 +28,14 @@ struct StowSettingsView: View {
                     LabeledContent("Launch readiness", value: String(format: "%.1f ms", milliseconds))
                         .accessibilityIdentifier("launch-readiness")
                 }
+            }
+            #endif
+            #if os(iOS)
+            Section("Sharing") {
+                Toggle("Save shared items immediately", isOn: $savesSharedItemsImmediately)
+                    .accessibilityIdentifier("save-shared-items-immediately")
+                Text("Skip the editable Save to Stow screen and save supported share-sheet content directly to Inbox. Turn this off when you want to edit the title, note, or other options before saving.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             #endif
             Section("Privacy") {
@@ -92,7 +102,11 @@ struct StowSettingsView: View {
         .formStyle(.grouped)
         .navigationTitle("Settings")
         .onChange(of: analyticsEnabled) { _, enabled in model.setMetricsEnabled(enabled) }
-        #if os(macOS)
+        #if os(iOS)
+        .onChange(of: savesSharedItemsImmediately) { _, enabled in
+            StowShareSettings().savesSharedItemsImmediately = enabled
+        }
+        #elseif os(macOS)
         .onChange(of: clipboardMonitoringEnabled) { _, _ in NotificationCenter.default.post(name: .stowClipboardMonitoringChanged, object: nil) }
         .onChange(of: quickAddShortcut) { _, _ in NotificationCenter.default.post(name: .stowHotKeysChanged, object: nil) }
         .onChange(of: quickPanelShortcut) { _, _ in NotificationCenter.default.post(name: .stowHotKeysChanged, object: nil) }

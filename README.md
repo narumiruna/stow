@@ -59,6 +59,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh mac
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh ios
 ```
 
+Run the confirmation and immediate-save Share Extension scenarios together when changing only iOS sharing:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh ios-share
+```
+
 The default mode is `all`, and it attempts both platforms before returning a failure.
 `Scripts/ui_tests.sh` is local-only and exits without running tests when a CI environment is detected.
 
@@ -69,6 +75,10 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --package-pa
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-macOS CODE_SIGNING_ALLOWED=NO build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Stow.xcodeproj -scheme Stow-iOS -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
 ```
+
+## iOS and iPadOS sharing
+
+By default, the Stow Share Extension opens **Save to Stow** so you can edit the title, note, pin, code, or archive options before saving. Enable **Settings → Sharing → Save shared items immediately** to stage supported share-sheet content directly in Inbox and return to the source app without showing that confirmation form. If direct saving fails, Stow keeps the extension open and displays the error instead of discarding the content silently.
 
 ## Agent-first macOS CLI
 

@@ -143,24 +143,7 @@ final class StowUITests: XCTestCase {
     func testSafariShareExtensionCapturesURLInOneSave() throws {
         let app = launchApp()
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
-        safari.launch()
-        let address = safari.buttons["Address"].exists ? safari.buttons["Address"] : safari.textFields["Address"]
-        XCTAssertTrue(address.waitForExistence(timeout: 5))
-        address.tap()
-        let editor = safari.textFields["Address"]
-        XCTAssertTrue(editor.waitForExistence(timeout: 3))
-        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        safari.typeText("https://example.com")
-        safari.typeText(XCUIKeyboardKey.return.rawValue)
-        XCTAssertTrue(safari.staticTexts["Example Domain"].waitForExistence(timeout: 8))
-        let more = safari.buttons["More"]
-        XCTAssertTrue(more.waitForExistence(timeout: 5))
-        for _ in 0..<3 where !more.isHittable { safari.swipeDown() }
-        XCTAssertTrue(more.isHittable)
-        more.tap()
-        let share = safari.buttons["Share"]
-        XCTAssertTrue(share.waitForExistence(timeout: 3))
-        share.tap()
+        openExampleDomainShareSheet(in: safari)
 
         let shareExtension = XCUIApplication(bundleIdentifier: "dev.narumi.stow.share-ios")
         _ = shareExtension.state
@@ -194,6 +177,31 @@ final class StowUITests: XCTestCase {
         shareExtension.buttons["Cancel"].tap()
         app.activate()
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'CANCELLED'")).firstMatch.exists)
+    }
+
+    func testSafariShareExtensionCanSaveImmediately() {
+        let app = launchApp()
+        revealSections(in: app)
+        app.buttons["Settings"].tap()
+        let toggle = app.switches["save-shared-items-immediately"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(toggle.value as? String, "1")
+
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        openExampleDomainShareSheet(in: safari)
+        let shareActivity = safari.staticTexts["Stow"].firstMatch
+        XCTAssertTrue(tapStowShareActivity(in: safari))
+
+        let shareExtension = XCUIApplication(bundleIdentifier: "dev.narumi.stow.share-ios")
+        XCTAssertFalse(shareExtension.staticTexts["Save to Stow"].waitForExistence(timeout: 1))
+        XCTAssertTrue(shareActivity.waitForNonExistence(timeout: 8))
+
+        app.activate()
+        revealSections(in: app)
+        app.buttons["Inbox"].tap()
+        XCTAssertTrue(app.staticTexts["example.com"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.cells.containing(.staticText, identifier: "example.com").count, 1)
     }
 
     func testSearchFindsMatchingContentAndHidesNonmatchingContent() {
@@ -282,15 +290,41 @@ final class StowUITests: XCTestCase {
         XCTFail("Quick Add did not appear after retrying its primary action")
     }
 
+    private func openExampleDomainShareSheet(in safari: XCUIApplication) {
+        safari.launch()
+        let address = safari.buttons["Address"].exists ? safari.buttons["Address"] : safari.textFields["Address"]
+        XCTAssertTrue(address.waitForExistence(timeout: 5))
+        address.tap()
+        let editor = safari.textFields["Address"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        safari.typeText("https://example.com")
+        safari.typeText(XCUIKeyboardKey.return.rawValue)
+        XCTAssertTrue(safari.staticTexts["Example Domain"].waitForExistence(timeout: 8))
+        let more = safari.buttons["More"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5))
+        for _ in 0..<3 where !more.isHittable { safari.swipeDown() }
+        XCTAssertTrue(more.isHittable)
+        more.tap()
+        let share = safari.buttons["Share"]
+        XCTAssertTrue(share.waitForExistence(timeout: 3))
+        share.tap()
+    }
+
+    private func tapStowShareActivity(in safari: XCUIApplication) -> Bool {
+        let label = safari.staticTexts["Stow"].firstMatch
+        let activity = label.waitForExistence(timeout: 3) ? label : safari.cells["Stow"].firstMatch
+        guard activity.waitForExistence(timeout: 3) else { return false }
+        activity.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        return true
+    }
+
     private func openStowShareExtension(
         from safari: XCUIApplication,
         extensionApp: XCUIApplication
     ) -> Bool {
         for _ in 0..<2 {
-            let label = safari.staticTexts["Stow"].firstMatch
-            let activity = label.waitForExistence(timeout: 3) ? label : safari.cells["Stow"].firstMatch
-            guard activity.waitForExistence(timeout: 3) else { return false }
-            activity.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            guard tapStowShareActivity(in: safari) else { return false }
             if extensionApp.staticTexts["Save to Stow"].waitForExistence(timeout: 5) { return true }
         }
         return false
