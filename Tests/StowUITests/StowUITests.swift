@@ -121,6 +121,55 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Edited note"].waitForExistence(timeout: 3))
     }
 
+    func testDetailSaveFailureRetainsDraftAndAllowsRetry() {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-panel"])
+        let row = app.cells.containing(.staticText, identifier: "Panel Code").firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        row.staticTexts["Panel Code"].firstMatch.tap()
+        app.buttons["Edit"].tap()
+
+        func replace(_ element: XCUIElement, with value: String) {
+            for _ in 0..<6 where !element.isHittable { app.swipeUp() }
+            XCTAssertTrue(element.isHittable)
+            let previous = element.value as? String ?? ""
+            element.tap()
+            element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count) + value)
+        }
+        let title = app.textFields["Title"]
+        let note = app.textFields["Note"].exists ? app.textFields["Note"] : app.textViews["Note"]
+        let content = app.textViews.matching(NSPredicate(format: "identifier != 'Note'")).firstMatch
+        let language = app.textFields["Language"]
+        XCTAssertTrue(content.waitForExistence(timeout: 3))
+        let savedContent = content.value as? String ?? ""
+        XCTAssertFalse(savedContent.isEmpty)
+        replace(title, with: "Retained draft title")
+        replace(note, with: "Retained draft note")
+        replace(content, with: "")
+        replace(language, with: "Retained language")
+        app.buttons["Done"].tap()
+
+        let alert = app.alerts["Stow couldn't complete that action"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 3))
+        alert.buttons["OK"].tap()
+        XCTAssertTrue(app.buttons["Done"].exists)
+        XCTAssertEqual(title.value as? String, "Retained draft title")
+        XCTAssertEqual(note.value as? String, "Retained draft note")
+        XCTAssertEqual(content.value as? String, "")
+        XCTAssertEqual(language.value as? String, "Retained language")
+        XCTAssertTrue(app.navigationBars["Panel Code"].exists)
+        XCTAssertTrue(app.staticTexts[savedContent].exists, "Failed save must not replace the saved preview")
+
+        replace(content, with: "let retry = true")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Retained draft title"].exists)
+        app.buttons["Edit"].tap()
+        XCTAssertEqual(title.value as? String, "Retained draft title")
+        XCTAssertEqual(note.value as? String, "Retained draft note")
+        XCTAssertEqual(content.value as? String, "let retry = true")
+        XCTAssertEqual(language.value as? String, "Retained language")
+    }
+
     func testInboxSwipePinsAndArchivesItem() {
         let app = launchApp()
         addText("Swipe me", in: app)

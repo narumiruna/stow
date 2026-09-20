@@ -15,7 +15,6 @@ struct StowItemDetailView: View {
     @State private var text: String
     @State private var language: String
     @State private var editing = false
-    @State private var editorTransition = EditorTransitionModel()
     @State private var previewURL: URL?
     @State private var imageScale: CGFloat = 1
 
@@ -46,10 +45,6 @@ struct StowItemDetailView: View {
             }
             ToolbarItem { Button { appModel.togglePin(item) } label: { Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.fill" : "pin") } }
         }
-        .onChange(of: title) { _, _ in markEditorDirty() }
-        .onChange(of: note) { _, _ in markEditorDirty() }
-        .onChange(of: text) { _, _ in markEditorDirty() }
-        .onChange(of: language) { _, _ in markEditorDirty() }
     }
 
     @ViewBuilder
@@ -180,29 +175,13 @@ struct StowItemDetailView: View {
 
     private func toggleEditing() {
         guard editing else {
-            editorTransition.reset()
             editing = true
             return
         }
 
-        editorTransition.beginSave(then: .finishEditing)
-        let saved = appModel.save(
-            item,
-            title: title,
-            note: note,
-            text: text,
-            language: language
-        )
-        guard saved || appModel.presentedError != nil else { return }
-        let destination = editorTransition.finishSave(
-            errorMessage: saved ? nil : appModel.presentedError
-        )
-        if destination == .finishEditing { editing = false }
-    }
-
-    private func markEditorDirty() {
-        guard editing else { return }
-        editorTransition.updateDirty(true)
+        if appModel.save(item, title: title, note: note, text: text, language: language) {
+            editing = false
+        }
     }
 
     private var editor: some View {

@@ -75,9 +75,11 @@ Search evidence: 4 local fallback tests, 9 search recovery tests, and 6 package 
 
 ### 4. Remove unused iOS editor transition state
 
-- [ ] Replace `StowItemDetailView.toggleEditing()` with direct handling of `AppModel.save` success and remove this view's transition-model state and four dirty observers; acceptance: draft fields and `editing` remain, success exits editing, and failure leaves the complete draft editable with the existing global alert.
-- [ ] Preserve the shared panel transition model and iOS navigation behavior; acceptance: diff review shows no change to panel discard policy, draft initialization, field normalization, navigation interception, or user-facing controls.
+- [x] Replace `StowItemDetailView.toggleEditing()` with direct handling of `AppModel.save` success and remove this view's transition-model state and four dirty observers; acceptance: draft fields and `editing` remain, success exits editing, and failure leaves the complete draft editable with the existing global alert.
+- [x] Preserve the shared panel transition model and iOS navigation behavior; acceptance: diff review shows no change to panel discard policy, draft initialization, field normalization, navigation interception, or user-facing controls.
 - [ ] Build the iOS target and add failure-and-retry coverage alongside `testDetailEditingPersistsNote` in `Tests/StowUITests/StowUITests.swift`; acceptance: compilation passes and the new scenario verifies retained draft, unchanged saved content after failure, and successful retry. Execute these UI scenarios only in section 7.
+
+iOS evidence: the simulator app build passed for both architectures. The new code-item failure/retry scenario checks all draft fields and the unchanged saved preview using empty-content validation, without a new production failure hook. UI execution remains deferred to the final batch, so the scenario's acceptance task remains open.
 
 ### 5. Share Library drag-provider construction
 
