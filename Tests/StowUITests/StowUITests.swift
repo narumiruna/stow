@@ -133,7 +133,13 @@ final class StowUITests: XCTestCase {
             XCTAssertTrue(element.isHittable)
             let previous = element.value as? String ?? ""
             element.tap()
+            if element.elementType == .textView {
+                // These fixtures are one line. Initial TextEditor focus can leave the caret at
+                // the start; a second tap beyond the first line places it after the content.
+                element.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.1)).tap()
+            }
             element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count) + value)
+            XCTAssertEqual(element.value as? String ?? "", value)
         }
         let title = app.textFields["Title"]
         let note = app.textFields["Note"].exists ? app.textFields["Note"] : app.textViews["Note"]
