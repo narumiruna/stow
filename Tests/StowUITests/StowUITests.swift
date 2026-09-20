@@ -142,7 +142,10 @@ final class StowUITests: XCTestCase {
             XCTAssertEqual(element.value as? String ?? "", value)
         }
         let title = app.textFields["Title"]
-        let note = app.textFields["Note"].exists ? app.textFields["Note"] : app.textViews["Note"]
+        // The vertical Note field loses its placeholder identifier once populated.
+        // This code-item editor has exactly three fields in title/note/language order.
+        XCTAssertEqual(app.textFields.count, 3)
+        let note = app.textFields.element(boundBy: 1)
         let content = app.textViews.matching(NSPredicate(format: "identifier != 'Note' AND label != 'Note'")).firstMatch
         let language = app.textFields["Language"]
         XCTAssertTrue(content.waitForExistence(timeout: 3))
