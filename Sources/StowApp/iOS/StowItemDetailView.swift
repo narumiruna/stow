@@ -2,121 +2,7 @@ import QuickLook
 import SwiftData
 import SwiftUI
 import StowCore
-#if os(iOS)
 import UIKit
-#elseif os(macOS)
-import AppKit
-#endif
-
-enum EditorMode: Equatable {
-    case preview
-    case edit
-    case rename
-}
-
-enum EditorTransitionDestination: Equatable {
-    case finishEditing
-    case dismissEditor
-    case popover(itemID: UUID, mode: EditorMode)
-    case selection(itemID: UUID)
-    case panelExit
-}
-
-struct EditorTransitionModel: Equatable {
-    enum Phase: Equatable {
-        case clean
-        case dirty
-        case saving
-        case saveFailed(String)
-        case discardConfirmation
-    }
-
-    private(set) var phase: Phase = .clean
-    private var phaseBeforeConfirmation: Phase?
-    private var pendingDestination: EditorTransitionDestination?
-
-    var hasUnsavedChanges: Bool {
-        switch phase {
-        case .dirty, .saveFailed, .discardConfirmation:
-            true
-        case .clean, .saving:
-            false
-        }
-    }
-
-    var errorMessage: String? {
-        guard case .saveFailed(let message) = phase else { return nil }
-        return message
-    }
-
-    mutating func updateDirty(_ isDirty: Bool) {
-        switch phase {
-        case .saving, .discardConfirmation:
-            return
-        case .saveFailed where isDirty:
-            return
-        case .clean, .dirty, .saveFailed:
-            phase = isDirty ? .dirty : .clean
-        }
-    }
-
-    mutating func beginSave(then destination: EditorTransitionDestination) {
-        guard phase != .saving, phase != .discardConfirmation else { return }
-        pendingDestination = destination
-        phaseBeforeConfirmation = nil
-        phase = .saving
-    }
-
-    mutating func finishSave(errorMessage: String?) -> EditorTransitionDestination? {
-        guard phase == .saving else { return nil }
-        if let errorMessage {
-            phase = .saveFailed(errorMessage)
-            pendingDestination = nil
-            return nil
-        }
-        let destination = pendingDestination
-        reset()
-        return destination
-    }
-
-    mutating func request(_ destination: EditorTransitionDestination) -> EditorTransitionDestination? {
-        switch phase {
-        case .clean:
-            return destination
-        case .dirty, .saveFailed:
-            phaseBeforeConfirmation = phase
-            pendingDestination = destination
-            phase = .discardConfirmation
-            return nil
-        case .saving, .discardConfirmation:
-            return nil
-        }
-    }
-
-    mutating func confirmDiscard() -> EditorTransitionDestination? {
-        guard phase == .discardConfirmation else { return nil }
-        let destination = pendingDestination
-        reset()
-        return destination
-    }
-
-    mutating func keepEditing() {
-        guard phase == .discardConfirmation else { return }
-        phase = phaseBeforeConfirmation ?? .dirty
-        phaseBeforeConfirmation = nil
-        pendingDestination = nil
-    }
-
-    mutating func dismissFailure() {
-        if case .saveFailed = phase { phase = .dirty }
-    }
-
-    mutating func reset() {
-        phase = .clean
-        phaseBeforeConfirmation = nil
-        pendingDestination = nil
-    }
-}
 
 struct StowItemDetailView: View {
     @Environment(AppModel.self) private var appModel
@@ -393,7 +279,6 @@ struct StowItemDetailView: View {
             }
         }
         StowShareButton(item: item, attachment: attachments.first, fillsWidth: fillsWidth)
-        #if os(iOS)
         if item.type == .image, let data = attachments.first?.data {
             Button {
                 appModel.performUse(item, action: .open, metric: .itemOpened) {
@@ -403,7 +288,6 @@ struct StowItemDetailView: View {
                 actionLabel("Save Image", systemImage: "photo.badge.arrow.down", fillsWidth: fillsWidth)
             }
         }
-        #endif
         Button { appModel.archiveOrRestore(item) } label: {
             actionLabel(item.status == .archived ? "Restore" : "Archive", systemImage: "archivebox", fillsWidth: fillsWidth)
         }
@@ -424,11 +308,7 @@ struct StowItemDetailView: View {
     }
 
     private var isCompactLayout: Bool {
-        #if os(iOS)
         horizontalSizeClass == .compact
-        #else
-        false
-        #endif
     }
 
     private func metadataRow(_ label: String, _ value: String) -> some View {
@@ -452,13 +332,8 @@ struct StowItemDetailView: View {
     }
 
     private func platformImage(data: Data) -> Image? {
-        #if os(iOS)
         guard let image = UIImage(data: data) else { return nil }
         return Image(uiImage: image)
-        #elseif os(macOS)
-        guard let image = NSImage(data: data) else { return nil }
-        return Image(nsImage: image)
-        #endif
     }
 }
 
@@ -469,16 +344,6 @@ private struct ItemMetadataEntry: Identifiable {
     var id: String { label }
 }
 
-extension StowItem {
-    var displayTitle: String {
-        type == .link ? HTMLMetadataParser.decodeCharacterReferences(title) : title
-    }
-
-    var displayLinkDescription: String? {
-        linkDescription.map(HTMLMetadataParser.decodeCharacterReferences)
-    }
-}
-
 private final class DragSuccessToken: @unchecked Sendable {
     private let success: @MainActor () -> Void
 
@@ -486,30 +351,5 @@ private final class DragSuccessToken: @unchecked Sendable {
 
     nonisolated func record() {
         Task { @MainActor in success() }
-    }
-}
-
-enum SimpleSyntaxHighlighter {
-    static func highlight(_ source: String) -> AttributedString {
-        var result = AttributedString(source)
-        result.font = .system(.body, design: .monospaced)
-        apply(#"\b(?:let|var|func|class|struct|enum|if|else|for|while|return|import|public|private|async|await|throws)\b"#, color: .purple, bold: true, source: source, result: &result)
-        apply(#"\b\d+(?:\.\d+)?\b"#, color: .orange, source: source, result: &result)
-        apply(#"\"(?:\\.|[^\"\\])*\""#, color: .green, source: source, result: &result)
-        apply(#"//[^\n]*|/\*[\s\S]*?\*/"#, color: .secondary, source: source, result: &result)
-        return result
-    }
-
-    private static func apply(_ pattern: String, color: Color, bold: Bool = false, source: String, result: inout AttributedString) {
-        guard let expression = try? NSRegularExpression(pattern: pattern) else { return }
-        let matches = expression.matches(in: source, range: NSRange(source.startIndex..., in: source))
-        for match in matches {
-            guard let sourceRange = Range(match.range, in: source),
-                  let lower = AttributedString.Index(sourceRange.lowerBound, within: result),
-                  let upper = AttributedString.Index(sourceRange.upperBound, within: result) else { continue }
-            let range = lower..<upper
-            result[range].foregroundColor = color
-            if bold { result[range].font = .system(.body, design: .monospaced).bold() }
-        }
     }
 }

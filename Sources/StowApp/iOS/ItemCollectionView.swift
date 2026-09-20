@@ -1,11 +1,7 @@
 import SwiftData
 import SwiftUI
 import StowCore
-#if os(iOS)
 import UIKit
-#elseif os(macOS)
-import AppKit
-#endif
 
 struct ItemCollectionView: View {
     @Environment(AppModel.self) private var appModel
@@ -100,11 +96,7 @@ struct ItemCollectionView: View {
     }
 
     private func showQuickAdd() {
-        #if os(macOS)
-        NotificationCenter.default.post(name: .stowShowQuickAdd, object: nil)
-        #else
         appModel.isAdding = true
-        #endif
     }
 
     private var emptyTitle: String { appModel.searchText.isEmpty ? "No \(appModel.selection.rawValue) Items" : "No Results" }
@@ -153,11 +145,7 @@ private struct StowItemRow: View {
     private var thumbnail: Image? {
         guard let attachment = allAttachments.first(where: { $0.itemID == item.id }),
               let data = attachment.thumbnailData ?? Optional(attachment.data) else { return nil }
-        #if os(iOS)
         return UIImage(data: data).map(Image.init(uiImage:))
-        #elseif os(macOS)
-        return NSImage(data: data).map(Image.init(nsImage:))
-        #endif
     }
 }
 
@@ -181,27 +169,4 @@ private struct ItemContextMenu: View {
     }
 
     private var attachment: StowAttachment? { allAttachments.first { $0.itemID == item.id } }
-}
-
-extension ItemType {
-    var displayName: String {
-        switch self { case .link: "Links"; case .text: "Text"; case .code: "Code"; case .image: "Images"; case .file: "Files" }
-    }
-    var icon: String {
-        switch self { case .link: "link"; case .text: "text.alignleft"; case .code: "chevron.left.forwardslash.chevron.right"; case .image: "photo"; case .file: "doc" }
-    }
-    var tint: Color {
-        switch self { case .link: .blue; case .text: .teal; case .code: .purple; case .image: .pink; case .file: .orange }
-    }
-}
-
-extension StowItem {
-    var previewText: String {
-        switch type {
-        case .link: sourceDomain ?? urlString ?? "Link"
-        case .text, .code: textContent ?? ""
-        case .image: fileName ?? "Image"
-        case .file: fileName ?? "File"
-        }
-    }
 }
