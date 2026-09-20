@@ -77,9 +77,9 @@ Search evidence: 4 local fallback tests, 9 search recovery tests, and 6 package 
 
 - [x] Replace `StowItemDetailView.toggleEditing()` with direct handling of `AppModel.save` success and remove this view's transition-model state and four dirty observers; acceptance: draft fields and `editing` remain, success exits editing, and failure leaves the complete draft editable with the existing global alert.
 - [x] Preserve the shared panel transition model and iOS navigation behavior; acceptance: diff review shows no change to panel discard policy, draft initialization, field normalization, navigation interception, or user-facing controls.
-- [ ] Build the iOS target and add failure-and-retry coverage alongside `testDetailEditingPersistsNote` in `Tests/StowUITests/StowUITests.swift`; acceptance: compilation passes and the new scenario verifies retained draft, unchanged saved content after failure, and successful retry. Execute these UI scenarios only in section 7.
+- [x] Build the iOS target and add failure-and-retry coverage alongside `testDetailEditingPersistsNote` in `Tests/StowUITests/StowUITests.swift`; acceptance: compilation passes and the new scenario verifies retained draft, unchanged saved content after failure, and successful retry. Execute these UI scenarios only in section 7.
 
-iOS evidence: the simulator app build passed for both architectures. The new code-item failure/retry scenario checks all draft fields and the unchanged saved preview using empty-content validation, without a new production failure hook. UI execution remains deferred to the final batch, so the scenario's acceptance task remains open.
+iOS evidence: the simulator app build passed for both architectures. The new code-item failure/retry scenario checks all draft fields and the unchanged saved preview using empty-content validation, without a new production failure hook. The final iOS batch subsequently passed all 15 tests, including this scenario and the existing note-persistence scenario.
 
 ### 5. Share Library drag-provider construction
 
@@ -104,11 +104,15 @@ Version evidence: all five prescribed script/generator checks passed, plus Bash/
 - [x] Run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ci.sh` only after section 0's isolation prerequisite is satisfied; acceptance: package/native tests, both platform builds, script checks, and entitlement checks pass without UI-test invocation. Record the toolchain used; local Xcode 26.6 results do not establish compatibility with CI's configured Xcode 26.3 / Swift 6.2 toolchain.
 - [x] Verify the non-interactive gate with CI's configured toolchain before claiming CI compatibility; acceptance: record a passing result, or leave this check open with the unavailable toolchain stated. Do not dispatch remote workflows without authorization.
 - [ ] Run one final local `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh all` batch after every implementation change and non-interactive check is complete; acceptance: both platforms pass, including original/plain-text copy, copy-only/direct-paste closing, search-failure local matches, shortcut rollback, iOS save failure/retry, and existing panel drag acceptance. If the batch fails, diagnose the complete batch and group related fixes before rerunning it.
-- [ ] Review the final diff against the six proposals and run `git diff --check`; acceptance: no unrelated implementation changes, behavioral fixes, schema/protocol changes, or unowned temporary files remain, and validation evidence is recorded here.
+- [x] Review the final diff against the six proposals and run `git diff --check`; acceptance: no unrelated implementation changes, behavioral fixes, schema/protocol changes, or unowned temporary files remain, and validation evidence is recorded here.
 
 Final non-interactive evidence: `Scripts/ci.sh` exited 0 on Xcode 26.6 / Swift 6.3.3: 130 package tests, 88 hosted app tests, 6 share tests, macOS/iOS builds, script checks, entitlements and privacy-manifest checks all passed. `plutil` validated all Configuration plists/entitlements/manifests. Generated project semantic comparison against `origin/main` confirmed only intended source additions; build settings, dependencies, and non-source phases are unchanged. Shared schemes update only generated target identifiers. Source/test/script diff review found no schema, protocol, preference-key, panel drag policy, or UI-control changes. Configured-toolchain evidence: [PR #33 CI run 35536703100](https://github.com/narumiruna/stow/actions/runs/35536703100) passed on Xcode 26.3 / Swift 6.2 at `70e58a6`.
 
 First final UI batch: macOS was blocked before execution (exit 77: Developer Mode disabled). iOS 26.5 / iPhone 17 Pro ran all 15 tests: 14 passed; the new failure/retry test failed because initial TextEditor focus left the caret at the start, so Delete did not clear content. Recorded video confirmed the test-input defect and unchanged saved text. The grouped correction explicitly places the caret after the one-line fixture and asserts replacement before saving. No app behavior was changed. The second full batch again passed all 14 existing iOS tests, but the new replacement assertion exposed a second fixture issue: the vertical Note field loses its placeholder identifier after typing. The fixture now addresses that field by its verified title/note/language order. Both test-input corrections preserve the complete failure/retry assertions; the next full batch verifies them together. CI also passed at `5b3c4f4` ([run 35537011772](https://github.com/narumiruna/stow/actions/runs/35537011772)).
+
+Final verification at `0142c4f`: [configured-toolchain CI run 35537334329](https://github.com/narumiruna/stow/actions/runs/35537334329) passed. The final `Scripts/ui_tests.sh all` batch passed all 15 iOS tests on iOS 26.5 / iPhone 17 Pro, including complete draft retention, unchanged saved content after failure, retry and persisted lowercase language. Xcode result: `Test-StowUITests-2026.09.21_05-00-38-+0800.xcresult`. The batch still exits **77** because macOS Developer Mode is disabled; no macOS interactive tests ran. Administrator action is required: `sudo DevToolsSecurity -enable`, then rerun the prescribed final UI batch. Do not mark the macOS/UI completion criteria complete before that passes.
+
+Handoff: signed commits are pushed to [draft PR #33](https://github.com/narumiruna/stow/pull/33). Source and final test diffs were reviewed; `git diff --check` passed. Public core, schema, CLI/version value, entitlements and CI/UI orchestration are unchanged. Agent-created diagnostic/log exports and 71 inspected test-owned temporary fixtures were removed; unrelated older fixtures were preserved. No review comments were outstanding at handoff. This plan is retained because macOS UI acceptance remains blocked; no release, tag, publication or merge was performed.
 
 ## Risks
 
@@ -127,9 +131,9 @@ For version-script changes, retain backups and rollback for `VERSION` and `Stow.
 
 ## Completion Checklist
 
-- [ ] All six simplifications meet their stated acceptance tests, with no speculative abstractions or adjacent behavior changes.
-- [ ] Hosted-test storage isolation is proven and all required non-interactive checks pass after the final change.
+- [x] All six simplifications meet their stated acceptance tests, with no speculative abstractions or adjacent behavior changes.
+- [x] Hosted-test storage isolation is proven and all required non-interactive checks pass after the final change.
 - [ ] Compatibility with the configured CI toolchain is verified, and the accumulated macOS/iOS UI batch passes.
-- [ ] Version generation and bumping agree for all supported bump types, with failure rollback verified in isolated fixtures.
-- [ ] Final diff review confirms unchanged public APIs, persisted formats, CLI output, UI behavior, preference keys, and usage accounting.
+- [x] Version generation and bumping agree for all supported bump types, with failure rollback verified in isolated fixtures.
+- [x] Final diff review confirms unchanged public APIs, persisted formats, CLI output, UI behavior, preference keys, and usage accounting.
 - [ ] Required review feedback is resolved, temporary verification artifacts are removed, and the implementation is ready for handoff; no commit, merge, push, or deployment is implied without separate authorization.
