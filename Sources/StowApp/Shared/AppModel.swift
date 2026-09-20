@@ -37,6 +37,7 @@ final class AppModel {
     private let syncMonitor = CloudSyncMonitor()
     @ObservationIgnored private let searchDocumentsOverride: (() throws -> [SearchDocument])?
     @ObservationIgnored private let captureSpoolOverride: CaptureSpool?
+    @ObservationIgnored private let loadRepresentationsOverride: ((UUID) throws -> [StowRepresentation])?
     @ObservationIgnored private let runtimePathsOverride: StowRuntimePaths?
     private var runtimePaths: StowRuntimePaths { runtimePathsOverride ?? .current }
 
@@ -44,12 +45,14 @@ final class AppModel {
         searchDocuments: (() throws -> [SearchDocument])? = nil,
         searchCoordinator: SearchCoordinator? = nil,
         captureSpool: CaptureSpool? = nil,
-        runtimePaths: StowRuntimePaths? = nil
+        runtimePaths: StowRuntimePaths? = nil,
+        loadRepresentations: ((UUID) throws -> [StowRepresentation])? = nil
     ) {
         searchDocumentsOverride = searchDocuments
         self.searchCoordinator = searchCoordinator
         captureSpoolOverride = captureSpool
         runtimePathsOverride = runtimePaths
+        loadRepresentationsOverride = loadRepresentations
     }
 
     func markLaunchReady() {
@@ -292,6 +295,7 @@ final class AppModel {
     func representations(for item: StowItem) -> [StowRepresentation] {
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
+            if let loadRepresentationsOverride { return try loadRepresentationsOverride(item.id) }
             return try repository.representations(itemID: item.id)
         } catch {
             presentedError = error.localizedDescription

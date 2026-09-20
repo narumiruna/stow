@@ -275,15 +275,7 @@ struct MacLibraryView: View {
     @ViewBuilder
     private func contextMenu(for item: StowItem) -> some View {
         Button {
-            let representations = appModel.representations(for: item)
-            appModel.performUse(item, action: .copy, metric: .itemCopied) {
-                try PlatformActions.copy(
-                    item,
-                    attachmentData: attachmentMap[item.id]?.data,
-                    attachment: attachmentMap[item.id],
-                    representations: representations
-                )
-            }
+            appModel.copy(item, attachment: attachmentMap[item.id])
         } label: {
             Label("Copy", systemImage: "doc.on.doc")
         }
@@ -885,15 +877,7 @@ private struct MacLibraryDetailView: View {
     @ViewBuilder
     private var primaryActions: some View {
         Button {
-            let representations = appModel.representations(for: item)
-            appModel.performUse(item, action: .copy, metric: .itemCopied) {
-                try PlatformActions.copy(
-                    item,
-                    attachmentData: attachments.first?.data,
-                    attachment: attachments.first,
-                    representations: representations
-                )
-            }
+            appModel.copy(item, attachment: attachments.first)
         } label: {
             Label("Copy", systemImage: "doc.on.doc")
         }

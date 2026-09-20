@@ -334,16 +334,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         switch kind {
         case .defaultPaste, .plainTextPaste:
             let format: PasteFormat = kind == .plainTextPaste ? .plainText : .original
-            let representations = model.representations(for: item)
-            let copied = model.performUse(item, action: .copy, metric: .itemCopied) {
-                try PlatformActions.copy(
-                    item,
-                    attachmentData: attachment?.data,
-                    attachment: attachment,
-                    representations: representations,
-                    format: format
-                )
-            }
+            let copied = model.copy(item, attachment: attachment, format: format)
             guard copied else { return }
             switch pasteOutcome {
             case .directPaste:
@@ -355,15 +346,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
                 showFeedback(RetrievalPastePresentation.copyFallbackMessage, thenDismiss: true)
             }
         case .copy:
-            let representations = model.representations(for: item)
-            let copied = model.performUse(item, action: .copy, metric: .itemCopied) {
-                try PlatformActions.copy(
-                    item,
-                    attachmentData: attachment?.data,
-                    attachment: attachment,
-                    representations: representations
-                )
-            }
+            let copied = model.copy(item, attachment: attachment)
             if copied { showFeedback("Copied") }
         case .open:
             let opened = model.performUse(item, action: .open, metric: .itemOpened) {

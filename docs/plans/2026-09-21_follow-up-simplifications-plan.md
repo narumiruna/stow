@@ -51,9 +51,11 @@ Sections 1–6 are separate reviewable changes. Apply shared-file edits sequenti
 
 ### 1. Centralize macOS copy-and-accounting behavior
 
-- [ ] Add one macOS-specific `AppModel` copy method accepting the item, attachment, and paste format, then replace the four implementations in `RetrievalPanelController.swift` and `MacLibraryView.swift`; acceptance: one method owns representation lookup and `performUse(.copy, .itemCopied)`, while callers retain their existing feedback, direct-paste, and closing behavior.
-- [ ] Preserve the current operation sequence and failure behavior in that method; acceptance: isolated orchestration tests cover original/plain-text formats, missing attachments, failed writes, and representation-fetch failure, asserting unchanged clipboard payload, usage count, metrics, and error presentation. A failed representation lookup must retain the existing continue-with-empty-representations behavior.
-- [ ] Run `PlatformActionsPasteTests` and package `ItemActionServiceTests` plus the new orchestration tests; acceptance: all pass without operating the general clipboard or desktop UI.
+- [x] Add one macOS-specific `AppModel` copy method accepting the item, attachment, and paste format, then replace the four implementations in `RetrievalPanelController.swift` and `MacLibraryView.swift`; acceptance: one method owns representation lookup and `performUse(.copy, .itemCopied)`, while callers retain their existing feedback, direct-paste, and closing behavior.
+- [x] Preserve the current operation sequence and failure behavior in that method; acceptance: isolated orchestration tests cover original/plain-text formats, missing attachments, failed writes, and representation-fetch failure, asserting unchanged clipboard payload, usage count, metrics, and error presentation. A failed representation lookup must retain the existing continue-with-empty-representations behavior.
+- [x] Run `PlatformActionsPasteTests` and package `ItemActionServiceTests` plus the new orchestration tests; acceptance: all pass without operating the general clipboard or desktop UI.
+
+Copy evidence: 3 orchestration tests, 2 platform paste tests, and 2 package action tests passed. The fixture uses an independently owned `ModelContext`; the initial fixture incorrectly let the container's main context outlive its container and crashed, corrected before acceptance. No general clipboard access.
 
 ### 2. Use one shortcut configuration value
 
