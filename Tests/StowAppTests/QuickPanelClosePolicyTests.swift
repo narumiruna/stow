@@ -99,3 +99,84 @@ final class QuickPanelClosePolicyTests: XCTestCase {
         )
     }
 }
+
+final class EditorTransitionModelTests: XCTestCase {
+    func testFailedSaveKeepsDraftDirtyAndRequiresDiscardBeforeExit() {
+        var model = EditorTransitionModel()
+        model.updateDirty(true)
+        model.beginSave(then: .finishEditing)
+
+        XCTAssertNil(model.finishSave(errorMessage: "Save failed"))
+        XCTAssertEqual(model.phase, .saveFailed("Save failed"))
+        XCTAssertEqual(model.errorMessage, "Save failed")
+        XCTAssertTrue(model.hasUnsavedChanges)
+
+        XCTAssertNil(model.request(.finishEditing))
+        XCTAssertEqual(model.phase, .discardConfirmation)
+    }
+
+    func testSuccessfulSaveCompletesRequestedTransition() {
+        var model = EditorTransitionModel()
+        model.updateDirty(true)
+        model.beginSave(then: .finishEditing)
+
+        XCTAssertEqual(model.finishSave(errorMessage: nil), .finishEditing)
+        XCTAssertEqual(model.phase, .clean)
+        XCTAssertFalse(model.hasUnsavedChanges)
+    }
+
+    func testEditToRenameRequiresConfirmationAndConfirmedDiscardChangesMode() {
+        let itemID = UUID()
+        var model = EditorTransitionModel()
+        model.updateDirty(true)
+
+        XCTAssertNil(model.request(.popover(itemID: itemID, mode: .rename)))
+        XCTAssertEqual(model.phase, .discardConfirmation)
+        XCTAssertEqual(
+            model.confirmDiscard(),
+            .popover(itemID: itemID, mode: .rename)
+        )
+        XCTAssertEqual(model.phase, .clean)
+    }
+
+    func testRenameToPreviewCanKeepEditing() {
+        let itemID = UUID()
+        var model = EditorTransitionModel()
+        model.updateDirty(true)
+
+        XCTAssertNil(model.request(.popover(itemID: itemID, mode: .preview)))
+        model.keepEditing()
+
+        XCTAssertEqual(model.phase, .dirty)
+        XCTAssertTrue(model.hasUnsavedChanges)
+        XCTAssertNil(model.confirmDiscard())
+    }
+
+    func testSelectionChangeRequiresConfirmationWhenDirty() {
+        let itemID = UUID()
+        var model = EditorTransitionModel()
+        model.updateDirty(true)
+
+        XCTAssertNil(model.request(.selection(itemID: itemID)))
+        XCTAssertEqual(model.confirmDiscard(), .selection(itemID: itemID))
+    }
+
+    func testEscapeDismissesCleanEditorButConfirmsDirtyEditor() {
+        var clean = EditorTransitionModel()
+        XCTAssertEqual(clean.request(.dismissEditor), .dismissEditor)
+
+        var dirty = EditorTransitionModel()
+        dirty.updateDirty(true)
+        XCTAssertNil(dirty.request(.dismissEditor))
+        XCTAssertEqual(dirty.phase, .discardConfirmation)
+    }
+
+    func testDestinationCloseRequiresConfirmationWhenDirty() {
+        var model = EditorTransitionModel()
+        model.updateDirty(true)
+
+        XCTAssertNil(model.request(.panelExit))
+        XCTAssertEqual(model.phase, .discardConfirmation)
+        XCTAssertEqual(model.confirmDiscard(), .panelExit)
+    }
+}

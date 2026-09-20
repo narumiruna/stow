@@ -23,11 +23,7 @@ enum RetrievalPanelMode: String, CaseIterable, Identifiable {
 
 }
 
-private enum RetrievalPopoverKind {
-    case preview
-    case edit
-    case rename
-}
+private typealias RetrievalPopoverKind = EditorMode
 
 private enum RetrievalSearchPhase: Equatable {
     case idle
@@ -39,11 +35,6 @@ private enum RetrievalSearchPhase: Equatable {
         if case .failed = self { return true }
         return false
     }
-}
-
-@MainActor
-private final class RetrievalEditorDirtyState {
-    var isDirty = false
 }
 
 private struct PanelActionFeedback: Identifiable {
@@ -83,8 +74,7 @@ struct RetrievalPanelView: View {
     @State private var selectionAnchor: UUID?
     @State private var popoverItemID: UUID?
     @State private var popoverKind: RetrievalPopoverKind?
-    @State private var editorDirtyState = RetrievalEditorDirtyState()
-    @State private var editorErrorMessage: String?
+    @State private var editorTransition = EditorTransitionModel()
     @State private var pendingDiscardScope: QuickPanelDiscardScope?
     @State private var pendingDiscardCommandID: UUID?
     @State private var monitoringEnabled = UserDefaults.standard.object(forKey: "clipboardMonitoringEnabled") == nil || UserDefaults.standard.bool(forKey: "clipboardMonitoringEnabled")
@@ -98,6 +88,7 @@ struct RetrievalPanelView: View {
 
     private var isCompact: Bool { session.panelHeight < 275 }
     private var isNarrow: Bool { session.panelWidth < 700 }
+    private var editorErrorMessage: String? { editorTransition.errorMessage }
 
     private var attachments: [UUID: StowAttachment] { attachmentLookup }
 
@@ -668,21 +659,28 @@ struct RetrievalPanelView: View {
                     discardScope: pendingDiscardScope,
                     availableSize: availableSize,
                     onSave: { title, note, text, language in
-                        if let message = appModel.saveForPanel(item, title: title, note: note, text: text, language: language) {
-                            editorErrorMessage = message
+                        editorTransition.beginSave(then: .dismissEditor)
+                        let message = appModel.saveForPanel(
+                            item,
+                            title: title,
+                            note: note,
+                            text: text,
+                            language: language
+                        )
+                        guard let destination = editorTransition.finishSave(errorMessage: message) else {
                             return false
                         }
-                        editorErrorMessage = nil
-                        closePopover()
+                        applyEditorDestination(destination)
                         return true
                     },
-                    onCancel: { closePopover() },
+                    onCancel: { requestEditorTransition(.dismissEditor) },
                     onOpen: { onUse(item, attachments[item.id], .open) },
-                    onDirtyChange: { editorDirtyState.isDirty = $0 },
-                    onDismissError: { editorErrorMessage = nil },
+                    onDirtyChange: { editorTransition.updateDirty($0) },
+                    onDismissError: { editorTransition.dismissFailure() },
                     onConfirmDiscard: { confirmDiscard() },
                     onKeepEditing: { cancelDiscard() }
                 )
+                .id("\(item.id.uuidString)-\(popoverKind)")
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
             .accessibilityElement(children: .contain)
@@ -851,6 +849,10 @@ struct RetrievalPanelView: View {
 
     private func handleCloseCommand() {
         guard let command = session.closeCommand else { return }
+        guard editorTransition.phase != .discardConfirmation else {
+            onCancelClose(command.id)
+            return
+        }
         let layer: QuickPanelPresentedLayer
         if panelMenuPresented {
             layer = .menu
@@ -859,7 +861,7 @@ struct RetrievalPanelView: View {
         } else if popoverKind == .preview {
             layer = .preview
         } else {
-            layer = .editor(isDirty: editorDirtyState.isDirty)
+            layer = .editor(isDirty: editorTransition.hasUnsavedChanges)
         }
         let state = QuickPanelCloseState(
             searchIsActive: searchActive,
@@ -882,32 +884,38 @@ struct RetrievalPanelView: View {
             timelineFocused = true
             onCancelClose(command.id)
         case .confirmDiscard(let scope):
+            _ = editorTransition.request(.panelExit)
             pendingDiscardCommandID = command.id
             pendingDiscardScope = scope
         }
     }
 
     private func confirmDiscard() {
-        guard let scope = pendingDiscardScope, let commandID = pendingDiscardCommandID else { return }
+        guard let destination = editorTransition.confirmDiscard() else { return }
+        let scope = pendingDiscardScope
+        let commandID = pendingDiscardCommandID
         pendingDiscardScope = nil
         pendingDiscardCommandID = nil
-        closePopover()
-        switch scope {
-        case .layerOnly:
-            onCancelClose(commandID)
-        case .panel:
-            onApproveClose(commandID)
+
+        if destination == .panelExit, let scope, let commandID {
+            closePopover()
+            switch scope {
+            case .layerOnly:
+                onCancelClose(commandID)
+            case .panel:
+                onApproveClose(commandID)
+            }
+        } else {
+            applyEditorDestination(destination)
         }
     }
 
     private func cancelDiscard() {
-        guard let commandID = pendingDiscardCommandID else {
-            pendingDiscardScope = nil
-            return
-        }
+        editorTransition.keepEditing()
+        let commandID = pendingDiscardCommandID
         pendingDiscardScope = nil
         pendingDiscardCommandID = nil
-        onCancelClose(commandID)
+        if let commandID { onCancelClose(commandID) }
     }
 
     private func handleTypedKey(_ press: KeyPress) -> KeyPress.Result {
@@ -927,6 +935,14 @@ struct RetrievalPanelView: View {
     }
 
     private func select(_ item: StowItem, ignoringModifiers: Bool = false) {
+        if popoverItemID != nil, item.id != popoverItemID {
+            requestEditorTransition(.selection(itemID: item.id))
+            return
+        }
+        applySelection(item, ignoringModifiers: ignoringModifiers)
+    }
+
+    private func applySelection(_ item: StowItem, ignoringModifiers: Bool) {
         let flags = ignoringModifiers ? NSEvent.ModifierFlags() : NSEvent.modifierFlags
         if flags.contains(.command) {
             if selectedIDs.contains(item.id) { selectedIDs.remove(item.id) } else { selectedIDs.insert(item.id) }
@@ -952,7 +968,10 @@ struct RetrievalPanelView: View {
         let current = items.firstIndex { $0.id == selection } ?? 0
         let next = min(max(current + offset, 0), items.count - 1)
         let item = items[next]
-        if extending {
+        if let popoverItemID {
+            guard item.id != popoverItemID else { return }
+            requestEditorTransition(.selection(itemID: item.id))
+        } else if extending {
             selectedIDs.insert(item.id)
             selection = item.id
         } else {
@@ -1067,11 +1086,47 @@ struct RetrievalPanelView: View {
     }
 
     private func showPopover(_ kind: RetrievalPopoverKind, for item: StowItem) {
+        if popoverItemID == item.id, popoverKind == kind { return }
+        guard popoverItemID != nil else {
+            presentPopover(kind, for: item)
+            return
+        }
+        requestEditorTransition(.popover(itemID: item.id, mode: kind))
+    }
+
+    private func requestEditorTransition(_ destination: EditorTransitionDestination) {
+        if let destination = editorTransition.request(destination) {
+            applyEditorDestination(destination)
+        } else if editorTransition.phase == .discardConfirmation {
+            pendingDiscardCommandID = nil
+            pendingDiscardScope = .layerOnly
+        }
+    }
+
+    private func applyEditorDestination(_ destination: EditorTransitionDestination) {
+        switch destination {
+        case .finishEditing, .dismissEditor:
+            closePopover()
+        case .popover(let itemID, let mode):
+            guard let item = allItems.first(where: { $0.id == itemID }) else {
+                closePopover()
+                return
+            }
+            presentPopover(mode, for: item)
+        case .selection(let itemID):
+            closePopover()
+            guard let item = items.first(where: { $0.id == itemID }) else { return }
+            applySelection(item, ignoringModifiers: true)
+        case .panelExit:
+            break
+        }
+    }
+
+    private func presentPopover(_ kind: RetrievalPopoverKind, for item: StowItem) {
         session.acceptsPreviewShortcut = false
         searchFocused = false
         timelineFocused = false
-        editorErrorMessage = nil
-        editorDirtyState.isDirty = false
+        editorTransition.reset()
         popoverKind = kind
         popoverItemID = item.id
     }
@@ -1079,8 +1134,7 @@ struct RetrievalPanelView: View {
     private func closePopover() {
         popoverItemID = nil
         popoverKind = nil
-        editorDirtyState.isDirty = false
-        editorErrorMessage = nil
+        editorTransition.reset()
         session.acceptsPreviewShortcut = true
         if searchActive {
             Task { @MainActor in
