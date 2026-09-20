@@ -17,6 +17,8 @@ grep -Fq "Swift version $expected_swift_version_prefix" <<<"$swift_version"
 Scripts/bump_version_tests.sh
 Scripts/verify_version_tests.sh
 Scripts/verify_version.sh
+Scripts/generate_project_tests.sh
+ruby Scripts/generate_project.rb --check
 swift test --package-path Packages/StowCore
 xcodebuild -project Stow.xcodeproj -scheme StowAppTests CODE_SIGNING_ALLOWED=NO test
 xcodebuild -project Stow.xcodeproj -scheme Stow-macOS -configuration Debug CODE_SIGNING_ALLOWED=NO build

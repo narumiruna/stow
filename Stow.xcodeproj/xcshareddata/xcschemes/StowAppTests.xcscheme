@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "96BACF26E7EBB7FE1621E5EC"
+               BlueprintIdentifier = "D74F049CC6950130CE1287DD"
                BuildableName = "StowAppTests.xctest"
                BlueprintName = "StowAppTests"
                ReferencedContainer = "container:Stow.xcodeproj">
@@ -32,7 +32,7 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "96BACF26E7EBB7FE1621E5EC"
+               BlueprintIdentifier = "D74F049CC6950130CE1287DD"
                BuildableName = "StowAppTests.xctest"
                BlueprintName = "StowAppTests"
                ReferencedContainer = "container:Stow.xcodeproj">
