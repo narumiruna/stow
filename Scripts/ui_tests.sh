@@ -101,14 +101,14 @@ run_ios_tests() {
   )" || return $?
   xcrun simctl boot "$device_id" 2>/dev/null || true
   xcrun simctl bootstatus "$device_id" -b || return $?
-  local -a test_arguments=()
   if [[ "$suite" == "ios-share" ]]; then
-    test_arguments+=(
-      -only-testing:StowUITests/StowUITests/testSafariShareExtensionCapturesURLInOneSave
-      -only-testing:StowUITests/StowUITests/testSafariShareExtensionCanSaveImmediately
-    )
+    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" CODE_SIGNING_ALLOWED=NO \
+      -only-testing:StowUITests/StowUITests/testSafariShareExtensionCapturesURLInOneSave \
+      -only-testing:StowUITests/StowUITests/testSafariShareExtensionCanSaveImmediately \
+      test
+  else
+    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" CODE_SIGNING_ALLOWED=NO test
   fi
-  xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" CODE_SIGNING_ALLOWED=NO "${test_arguments[@]}" test
 }
 
 if [[ "$suite" == "all" || "$suite" == "macos" ]]; then
