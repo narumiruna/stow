@@ -253,7 +253,7 @@ final class CaptureSpoolTests: XCTestCase {
         )
         let attachment = spoolRoot.appendingPathComponent("Pending/\(captureID.uuidString)/attachment.bin")
         let handle = try FileHandle(forWritingTo: attachment)
-        try handle.truncate(atOffset: UInt64(100 * 1_024 * 1_024 + 1))
+        try handle.truncate(atOffset: UInt64(CaptureLimits.maximumAttachmentBytes + 1))
         try handle.close()
 
         let container = try StowContainerFactory.inMemory()

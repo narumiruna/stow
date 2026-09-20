@@ -241,7 +241,7 @@ final class ShareCaptureModel {
                 do {
                     let values = try sourceURL.resourceValues(forKeys: [.fileSizeKey, .contentTypeKey])
                     let byteCount = values.fileSize ?? 0
-                    guard byteCount <= 100 * 1_024 * 1_024 else {
+                    guard byteCount <= CaptureLimits.maximumAttachmentBytes else {
                         throw CaptureValidationError.attachmentTooLarge
                     }
                     let createdDirectory = stagingRootURL.appendingPathComponent(UUID().uuidString, isDirectory: true)

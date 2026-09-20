@@ -46,7 +46,7 @@ final class ShareCaptureModelTests: XCTestCase {
         let source = root.appendingPathComponent("oversized.bin")
         FileManager.default.createFile(atPath: source.path, contents: Data([0]))
         let handle = try FileHandle(forWritingTo: source)
-        try handle.truncate(atOffset: UInt64(100 * 1_024 * 1_024 + 1))
+        try handle.truncate(atOffset: UInt64(CaptureLimits.maximumAttachmentBytes + 1))
         try handle.close()
         let imports = root.appendingPathComponent("Imports", isDirectory: true)
         let model = ShareCaptureModel(

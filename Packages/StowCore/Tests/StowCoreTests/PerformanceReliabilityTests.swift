@@ -90,7 +90,7 @@ final class PerformanceReliabilityTests: XCTestCase {
     }
 
     func testAttachmentLimitAcceptsBoundaryAndRejectsOneByteOverWithoutAllocatingPayload() throws {
-        let limit = 100 * 1_024 * 1_024
+        let limit = CaptureLimits.maximumAttachmentBytes
         let boundary = CaptureDraft(type: .file, title: "Boundary", stagedAttachmentName: "boundary.bin", attachmentByteCount: limit)
         XCTAssertNoThrow(try boundary.normalized())
         let oversized = CaptureDraft(type: .file, title: "Oversized", stagedAttachmentName: "oversized.bin", attachmentByteCount: limit + 1)
@@ -107,10 +107,10 @@ final class PerformanceReliabilityTests: XCTestCase {
         let source = root.appendingPathComponent("boundary.bin")
         FileManager.default.createFile(atPath: source.path, contents: nil)
         let handle = try FileHandle(forWritingTo: source)
-        try handle.truncate(atOffset: UInt64(100 * 1_024 * 1_024))
+        try handle.truncate(atOffset: UInt64(CaptureLimits.maximumAttachmentBytes))
         try handle.close()
         let spool = try CaptureSpool(rootURL: root.appendingPathComponent("spool", isDirectory: true))
-        let draft = CaptureDraft(type: .file, title: "Boundary", stagedAttachmentName: "boundary.bin", attachmentByteCount: 100 * 1_024 * 1_024, contentType: "application/octet-stream", fileName: "boundary.bin")
+        let draft = CaptureDraft(type: .file, title: "Boundary", stagedAttachmentName: "boundary.bin", attachmentByteCount: CaptureLimits.maximumAttachmentBytes, contentType: "application/octet-stream", fileName: "boundary.bin")
         XCTAssertNoThrow(try spool.stage(draft, attachmentURL: source))
         XCTAssertEqual(try spool.pendingCount(), 1)
     }

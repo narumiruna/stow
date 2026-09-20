@@ -33,7 +33,7 @@ public final class AttachmentStore {
     private let maxBytes: Int
     private let fileManager: FileManager
 
-    public init(repository: StowRepository, temporaryDirectory: URL, maxBytes: Int = 100 * 1_024 * 1_024, fileManager: FileManager = .default) {
+    public init(repository: StowRepository, temporaryDirectory: URL, maxBytes: Int = CaptureLimits.maximumAttachmentBytes, fileManager: FileManager = .default) {
         self.repository = repository
         self.temporaryDirectory = temporaryDirectory
         self.maxBytes = maxBytes

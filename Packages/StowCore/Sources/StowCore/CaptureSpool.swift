@@ -134,7 +134,7 @@ public final class CaptureSpool {
             var attachmentFileName: String?
             if let attachmentURL {
                 let byteCount = try attachmentURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                guard byteCount <= 100 * 1_024 * 1_024 else { throw CaptureValidationError.attachmentTooLarge }
+                guard byteCount <= CaptureLimits.maximumAttachmentBytes else { throw CaptureValidationError.attachmentTooLarge }
                 let safeExtension = attachmentURL.pathExtension.isEmpty ? "data" : attachmentURL.pathExtension.lowercased()
                 let name = "attachment.\(safeExtension)"
                 try fileManager.copyItem(at: attachmentURL, to: stagingURL.appendingPathComponent(name))
@@ -300,7 +300,7 @@ public final class CaptureSpool {
             let safeName = try validatedFileName(attachmentFileName)
             let attachmentURL = directory.appendingPathComponent(safeName)
             let byteCount = try attachmentURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-            guard byteCount <= 100 * 1_024 * 1_024 else {
+            guard byteCount <= CaptureLimits.maximumAttachmentBytes else {
                 throw InvalidCapturePayload(message: CaptureValidationError.attachmentTooLarge.localizedDescription)
             }
             attachmentData = try Data(contentsOf: attachmentURL, options: .mappedIfSafe)

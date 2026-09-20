@@ -450,7 +450,7 @@ final class ClipboardMonitor: NSObject {
         let values = try sourceURL.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentTypeKey])
         guard values.isRegularFile == true else { return }
         let byteCount = values.fileSize ?? 0
-        guard byteCount <= 100 * 1_024 * 1_024 else { throw CaptureValidationError.attachmentTooLarge }
+        guard byteCount <= CaptureLimits.maximumAttachmentBytes else { throw CaptureValidationError.attachmentTooLarge }
 
         let fileName = sourceURL.lastPathComponent.isEmpty ? "Clipboard File" : sourceURL.lastPathComponent
         let stagedURL = try stageFile(at: sourceURL, fileName: fileName)
@@ -469,7 +469,7 @@ final class ClipboardMonitor: NSObject {
     }
 
     private func stage(data: Data, fileName: String) throws -> URL {
-        guard data.count <= 100 * 1_024 * 1_024 else { throw CaptureValidationError.attachmentTooLarge }
+        guard data.count <= CaptureLimits.maximumAttachmentBytes else { throw CaptureValidationError.attachmentTooLarge }
         let directory = try stagingDirectory()
         let fileURL = directory.appendingPathComponent(fileName)
         try data.write(to: fileURL, options: .atomic)
