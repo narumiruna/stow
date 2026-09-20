@@ -137,7 +137,7 @@ final class StowUITests: XCTestCase {
         }
         let title = app.textFields["Title"]
         let note = app.textFields["Note"].exists ? app.textFields["Note"] : app.textViews["Note"]
-        let content = app.textViews.matching(NSPredicate(format: "identifier != 'Note'")).firstMatch
+        let content = app.textViews.matching(NSPredicate(format: "identifier != 'Note' AND label != 'Note'")).firstMatch
         let language = app.textFields["Language"]
         XCTAssertTrue(content.waitForExistence(timeout: 3))
         let savedContent = content.value as? String ?? ""
@@ -163,11 +163,15 @@ final class StowUITests: XCTestCase {
         app.buttons["Done"].tap()
         XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.navigationBars["Retained draft title"].exists)
+        app.navigationBars.buttons["Inbox"].tap()
+        let savedRow = app.cells.containing(.staticText, identifier: "Retained draft title").firstMatch
+        XCTAssertTrue(savedRow.waitForExistence(timeout: 3))
+        savedRow.staticTexts["Retained draft title"].firstMatch.tap()
         app.buttons["Edit"].tap()
         XCTAssertEqual(title.value as? String, "Retained draft title")
         XCTAssertEqual(note.value as? String, "Retained draft note")
         XCTAssertEqual(content.value as? String, "let retry = true")
-        XCTAssertEqual(language.value as? String, "Retained language")
+        XCTAssertEqual(language.value as? String, "retained language", "Saved language retains existing lowercase normalization")
     }
 
     func testInboxSwipePinsAndArchivesItem() {
