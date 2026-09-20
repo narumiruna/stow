@@ -490,6 +490,26 @@ enum StowSection: String, CaseIterable, Identifiable {
         case .settings: "gear"
         }
     }
+
+    func includes(_ item: StowItem) -> Bool {
+        switch self {
+        case .inbox: item.status == .inbox
+        case .recent: item.status != .trashed && item.lastUsedAt != nil
+        case .pinned: item.status != .trashed && item.isPinned
+        case .archive: item.status == .archived
+        case .trash: item.status == .trashed
+        case .settings: false
+        }
+    }
+
+    func sortedItems(_ items: [StowItem]) -> [StowItem] {
+        items.sorted { lhs, rhs in
+            if self == .recent {
+                return (lhs.lastUsedAt ?? .distantPast) > (rhs.lastUsedAt ?? .distantPast)
+            }
+            return lhs.createdAt > rhs.createdAt
+        }
+    }
 }
 
 private extension Duration {

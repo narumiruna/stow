@@ -118,25 +118,13 @@ struct StowRootView: View {
     }
 
     private var visibleItems: [StowItem] {
-        allItems.filter { item in
-            sectionIncludes(item) && (appModel.searchResultIDs?.contains(item.id) ?? true)
-        }
-        .sorted(by: sectionSort)
+        appModel.selection.sortedItems(allItems.filter { item in
+            appModel.selection.includes(item) && (appModel.searchResultIDs?.contains(item.id) ?? true)
+        })
     }
 
     private var availableSources: [String] {
         Array(Set(allItems.compactMap(\.sourceApp))).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private func sectionIncludes(_ item: StowItem) -> Bool {
-        switch appModel.selection {
-        case .inbox: item.status == .inbox
-        case .recent: item.status != .trashed && item.lastUsedAt != nil
-        case .pinned: item.status != .trashed && item.isPinned
-        case .archive: item.status == .archived
-        case .trash: item.status == .trashed
-        case .settings: false
-        }
     }
 
     private func showQuickAdd() {
@@ -150,11 +138,6 @@ struct StowRootView: View {
     private var searchToken: String {
         let itemRevision = SearchItemRevision(items: allItems)
         return [appModel.selection.rawValue, appModel.searchText, appModel.typeFilter?.rawValue ?? "", appModel.sourceFilter ?? "", appModel.dateFilter.rawValue, itemRevision.token].joined(separator: "¦")
-    }
-
-    private func sectionSort(_ lhs: StowItem, _ rhs: StowItem) -> Bool {
-        if appModel.selection == .recent { return (lhs.lastUsedAt ?? .distantPast) > (rhs.lastUsedAt ?? .distantPast) }
-        return lhs.createdAt > rhs.createdAt
     }
 
     private var privacyFooter: some View {

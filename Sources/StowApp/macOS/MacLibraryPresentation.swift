@@ -79,14 +79,7 @@ enum MacLibraryPolicy {
     }
 
     static func includes(_ item: StowItem, in section: StowSection) -> Bool {
-        switch section {
-        case .inbox: item.status == .inbox
-        case .recent: item.status != .trashed && item.lastUsedAt != nil
-        case .pinned: item.status != .trashed && item.isPinned
-        case .archive: item.status == .archived
-        case .trash: item.status == .trashed
-        case .settings: false
-        }
+        section.includes(item)
     }
 
     static func counts(for items: [StowItem]) -> [StowSection: Int] {
