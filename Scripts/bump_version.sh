@@ -33,7 +33,6 @@ cleanup() {
   status=$?
   if [[ "$restore_files" == true ]]; then
     cat "$temporary/original-version" > VERSION
-    cat "$temporary/original-generator" > Scripts/generate_project.rb
     cat "$temporary/original-project" > Stow.xcodeproj/project.pbxproj
   fi
   rm -rf "$temporary"
@@ -42,7 +41,6 @@ cleanup() {
 trap cleanup EXIT
 
 cp VERSION "$temporary/original-version"
-cp Scripts/generate_project.rb "$temporary/original-generator"
 cp Stow.xcodeproj/project.pbxproj "$temporary/original-project"
 
 render_updated_file() {
@@ -77,11 +75,6 @@ render_updated_file VERSION \
   "$new_version" \
   1 \
   "$temporary/updated-version"
-render_updated_file Scripts/generate_project.rb \
-  "settings[\"MARKETING_VERSION\"] = \"${current_version}\"" \
-  "settings[\"MARKETING_VERSION\"] = \"${new_version}\"" \
-  1 \
-  "$temporary/updated-generator"
 render_updated_file Stow.xcodeproj/project.pbxproj \
   "MARKETING_VERSION = ${current_version};" \
   "MARKETING_VERSION = ${new_version};" \
@@ -90,7 +83,6 @@ render_updated_file Stow.xcodeproj/project.pbxproj \
 
 restore_files=true
 cat "$temporary/updated-version" > VERSION
-cat "$temporary/updated-generator" > Scripts/generate_project.rb
 cat "$temporary/updated-project" > Stow.xcodeproj/project.pbxproj
 
 verified_version="$(Scripts/verify_version.sh)"

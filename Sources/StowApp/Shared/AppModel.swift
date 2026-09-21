@@ -37,18 +37,22 @@ final class AppModel {
     private let syncMonitor = CloudSyncMonitor()
     @ObservationIgnored private let searchDocumentsOverride: (() throws -> [SearchDocument])?
     @ObservationIgnored private let captureSpoolOverride: CaptureSpool?
-    @ObservationIgnored private let sharedContainerURLOverride: URL?
+    @ObservationIgnored private let loadRepresentationsOverride: ((UUID) throws -> [StowRepresentation])?
+    @ObservationIgnored private let runtimePathsOverride: StowRuntimePaths?
+    private var runtimePaths: StowRuntimePaths { runtimePathsOverride ?? .current }
 
     init(
         searchDocuments: (() throws -> [SearchDocument])? = nil,
         searchCoordinator: SearchCoordinator? = nil,
         captureSpool: CaptureSpool? = nil,
-        sharedContainerURL: URL? = nil
+        runtimePaths: StowRuntimePaths? = nil,
+        loadRepresentations: ((UUID) throws -> [StowRepresentation])? = nil
     ) {
         searchDocumentsOverride = searchDocuments
         self.searchCoordinator = searchCoordinator
         captureSpoolOverride = captureSpool
-        sharedContainerURLOverride = sharedContainerURL
+        runtimePathsOverride = runtimePaths
+        loadRepresentationsOverride = loadRepresentations
     }
 
     func markLaunchReady() {
@@ -76,7 +80,7 @@ final class AppModel {
         }
         #endif
         do {
-            let sharedURL = sharedContainerURLOverride ?? StowEnvironment.sharedContainerURL()
+            let sharedURL = runtimePaths.sharedContainer
             spool = try captureSpoolOverride ?? CaptureSpool(rootURL: sharedURL.appendingPathComponent("CaptureSpool", isDirectory: true))
             metrics = try OnDeviceMetricsClient(url: sharedURL.appendingPathComponent("Metrics/v0.1.json"), enabled: UserDefaults.standard.object(forKey: "analyticsEnabled") as? Bool ?? true)
             if searchCoordinator == nil {
@@ -152,7 +156,7 @@ final class AppModel {
     ) -> Bool {
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
-            let captureSpool = try spool ?? CaptureSpool(rootURL: StowEnvironment.sharedContainerURL().appendingPathComponent("CaptureSpool", isDirectory: true))
+            let captureSpool = try spool ?? CaptureSpool(rootURL: runtimePaths.sharedContainer.appendingPathComponent("CaptureSpool", isDirectory: true))
             try captureSpool.stage(
                 draft,
                 attachmentURL: fileURL,
@@ -291,6 +295,7 @@ final class AppModel {
     func representations(for item: StowItem) -> [StowRepresentation] {
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
+            if let loadRepresentationsOverride { return try loadRepresentationsOverride(item.id) }
             return try repository.representations(itemID: item.id)
         } catch {
             presentedError = error.localizedDescription
@@ -453,7 +458,7 @@ final class AppModel {
         do {
             _ = try repository.purgeExpiredTrash()
             _ = try spool?.removeInterruptedStaging()
-            let temporaryRoot = FileManager.default.temporaryDirectory
+            let temporaryRoot = runtimePaths.temporaryDirectory
             _ = try AttachmentStore(repository: repository, temporaryDirectory: temporaryRoot.appendingPathComponent("StowOpen", isDirectory: true)).removeTemporaryFiles()
             _ = try AttachmentStore(repository: repository, temporaryDirectory: temporaryRoot.appendingPathComponent("StowTransfers", isDirectory: true)).removeTemporaryFiles()
             _ = try AttachmentStore(repository: repository, temporaryDirectory: temporaryRoot.appendingPathComponent("StowImports", isDirectory: true)).removeTemporaryFiles()

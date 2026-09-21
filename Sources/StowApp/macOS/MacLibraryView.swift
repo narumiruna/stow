@@ -275,15 +275,7 @@ struct MacLibraryView: View {
     @ViewBuilder
     private func contextMenu(for item: StowItem) -> some View {
         Button {
-            let representations = appModel.representations(for: item)
-            appModel.performUse(item, action: .copy, metric: .itemCopied) {
-                try PlatformActions.copy(
-                    item,
-                    attachmentData: attachmentMap[item.id]?.data,
-                    attachment: attachmentMap[item.id],
-                    representations: representations
-                )
-            }
+            appModel.copy(item, attachment: attachmentMap[item.id])
         } label: {
             Label("Copy", systemImage: "doc.on.doc")
         }
@@ -345,21 +337,15 @@ struct MacLibraryView: View {
     }
 
     private func filtersInclude(_ item: StowItem) -> Bool {
-        (appModel.typeFilter == nil || item.type == appModel.typeFilter) &&
-            (appModel.sourceFilter == nil || item.sourceApp == appModel.sourceFilter) &&
-            appModel.dateFilter.includes(item.createdAt)
+        LocalItemSearch.matchesMetadata(
+            item, type: appModel.typeFilter, source: appModel.sourceFilter, date: appModel.dateFilter
+        )
     }
 
     private func searchIncludes(_ item: StowItem) -> Bool {
         guard !appModel.searchText.isEmpty else { return true }
         if let resultIDs = appModel.searchResultIDs { return resultIDs.contains(item.id) }
-        let query = appModel.searchText.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? appModel.searchText
-        return [item.title, item.textContent, item.urlString, item.sourceDomain, item.note, item.fileName]
-            .compactMap { $0 }
-            .contains {
-                let value = $0.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? $0
-                return value.localizedCaseInsensitiveContains(query)
-            }
+        return LocalItemSearch.matchesText(item, query: appModel.searchText)
     }
 
     private func setPinned(_ items: [StowItem], pinned: Bool) {
@@ -885,15 +871,7 @@ private struct MacLibraryDetailView: View {
     @ViewBuilder
     private var primaryActions: some View {
         Button {
-            let representations = appModel.representations(for: item)
-            appModel.performUse(item, action: .copy, metric: .itemCopied) {
-                try PlatformActions.copy(
-                    item,
-                    attachmentData: attachments.first?.data,
-                    attachment: attachments.first,
-                    representations: representations
-                )
-            }
+            appModel.copy(item, attachment: attachments.first)
         } label: {
             Label("Copy", systemImage: "doc.on.doc")
         }
@@ -953,16 +931,9 @@ private struct MacLibraryDetailView: View {
     }
 
     private func dragProvider(_ attachment: StowAttachment? = nil) -> NSItemProvider {
-        let success = MacLibraryDragSuccessToken { appModel.markUsed(item, metric: .itemDragged) }
-        let provider = NSItemProvider()
-        let payload = DragPayload(item: item, attachment: attachment)
-        provider.suggestedName = payload.suggestedName
-        provider.registerDataRepresentation(forTypeIdentifier: payload.typeIdentifier, visibility: .all) { completion in
-            completion(payload.data, nil)
-            success.record()
-            return nil
+        LibraryDragProvider.make(payload: DragPayload(item: item, attachment: attachment)) {
+            appModel.markUsed(item, metric: .itemDragged)
         }
-        return provider
     }
 }
 
@@ -1054,17 +1025,6 @@ private struct MacLibraryEditSheet: View {
         } else {
             dismiss()
         }
-    }
-}
-
-@MainActor
-private final class MacLibraryDragSuccessToken: @unchecked Sendable {
-    private let success: @MainActor () -> Void
-
-    init(success: @escaping @MainActor () -> Void) { self.success = success }
-
-    nonisolated func record() {
-        Task { @MainActor in success() }
     }
 }
 

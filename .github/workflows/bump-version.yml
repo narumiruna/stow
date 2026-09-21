@@ -69,7 +69,7 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
-          git add VERSION Scripts/generate_project.rb Stow.xcodeproj/project.pbxproj
+          git add VERSION Stow.xcodeproj/project.pbxproj
           git commit -m "chore(release): bump version to ${CURRENT_VERSION}"
           git tag -a "v${CURRENT_VERSION}" -m "Release ${CURRENT_VERSION}"
       - name: Push version commit and tag

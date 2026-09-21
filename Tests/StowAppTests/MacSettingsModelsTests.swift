@@ -26,6 +26,10 @@ final class MacSettingsModelsTests: XCTestCase {
 
         XCTAssertEqual(defaults.string(forKey: "quickAddShortcut"), "controlOptionS")
         XCTAssertEqual(defaults.string(forKey: "quickPanelShortcut"), "optionCommandV")
+        var unknown = MacShortcutConfiguration(quickAdd: "unknown-add", quickPanel: "unknown-panel")
+        unknown.quickAdd = "future-add"
+        unknown.persist(to: defaults)
+        XCTAssertEqual(MacShortcutConfiguration.current(defaults: defaults), unknown)
         XCTAssertEqual(defaults.string(forKey: "unrelatedSetting"), "keep me")
     }
 
@@ -45,10 +49,7 @@ final class MacSettingsModelsTests: XCTestCase {
 
         guard case .failure = failed else { return XCTFail("Expected a shortcut conflict") }
         XCTAssertEqual(MacShortcutConfiguration.current(defaults: defaults), previous)
-        XCTAssertEqual(
-            service.registeredConfiguration,
-            GlobalHotKeyService.Configuration(quickAddKey: previous.quickAdd, quickPanelKey: previous.quickPanel)
-        )
+        XCTAssertEqual(service.registeredConfiguration, previous)
 
         backend.failAttempts = []
         XCTAssertEqual(MacShortcutTransaction.apply(candidate, using: service, defaults: defaults), .success)

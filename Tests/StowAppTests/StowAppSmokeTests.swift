@@ -15,7 +15,9 @@ final class StowAppSmokeTests: XCTestCase {
         let spoolRoot = root.appendingPathComponent("CaptureSpool", isDirectory: true)
         let spool = try CaptureSpool(rootURL: spoolRoot)
         let container = try StowContainerFactory.inMemory()
-        let model = AppModel(captureSpool: spool, sharedContainerURL: root)
+        let model = AppModel(captureSpool: spool, runtimePaths: StowRuntimePaths(
+            sharedContainer: root, temporaryDirectory: root.appendingPathComponent("Temporary")
+        ))
         model.connect(container.mainContext)
 
         let malformed = spoolRoot.appendingPathComponent("Pending/malformed", isDirectory: true)

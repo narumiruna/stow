@@ -147,7 +147,7 @@ enum PlatformActions {
     }
 
     static func materialize(_ attachment: StowAttachment) throws -> URL {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("StowOpen", isDirectory: true)
+        let directory = StowEnvironment.temporaryDirectory.appendingPathComponent("StowOpen", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appendingPathComponent(URL(fileURLWithPath: attachment.fileName).lastPathComponent)
         try attachment.data.write(to: url, options: .atomic)

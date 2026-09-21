@@ -24,19 +24,6 @@ final class GlobalHotKeyService {
         case quickPanel = 2
     }
 
-    struct Configuration: Equatable, Sendable {
-        let quickAddKey: String
-        let quickPanelKey: String
-
-        init(
-            quickAddKey: String = GlobalHotKeyService.defaultQuickAddKey,
-            quickPanelKey: String = GlobalHotKeyService.defaultQuickPanelKey
-        ) {
-            self.quickAddKey = quickAddKey
-            self.quickPanelKey = quickPanelKey
-        }
-    }
-
     enum RegistrationError: LocalizedError, Equatable {
         case unavailable(String)
         case restorationFailed(candidate: String, restoration: String)
@@ -51,13 +38,8 @@ final class GlobalHotKeyService {
         }
     }
 
-    nonisolated static let quickAddDefaultsKey = "quickAddShortcut"
-    nonisolated static let quickPanelDefaultsKey = "quickPanelShortcut"
-    nonisolated static let defaultQuickAddKey = "optionShiftS"
-    nonisolated static let defaultQuickPanelKey = "commandShiftV"
-
     var handler: ((Action) -> Void)?
-    private(set) var registeredConfiguration: Configuration?
+    private(set) var registeredConfiguration: MacShortcutConfiguration?
 
     private let backend: any GlobalHotKeyRegistrationBackend
     private let defaults: UserDefaults
@@ -75,17 +57,12 @@ final class GlobalHotKeyService {
     /// Loads the persisted configuration for launch. Settings should call `apply(_:)`
     /// before persisting a proposed configuration.
     func registerDefaults() throws {
-        try apply(
-            Configuration(
-                quickAddKey: defaults.string(forKey: Self.quickAddDefaultsKey) ?? Self.defaultQuickAddKey,
-                quickPanelKey: defaults.string(forKey: Self.quickPanelDefaultsKey) ?? Self.defaultQuickPanelKey
-            )
-        )
+        try apply(.current(defaults: defaults))
     }
 
     /// Replaces both global shortcuts as one transaction without reading or writing UserDefaults.
     /// If either candidate registration fails, the previous valid pair is restored first.
-    func apply(_ configuration: Configuration) throws {
+    func apply(_ configuration: MacShortcutConfiguration) throws {
         try installEventHandlerIfNeeded()
         guard configuration != registeredConfiguration else { return }
 
@@ -128,10 +105,10 @@ final class GlobalHotKeyService {
         }
     }
 
-    private func makeRegistrations(for configuration: Configuration) throws -> [any GlobalHotKeyRegistration] {
+    private func makeRegistrations(for configuration: MacShortcutConfiguration) throws -> [any GlobalHotKeyRegistration] {
         let definitions = [
-            Self.definition(for: configuration.quickAddKey, action: .quickAdd),
-            Self.definition(for: configuration.quickPanelKey, action: .quickPanel),
+            Self.definition(for: configuration.quickAdd, action: .quickAdd),
+            Self.definition(for: configuration.quickPanel, action: .quickPanel),
         ]
         var proposed: [any GlobalHotKeyRegistration] = []
         do {

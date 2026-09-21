@@ -121,6 +121,68 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Edited note"].waitForExistence(timeout: 3))
     }
 
+    func testDetailSaveFailureRetainsDraftAndAllowsRetry() {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-panel"])
+        let row = app.cells.containing(.staticText, identifier: "Panel Code").firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        row.staticTexts["Panel Code"].firstMatch.tap()
+        app.buttons["Edit"].tap()
+
+        func replace(_ element: XCUIElement, with value: String) {
+            for _ in 0..<6 where !element.isHittable { app.swipeUp() }
+            XCTAssertTrue(element.isHittable)
+            let previous = element.value as? String ?? ""
+            element.tap()
+            if element.elementType == .textView {
+                // These fixtures are one line. Initial TextEditor focus can leave the caret at
+                // the start; a second tap beyond the first line places it after the content.
+                element.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.1)).tap()
+            }
+            element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count) + value)
+            XCTAssertEqual(element.value as? String ?? "", value)
+        }
+        let title = app.textFields["Title"]
+        // The vertical Note field loses its placeholder identifier once populated.
+        // This code-item editor has exactly three fields in title/note/language order.
+        XCTAssertEqual(app.textFields.count, 3)
+        let note = app.textFields.element(boundBy: 1)
+        let content = app.textViews.matching(NSPredicate(format: "identifier != 'Note' AND label != 'Note'")).firstMatch
+        let language = app.textFields["Language"]
+        XCTAssertTrue(content.waitForExistence(timeout: 3))
+        let savedContent = content.value as? String ?? ""
+        XCTAssertFalse(savedContent.isEmpty)
+        replace(title, with: "Retained draft title")
+        replace(note, with: "Retained draft note")
+        replace(content, with: "")
+        replace(language, with: "Retained language")
+        app.buttons["Done"].tap()
+
+        let alert = app.alerts["Stow couldn't complete that action"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 3))
+        alert.buttons["OK"].tap()
+        XCTAssertTrue(app.buttons["Done"].exists)
+        XCTAssertEqual(title.value as? String, "Retained draft title")
+        XCTAssertEqual(note.value as? String, "Retained draft note")
+        XCTAssertEqual(content.value as? String, "")
+        XCTAssertEqual(language.value as? String, "Retained language")
+        XCTAssertTrue(app.navigationBars["Panel Code"].exists)
+        XCTAssertTrue(app.staticTexts[savedContent].exists, "Failed save must not replace the saved preview")
+
+        replace(content, with: "let retry = true")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Retained draft title"].exists)
+        app.navigationBars.buttons["Inbox"].tap()
+        let savedRow = app.cells.containing(.staticText, identifier: "Retained draft title").firstMatch
+        XCTAssertTrue(savedRow.waitForExistence(timeout: 3))
+        savedRow.staticTexts["Retained draft title"].firstMatch.tap()
+        app.buttons["Edit"].tap()
+        XCTAssertEqual(title.value as? String, "Retained draft title")
+        XCTAssertEqual(note.value as? String, "Retained draft note")
+        XCTAssertEqual(content.value as? String, "let retry = true")
+        XCTAssertEqual(language.value as? String, "retained language", "Saved language retains existing lowercase normalization")
+    }
+
     func testInboxSwipePinsAndArchivesItem() {
         let app = launchApp()
         addText("Swipe me", in: app)

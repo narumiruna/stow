@@ -1241,14 +1241,8 @@ struct RetrievalPanelView: View {
     }
 
     private func localSearchIncludes(_ item: StowItem) -> Bool {
-        guard typeFilter == nil || item.type == typeFilter,
-              sourceFilter == nil || item.sourceApp == sourceFilter,
-              dateFilter.includes(item.createdAt) else { return false }
-        guard !query.isEmpty else { return true }
-        let normalizedQuery = query.panelSearchNormalized
-        return [item.title, item.textContent, item.urlString, item.sourceDomain, item.note, item.fileName]
-            .compactMap { $0 }
-            .contains { $0.panelSearchNormalized.localizedCaseInsensitiveContains(normalizedQuery) }
+        LocalItemSearch.matchesMetadata(item, type: typeFilter, source: sourceFilter, date: dateFilter) &&
+            LocalItemSearch.matchesText(item, query: query)
     }
 
     private func panelSort(_ lhs: StowItem, _ rhs: StowItem) -> Bool {
@@ -1944,5 +1938,4 @@ private extension Date {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
-    var panelSearchNormalized: String { applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? self }
 }
