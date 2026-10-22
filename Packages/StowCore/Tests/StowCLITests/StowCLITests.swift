@@ -4,6 +4,88 @@ import XCTest
 import StowCore
 
 final class StowCLIArgumentsTests: XCTestCase {
+    func testStatusAndGetParseCommonOptions() throws {
+        let itemID = UUID()
+        let cases: [(options: [String], json: Bool, timeout: TimeInterval)] = [
+            ([], false, 10),
+            (["--json"], true, 10),
+            (["--timeout", "0.5"], false, 0.5),
+            (["--json", "--timeout", "3"], true, 3),
+            (["--timeout", "3", "--json", "--timeout", "7", "--json"], true, 7),
+        ]
+
+        for command in ["status", "get"] {
+            let prefix = command == "get" ? [command, itemID.uuidString] : [command]
+            for testCase in cases {
+                let arguments = prefix + testCase.options
+                let context = arguments.joined(separator: " ")
+                var parser = StowCLIArguments(arguments: arguments)
+
+                guard case .remote(let request, let json, let timeout, let export) = try parser.parse() else {
+                    XCTFail("Expected remote invocation: \(context)")
+                    continue
+                }
+                XCTAssertEqual(request.command, command == "status" ? .status : .get, context)
+                XCTAssertEqual(request.get?.itemID, command == "get" ? itemID : nil, context)
+                XCTAssertEqual(json, testCase.json, context)
+                XCTAssertEqual(timeout, testCase.timeout, context)
+                XCTAssertNil(export, context)
+            }
+        }
+    }
+
+    func testStatusAndGetRejectInvalidCommonOptions() {
+        let itemID = UUID()
+        let timeoutError = "--timeout requires a positive number of seconds."
+        let cases: [(options: [String], message: String)] = [
+            (["--unknown"], "Unknown option: --unknown"),
+            (["tail"], "Unknown option: tail"),
+            (["--json", "tail"], "Unknown option: tail"),
+            (["--timeout"], timeoutError),
+            (["--timeout", "--json"], timeoutError),
+            (["--timeout", "0"], timeoutError),
+            (["--timeout", "-1"], timeoutError),
+            (["--timeout", "invalid"], timeoutError),
+            (["--timeout", "2", "--timeout", "0"], timeoutError),
+        ]
+
+        for command in ["status", "get"] {
+            let prefix = command == "get" ? [command, itemID.uuidString] : [command]
+            for testCase in cases {
+                let arguments = prefix + testCase.options
+                let context = arguments.joined(separator: " ")
+                var parser = StowCLIArguments(arguments: arguments)
+
+                XCTAssertThrowsError(try parser.parse(), context) { error in
+                    XCTAssertEqual(error as? StowCLIParseError, StowCLIParseError(message: testCase.message), context)
+                }
+            }
+        }
+    }
+
+    func testGetRequiresLeadingUUIDBeforeOptions() {
+        let itemID = UUID().uuidString
+        let missingID = "The command requires ITEM_ID."
+        let cases: [(arguments: [String], message: String)] = [
+            (["get"], missingID),
+            (["get", "not-a-uuid"], "Invalid ITEM_ID: not-a-uuid"),
+            (["get", "not-a-uuid", "--timeout", "0"], "Invalid ITEM_ID: not-a-uuid"),
+            (["get", "--json"], missingID),
+            (["get", "--json", itemID], missingID),
+            (["get", "--timeout", "2", itemID], missingID),
+            (["get", "--unknown", itemID], missingID),
+        ]
+
+        for testCase in cases {
+            let context = testCase.arguments.joined(separator: " ")
+            var parser = StowCLIArguments(arguments: testCase.arguments)
+
+            XCTAssertThrowsError(try parser.parse(), context) { error in
+                XCTAssertEqual(error as? StowCLIParseError, StowCLIParseError(message: testCase.message), context)
+            }
+        }
+    }
+
     func testSearchParsesAgentFiltersAndJSONMode() throws {
         var parser = StowCLIArguments(arguments: [
             "search", "SwiftData", "migration", "--status", "all", "--type", "code", "--limit", "7", "--json",

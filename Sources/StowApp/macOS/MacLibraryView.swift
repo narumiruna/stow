@@ -224,7 +224,7 @@ struct MacLibraryView: View {
         } else if let item = selected.first {
             MacLibraryDetailView(
                 item: item,
-                attachments: allAttachments.filter { $0.itemID == item.id },
+                attachment: allAttachments.first { $0.itemID == item.id },
                 onSetPinned: { setPinned([$0], pinned: $1) },
                 onArchiveOrRestore: { performLifecycle([$0]) },
                 onTrash: { moveToTrash([$0]) },
@@ -694,7 +694,7 @@ private struct MacLibraryFeedbackView: View {
 private struct MacLibraryDetailView: View {
     @Environment(AppModel.self) private var appModel
     let item: StowItem
-    let attachments: [StowAttachment]
+    let attachment: StowAttachment?
     let onSetPinned: (StowItem, Bool) -> Void
     let onArchiveOrRestore: (StowItem) -> Void
     let onTrash: (StowItem) -> Void
@@ -819,12 +819,12 @@ private struct MacLibraryDetailView: View {
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
             .onDrag { dragProvider() }
         case .image:
-            if let data = attachments.first?.data, let image = NSImage(data: data) {
+            if let data = attachment?.data, let image = NSImage(data: data) {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .onDrag { dragProvider(attachments.first) }
+                    .onDrag { dragProvider(attachment) }
             } else {
                 ContentUnavailableView("Image unavailable", systemImage: "photo.badge.exclamationmark")
             }
@@ -836,14 +836,14 @@ private struct MacLibraryDetailView: View {
                 Text(item.fileName ?? item.title)
                     .font(.title3)
                     .textSelection(.enabled)
-                if let attachment = attachments.first {
+                if let attachment {
                     Text(ByteCountFormatter.string(fromByteCount: Int64(attachment.byteCount), countStyle: .file))
                         .foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 40)
-            .onDrag { dragProvider(attachments.first) }
+            .onDrag { dragProvider(attachment) }
         }
     }
 
@@ -871,7 +871,7 @@ private struct MacLibraryDetailView: View {
     @ViewBuilder
     private var primaryActions: some View {
         Button {
-            appModel.copy(item, attachment: attachments.first)
+            appModel.copy(item, attachment: attachment)
         } label: {
             Label("Copy", systemImage: "doc.on.doc")
         }
@@ -880,13 +880,13 @@ private struct MacLibraryDetailView: View {
         if item.type == .link || item.type == .file {
             Button {
                 appModel.performUse(item, action: .open, metric: .itemOpened) {
-                    try PlatformActions.open(item, attachment: attachments.first)
+                    try PlatformActions.open(item, attachment: attachment)
                 }
             } label: {
                 Label(item.type == .link ? "Open Link" : "Open", systemImage: "arrow.up.forward.app")
             }
         }
-        if item.type == .file, let attachment = attachments.first {
+        if item.type == .file, let attachment {
             Button {
                 appModel.performUse(item, action: .preview, metric: .itemOpened) {
                     previewURL = try PlatformActions.materialize(attachment)
@@ -895,7 +895,7 @@ private struct MacLibraryDetailView: View {
                 Label("Quick Look", systemImage: "eye")
             }
         }
-        StowShareButton(item: item, attachment: attachments.first)
+        StowShareButton(item: item, attachment: attachment)
     }
 
     private var managementMenu: some View {

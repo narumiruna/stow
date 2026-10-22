@@ -57,13 +57,7 @@ struct StowCLIArguments {
     }
 
     private mutating func parseStatus() throws -> StowCLIInvocation {
-        var common = CommonOptions()
-        while let option = arguments.first {
-            arguments.removeFirst()
-            guard option.hasPrefix("-"), try common.consume(option, from: &arguments) else {
-                throw StowCLIParseError(message: "Unknown option: \(option)")
-            }
-        }
+        let common = try parseCommonOptions()
         return .remote(
             request: StowAutomationRequest(command: .status),
             json: common.json,
@@ -103,13 +97,7 @@ struct StowCLIArguments {
 
     private mutating func parseGet() throws -> StowCLIInvocation {
         let itemID = try parseLeadingUUID(named: "ITEM_ID")
-        var common = CommonOptions()
-        while let option = arguments.first {
-            arguments.removeFirst()
-            guard option.hasPrefix("-"), try common.consume(option, from: &arguments) else {
-                throw StowCLIParseError(message: "Unknown option: \(option)")
-            }
-        }
+        let common = try parseCommonOptions()
         return .remote(
             request: StowAutomationRequest(command: .get, get: .init(itemID: itemID)),
             json: common.json,
@@ -210,6 +198,17 @@ struct StowCLIArguments {
             timeout: common.timeout,
             export: StowCLIExportOptions(outputPath: outputPath, force: force)
         )
+    }
+
+    private mutating func parseCommonOptions() throws -> CommonOptions {
+        var common = CommonOptions()
+        while let option = arguments.first {
+            arguments.removeFirst()
+            guard option.hasPrefix("-"), try common.consume(option, from: &arguments) else {
+                throw StowCLIParseError(message: "Unknown option: \(option)")
+            }
+        }
+        return common
     }
 
     private mutating func parseLeadingUUID(named name: String) throws -> UUID {

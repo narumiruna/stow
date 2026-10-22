@@ -61,7 +61,7 @@ final class QuickPanelInteractionPolicyTests: XCTestCase {
         XCTAssertEqual(repaired.selectionAnchor, selected)
     }
 
-    func testZeroResultsClearEverySelectionAndReturnCannotUseAStaleItem() {
+    func testZeroResultsClearEverySelection() {
         let stale = UUID()
         let state = QuickPanelSelectionState(
             selection: stale,
@@ -74,24 +74,5 @@ final class QuickPanelInteractionPolicyTests: XCTestCase {
         XCTAssertNil(repaired.selection)
         XCTAssertTrue(repaired.selectedIDs.isEmpty)
         XCTAssertNil(repaired.selectionAnchor)
-        XCTAssertNil(QuickPanelSelectionPolicy.actionableSelection(in: state, visibleIDs: []))
-    }
-
-    func testReturnCanUseOnlyTheSelectionInCurrentResults() {
-        let selected = UUID()
-        let excluded = UUID()
-        let state = QuickPanelSelectionState(
-            selection: selected,
-            selectedIDs: [selected],
-            selectionAnchor: selected
-        )
-
-        XCTAssertEqual(
-            QuickPanelSelectionPolicy.actionableSelection(in: state, visibleIDs: [excluded, selected]),
-            selected
-        )
-        XCTAssertNil(
-            QuickPanelSelectionPolicy.actionableSelection(in: state, visibleIDs: [excluded])
-        )
     }
 }

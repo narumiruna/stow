@@ -107,7 +107,7 @@ struct StowItemDetailView: View {
             .accessibilityIdentifier("syntax-highlighted-code")
             .onDrag { dragProvider() }
         case .image:
-            if let attachment = attachments.first, let image = platformImage(data: attachment.data) {
+            if let attachment, let image = platformImage(data: attachment.data) {
                 image.resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 12))
                     .scaleEffect(imageScale)
                     .gesture(MagnifyGesture().onChanged { value in imageScale = min(max(value.magnification, 1), 5) })
@@ -118,15 +118,15 @@ struct StowItemDetailView: View {
             VStack(spacing: 12) {
                 Image(systemName: "doc.fill").font(.system(size: 64)).foregroundStyle(.orange)
                 Text(item.fileName ?? item.title).font(.title3)
-                if let attachment = attachments.first { Text(ByteCountFormatter.string(fromByteCount: Int64(attachment.byteCount), countStyle: .file)).foregroundStyle(.secondary) }
+                if let attachment { Text(ByteCountFormatter.string(fromByteCount: Int64(attachment.byteCount), countStyle: .file)).foregroundStyle(.secondary) }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 40)
-            .onDrag { dragProvider(attachments.first) }
+            .onDrag { dragProvider(attachment) }
         }
     }
 
-    private var attachments: [StowAttachment] { allAttachments.filter { $0.itemID == item.id } }
+    private var attachment: StowAttachment? { allAttachments.first { $0.itemID == item.id } }
 
     private var metadata: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -230,8 +230,8 @@ struct StowItemDetailView: View {
             appModel.performUse(item, action: .copy, metric: .itemCopied) {
                 try PlatformActions.copy(
                     item,
-                    attachmentData: attachments.first?.data,
-                    attachment: attachments.first,
+                    attachmentData: attachment?.data,
+                    attachment: attachment,
                     representations: representations
                 )
             }
@@ -242,13 +242,13 @@ struct StowItemDetailView: View {
         if item.type == .link || item.type == .file {
             Button {
                 appModel.performUse(item, action: .open, metric: .itemOpened) {
-                    try PlatformActions.open(item, attachment: attachments.first)
+                    try PlatformActions.open(item, attachment: attachment)
                 }
             } label: {
                 actionLabel(item.type == .link ? "Open Link" : "Open In", systemImage: "arrow.up.forward.app", fillsWidth: fillsWidth)
             }
         }
-        if item.type == .file, let attachment = attachments.first {
+        if item.type == .file, let attachment {
             Button {
                 appModel.performUse(item, action: .preview, metric: .itemOpened) {
                     previewURL = try PlatformActions.materialize(attachment)
@@ -257,8 +257,8 @@ struct StowItemDetailView: View {
                 actionLabel("Quick Look", systemImage: "eye", fillsWidth: fillsWidth)
             }
         }
-        StowShareButton(item: item, attachment: attachments.first, fillsWidth: fillsWidth)
-        if item.type == .image, let data = attachments.first?.data {
+        StowShareButton(item: item, attachment: attachment, fillsWidth: fillsWidth)
+        if item.type == .image, let data = attachment?.data {
             Button {
                 appModel.performUse(item, action: .open, metric: .itemOpened) {
                     try PlatformActions.saveToPhotos(data)
