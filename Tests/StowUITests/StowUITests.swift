@@ -362,7 +362,7 @@ final class StowUITests: XCTestCase {
         editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         safari.typeText("https://example.com")
         safari.typeText(XCUIKeyboardKey.return.rawValue)
-        XCTAssertTrue(safari.staticTexts["Example Domain"].waitForExistence(timeout: 8))
+        XCTAssertTrue(safari.webViews.otherElements["Example Domain"].waitForExistence(timeout: 8))
         let more = safari.buttons["More"]
         XCTAssertTrue(more.waitForExistence(timeout: 5))
         for _ in 0..<3 where !more.isHittable { safari.swipeDown() }

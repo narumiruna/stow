@@ -264,19 +264,9 @@ private final class PasteboardReaderDouble: ClipboardPasteboardReading {
         return types
     }
 
-    func readURLs() -> [URL] {
-        payloadReadCount += 1
-        return urls
-    }
-
     func readImage() -> NSImage? {
         payloadReadCount += 1
         return image
-    }
-
-    func readString() -> String? {
-        payloadReadCount += 1
-        return string
     }
 
     func readSnapshot() -> ClipboardPasteboardSnapshot {

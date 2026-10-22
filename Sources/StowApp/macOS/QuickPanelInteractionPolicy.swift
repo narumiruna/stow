@@ -65,12 +65,4 @@ enum QuickPanelSelectionPolicy {
             selectionAnchor: selection
         )
     }
-
-    static func actionableSelection(
-        in state: QuickPanelSelectionState,
-        visibleIDs: [UUID]
-    ) -> UUID? {
-        guard let selection = state.selection, visibleIDs.contains(selection) else { return nil }
-        return selection
-    }
 }

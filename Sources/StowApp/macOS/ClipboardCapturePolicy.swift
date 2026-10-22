@@ -52,23 +52,8 @@ protocol ClipboardPasteboardReading: AnyObject {
     var captureAccessAllowed: Bool { get }
     var statusText: String { get }
 
-    func readURLs() -> [URL]
     func readImage() -> NSImage?
-    func readString() -> String?
     func readSnapshot() -> ClipboardPasteboardSnapshot
-}
-
-extension ClipboardPasteboardReading {
-    func readSnapshot() -> ClipboardPasteboardSnapshot {
-        var candidates: [PasteboardRepresentationCandidate] = []
-        if let string = readString() {
-            candidates.append(PasteboardRepresentationCandidate(
-                typeIdentifier: StowRepresentationType.plainText,
-                data: Data(string.utf8)
-            ))
-        }
-        return ClipboardPasteboardSnapshot(candidates: candidates, urls: readURLs())
-    }
 }
 
 @MainActor
@@ -112,7 +97,7 @@ final class SystemClipboardPasteboardReader: ClipboardPasteboardReading {
         return "Monitoring"
     }
 
-    func readURLs() -> [URL] {
+    private func readURLs() -> [URL] {
         (pasteboard.readObjects(forClasses: [NSURL.self]) ?? []).compactMap { object in
             (object as? NSURL).map { $0 as URL }
         }
@@ -120,10 +105,6 @@ final class SystemClipboardPasteboardReader: ClipboardPasteboardReading {
 
     func readImage() -> NSImage? {
         NSImage(pasteboard: pasteboard)
-    }
-
-    func readString() -> String? {
-        pasteboard.string(forType: .string)
     }
 
     func readSnapshot() -> ClipboardPasteboardSnapshot {

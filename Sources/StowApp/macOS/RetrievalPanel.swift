@@ -994,16 +994,8 @@ struct RetrievalPanelView: View {
     }
 
     private var selectedItem: StowItem? {
-        let visibleIDs = items.map(\.id)
-        guard let id = QuickPanelSelectionPolicy.actionableSelection(
-            in: QuickPanelSelectionState(
-                selection: selection,
-                selectedIDs: selectedIDs,
-                selectionAnchor: selectionAnchor
-            ),
-            visibleIDs: visibleIDs
-        ) else { return nil }
-        return items.first { $0.id == id }
+        guard let selection else { return nil }
+        return items.first { $0.id == selection }
     }
 
     private func performDefault(_ requestedItem: StowItem? = nil) {
