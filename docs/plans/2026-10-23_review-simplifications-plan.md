@@ -25,7 +25,7 @@ Resolve the four confirmed review findings without changing capture, selection, 
 
 `Scripts/ci.sh` exited 0 on Xcode 26.6 / Swift 6.3.3: 133 package tests, 87 native app tests, 6 share tests, both platform builds, version/generator checks, and entitlement/privacy-manifest checks passed. Embedded Python checks ran through an exported `python3` shell function that invokes `uv run python`; no repository script was changed. The read-only-store warning is expected from the persistence-failure fixture. Six standalone Swift fixtures confirm old/new first-attachment lookup equivalence for empty, unrelated, single, and multiple matching attachments, including reversed matching order. Swift parsing of the changed UI test, Bash/Ruby syntax, plist validation, and `git diff --check` passed. Independent diff review found no behavior regressions. Existing helper-only selection assertions moved to the real UI action path; repair coverage remains.
 
-No public API, schema, preferences, build membership, or CI/UI orchestration changes were made. Local results do not verify CI's Xcode 26.3 toolchain.
+No public API, schema, preferences, build membership, or CI/UI orchestration changes were made. [CI run 39824212333](https://github.com/narumiruna/stow/actions/runs/39824212333) passed at implementation commit `7f492c9` on the configured Xcode 26.3 / Swift 6.2 toolchain; local results alone do not establish that compatibility.
 
 The first final `Scripts/ui_tests.sh all` batch exited 65. macOS built successfully and passed the isolated CLI background-launch smoke check, but the UI runner timed out before any scenario: `testmanagerd` reports that the writer daemon requires authentication to enable Automation Mode. No authentication-policy changes were made. Result: `Test-StowMacUITests-2026.10.23_01-14-12-+0800.xcresult`.
 
@@ -33,7 +33,7 @@ iOS 26.5 / iPhone 17 Pro passed 13 of 15 tests, including all detail previews an
 
 The delivery attempt uses `narumi/refactor/review-simplifications`, created from the current `origin/main` (`4e22cba`) with all existing implementation work preserved. The focused CLI parser suite (9 tests), full non-interactive gate (133 package / 87 app / 6 share tests and both builds), static checks, and complete diff review passed again before committing. Review covered correctness, security, lifecycle safety, compatibility, regressions, and scope: no new asynchronous lifetimes, persistence writes, public contracts, protected-content reads, or attachment-order changes were introduced.
 
-A fresh read-only check confirms Developer Mode is enabled but Automation Mode is disabled and requires user authentication. No further UI batch was run against that unchanged blocker. The pull request must remain draft until the open UI criteria pass or the user explicitly accepts the missing evidence; CI's configured toolchain also remains unverified until its actual run passes.
+The changes are committed and pushed to [draft PR #35](https://github.com/narumiruna/stow/pull/35) against `main`. A fresh read-only check confirms Developer Mode is enabled but Automation Mode is disabled and requires user authentication. No further UI batch was run against that unchanged blocker. The pull request must remain draft until the open UI criteria pass or the user explicitly accepts the missing evidence.
 
 Required external action: complete the local macOS `Enable UI Automation` authentication, then rerun `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh all`. Developer Mode is already enabled; no privilege or authentication settings were changed. The macOS no-stale-use and Library preview scenarios remain unverified. Agent-created log and hierarchy exports were removed; original Xcode result bundles remain available.
 
@@ -43,5 +43,6 @@ Required external action: complete the local macOS `Enable UI Automation` authen
 - [x] Relevant non-interactive checks pass.
 - [ ] The complete final UI batch passes, or the user explicitly accepts missing evidence.
 - [x] Final diff is scoped and temporary diagnostic files are removed.
+- [x] Implementation is committed and pushed to draft PR #35; configured-toolchain CI passes.
 
 Delete this plan only when every completion check passes; otherwise retain it with missing evidence stated.
