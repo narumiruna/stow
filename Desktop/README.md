@@ -4,6 +4,7 @@ Tauri 2 is approved for the desktop rewrite. The preview connects a local web UI
 
 ## Current Behavior
 
+- Three-column Library with adaptive panes, compact filters, safe typed text presentation, and grouped Settings.
 - Library search by text, type, source app, inclusive UTC dates, lifecycle state, and pin state.
 - Text, code, and link Quick Add; stable capture IDs make retries idempotent.
 - Editing, pinning, archive, Trash, and restore with optimistic revision checks.
@@ -15,6 +16,8 @@ Tauri 2 is approved for the desktop rewrite. The preview connects a local web UI
 Linux uses a separate preview application-data directory under the platform data root, identified by `dev.narumi.stow.desktop-preview`. Missing Linux parent directories are created privately. The frontend cannot choose a library path. Do not point this preview at production data.
 
 Windows storage remains disabled until its durability/private-ACL gate passes. macOS storage remains unavailable until the Swift bridge is integrated; the preview never opens a replacement SQLite canonical library on macOS. The existing SwiftData/iCloud store, iOS app, Share Extensions, and CLI are unchanged.
+
+The [Swift parity execution record](PARITY.md) tracks the partial M0/M1 continuation, deterministic fixtures, repository benchmarks, and blocked acceptance gates. Collection counts, Recently Used, multi-selection, and batch/Undo are not delivered. Unsupported controls remain explicit; the app does not ship demo data.
 
 File/image import and previews, native clipboard adapters, direct paste, shortcuts, quick panel, Rust CLI transport, Swift bridge, and installers are not delivered yet. See the [plan](../docs/plans/2026-10-24_rust-cross-platform-desktop-plan.md) and [verification record](VERIFICATION.md).
 
