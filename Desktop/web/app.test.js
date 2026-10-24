@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { createApp } from './public/app.js';
-import { errorMessage, searchQuery } from './public/model.js';
+import { createOnlyDifferences, errorMessage, searchQuery } from './public/model.js';
 
 const markup = await Bun.file(new URL('./public/index.html', import.meta.url)).text();
 const windows = [];
@@ -36,6 +36,27 @@ async function setup(overrides = {}) {
   return { window, $, click, input, select, search, save, calls, handlers, requestClose: app.requestClose };
 }
 
+async function committedLinkWithLostResponse() {
+  const saved = new Map();
+  let responseLost = false;
+  const app = await setup({ create_item: ({ draft }) => {
+    if (saved.has(draft.capture_id)) return { ...saved.get(draft.capture_id), capture_replayed: true };
+    const result = detail(item(`created-${saved.size + 1}`, {
+      capture_id: draft.capture_id, item_type: draft.item_type, title: draft.title,
+      text_content: draft.text_content, note: draft.note, language: draft.language,
+      url_string: draft.url_string.trim(), is_pinned: draft.is_pinned,
+      status: draft.directly_archive ? 'archived' : 'inbox',
+    }));
+    saved.set(draft.capture_id, result);
+    if (!responseLost) { responseLost = true; throw new Error('Committed response lost'); }
+    return result;
+  } });
+  await app.click('add-button'); await app.input('edit-type', 'link');
+  await app.input('edit-title', 'Original title'); await app.input('edit-url', 'https://original.example/');
+  await app.save();
+  return { ...app, saved };
+}
+
 describe('query and error model', () => {
   test('uses explicit nullable filters and UTC date boundaries', () => {
     expect(searchQuery({ text: 'abc', type: 'code', source: ' Editor ', from: '2026-01-01', to: '2026-02-01', status: 'trashed' })).toEqual({ text: 'abc', item_type: 'code', source_app: 'Editor', added_after: '2026-01-01T00:00:00Z', added_before: '2026-02-01T23:59:59.999999999Z', status: 'trashed', pinned_only: false, include_trashed: false, limit: 200 });
@@ -46,6 +67,13 @@ describe('query and error model', () => {
     expect(query.added_after).toBe('2026-02-01T00:00:00Z');
     expect(query.added_before).toBe('2026-02-01T23:59:59.999999999Z');
     expect(query.pinned_only).toBe(true);
+  });
+  test('create-only comparison uses canonical archive state and normalized URL values', () => {
+    const original = item('created', { item_type: 'link', url_string: 'https://example.com/', is_pinned: true, status: 'archived' });
+    const matching = { item_type: 'link', url_string: ' https://example.com/ ', is_pinned: true, directly_archive: true };
+    expect(createOnlyDifferences(matching, original)).toEqual([]);
+    expect(createOnlyDifferences({ ...matching, is_pinned: false, directly_archive: false }, original)).toEqual(['pin', 'archive']);
+    expect(createOnlyDifferences({ item_type: 'text', url_string: '', is_pinned: false, directly_archive: false }, item('text', { url_string: null }))).toEqual([]);
   });
   test('formats structured errors without losing conflict codes', () => {
     expect(errorMessage('{"code":"conflict","message":"Reload required","retryable":false}')).toBe('conflict: Reload required');
@@ -194,11 +222,147 @@ describe('headless application controller', () => {
     expect(app.calls.find(([name]) => name === 'update_item')[1]).toMatchObject({ id: 'created', edit: { title: 'B' }, expected_updated_at: 'canonical-revision' });
     expect(app.$('save-button').disabled).toBe(true);
   });
+  for (const [field, control, value] of [
+    ['URL', 'edit-url', 'https://replacement.example/'],
+    ['type', 'edit-type', 'code'],
+    ['pin', 'edit-pin', true],
+    ['archive', 'edit-archive', true],
+  ]) {
+    test(`replayed create retains changed ${field} until Save as new item is chosen`, async () => {
+      const app = await committedLinkWithLostResponse();
+      if (typeof value === 'boolean') {
+        app.$(control).checked = value;
+        app.$(control).dispatchEvent(new app.window.Event('input'));
+      } else { await app.input(control, value); }
+      if (field === 'type') await app.input('edit-text', 'Retained code');
+      await app.save();
+      expect(app.$('editor-heading').textContent).toBe('Quick Add');
+      expect(typeof value === 'boolean' ? app.$(control).checked : app.$(control).value).toBe(value);
+      expect(app.$('create-conflict').textContent).toContain('already saved');
+      expect(app.$('create-new-button').hidden).toBe(false);
+      const creates = app.calls.filter(([name]) => name === 'create_item');
+      expect(creates).toHaveLength(2);
+      expect(creates[0][1].draft.capture_id).toBe(creates[1][1].draft.capture_id);
+      expect(app.calls.some(([name]) => name === 'update_item' || name === 'apply_item_command')).toBe(false);
+      expect(app.saved.size).toBe(1);
+      await app.click('create-new-button');
+      const final = app.calls.filter(([name]) => name === 'create_item').at(-1)[1].draft;
+      expect(final.capture_id).not.toBe(creates[0][1].draft.capture_id);
+      expect(app.saved.size).toBe(2);
+      expect(final[({ URL: 'url_string', type: 'item_type', pin: 'is_pinned', archive: 'directly_archive' })[field]]).toBe(value);
+      expect(app.$('editor-heading').textContent).toBe('Edit item');
+    });
+  }
+  test('an unresolved replay cannot send repeated creates or close through dialog Save', async () => {
+    const app = await committedLinkWithLostResponse();
+    await app.input('edit-url', 'https://replacement.example/'); await app.save();
+    await app.save();
+    expect(app.calls.filter(([name]) => name === 'create_item')).toHaveLength(2);
+    const closing = app.requestClose(); await tick(); await app.click('dialog-save');
+    expect(app.$('unsaved-dialog').open).toBe(true);
+    expect(app.$('dialog-error').textContent).toContain('Save as new item');
+    expect(app.calls.some(([name]) => name === 'close_preview')).toBe(false);
+    await app.click('dialog-cancel'); await closing;
+    expect(app.$('edit-url').value).toBe('https://replacement.example/');
+  });
+  test('a failed explicit new-item save keeps its new ID for safe retry', async () => {
+    const app = await committedLinkWithLostResponse();
+    await app.input('edit-url', 'https://replacement.example/'); await app.save();
+    const originalId = app.calls.filter(([name]) => name === 'create_item')[0][1].draft.capture_id;
+    const create = app.handlers.create_item;
+    app.handlers.create_item = (args) => {
+      const response = create(args);
+      if (!response.capture_replayed) throw new Error('Second committed response lost');
+      return response;
+    };
+    await app.click('create-new-button');
+    expect(app.$('error').textContent).toContain('Second committed response lost');
+    expect(app.$('edit-url').value).toBe('https://replacement.example/');
+    const newId = app.calls.filter(([name]) => name === 'create_item').at(-1)[1].draft.capture_id;
+    expect(newId).not.toBe(originalId);
+    await app.save();
+    expect(app.calls.filter(([name]) => name === 'create_item').at(-1)[1].draft.capture_id).toBe(newId);
+    expect(app.saved.size).toBe(2);
+    expect(app.$('editor-heading').textContent).toBe('Edit item');
+    expect(app.$('save-button').disabled).toBe(true);
+  });
+  test('discard after a failed explicit new-item save does not restore the old capture ID', async () => {
+    const app = await committedLinkWithLostResponse();
+    await app.input('edit-url', 'https://replacement.example/'); await app.save();
+    const create = app.handlers.create_item;
+    app.handlers.create_item = (args) => {
+      const response = create(args);
+      if (!response.capture_replayed) throw new Error('Second response lost');
+      return response;
+    };
+    await app.click('create-new-button');
+    const newId = app.calls.filter(([name]) => name === 'create_item').at(-1)[1].draft.capture_id;
+    await app.click('discard-button'); await app.click('dialog-discard');
+    await app.input('edit-type', 'link'); await app.input('edit-title', 'Original title');
+    await app.input('edit-url', 'https://replacement.example/'); await app.save();
+    expect(app.calls.filter(([name]) => name === 'create_item').at(-1)[1].draft.capture_id).toBe(newId);
+    expect(app.saved.size).toBe(2);
+    expect(app.$('editor-heading').textContent).toBe('Edit item');
+  });
+  test('create-only replay conflict retains text edited while the response is pending', async () => {
+    const app = await committedLinkWithLostResponse();
+    const create = app.handlers.create_item;
+    const pending = deferred();
+    app.handlers.create_item = () => pending.promise;
+    await app.input('edit-url', 'https://replacement.example/'); await app.save();
+    await app.input('edit-note', 'Newer note');
+    pending.resolve({ ...[...app.saved.values()][0], capture_replayed: true }); await tick();
+    expect(app.$('edit-note').value).toBe('Newer note');
+    expect(app.$('edit-url').value).toBe('https://replacement.example/');
+    app.handlers.create_item = create; await app.click('create-new-button');
+    expect(app.calls.filter(([name]) => name === 'create_item').at(-1)[1].draft.note).toBe('Newer note');
+  });
+  test('matching pinned and archived replay stays clean without create-only draft properties on the item', async () => {
+    const app = await setup({ create_item: ({ draft }) => ({ ...detail(item('created', {
+      title: draft.title, item_type: draft.item_type, text_content: draft.text_content,
+      url_string: draft.url_string.trim(), is_pinned: true, status: 'archived',
+    })), capture_replayed: true }) });
+    await app.click('add-button'); await app.input('edit-type', 'link');
+    await app.input('edit-title', 'Saved'); await app.input('edit-url', 'https://example.com/');
+    for (const id of ['edit-pin', 'edit-archive']) {
+      app.$(id).checked = true; app.$(id).dispatchEvent(new app.window.Event('input'));
+    }
+    await app.save();
+    expect(app.$('editor-heading').textContent).toBe('Edit item');
+    expect(app.$('create-new-button').hidden).toBe(true);
+    expect(app.$('save-button').disabled).toBe(true);
+  });
+  test('discarding incompatible replay options shows the original saved item', async () => {
+    const app = await committedLinkWithLostResponse();
+    await app.input('edit-url', 'https://replacement.example/'); await app.save();
+    await app.click('discard-button'); await app.click('dialog-discard');
+    expect(app.$('editor-heading').textContent).toBe('Edit item');
+    expect(app.$('item-preview').textContent).toContain('https://original.example/');
+    expect(app.$('save-button').disabled).toBe(true);
+    expect(app.saved.size).toBe(1);
+    expect(app.calls.some(([name]) => name === 'update_item' || name === 'apply_item_command')).toBe(false);
+  });
   test('matching replayed create is clean', async () => {
     const app = await setup({ create_item: ({ draft }) => ({ ...detail(item('created', draft)), capture_replayed: true }) });
     await app.click('add-button'); await app.input('edit-title', 'A'); await app.save();
     expect(app.$('save-button').disabled).toBe(true);
   });
+  for (const type of ['text', 'code']) {
+    test(`hidden invalid URL does not block a valid ${type} form submission`, async () => {
+      const app = await setup(); await app.click('add-button');
+      await app.input('edit-type', 'link'); await app.input('edit-url', 'not a URL');
+      expect(app.$('edit-url').willValidate).toBe(true);
+      expect(app.$('edit-url').validity.typeMismatch).toBe(true);
+      await app.input('edit-type', type); await app.input('edit-text', 'Valid content');
+      expect(app.$('edit-url-label').hidden).toBe(true);
+      expect(app.$('edit-url').disabled).toBe(true);
+      expect(app.$('edit-url').willValidate).toBe(false);
+      expect(app.$('editor').checkValidity()).toBe(true);
+      // Use normal button activation, not a synthetic submit event.
+      await app.click('save-button');
+      expect(app.calls.filter(([name]) => name === 'create_item')).toHaveLength(1);
+    });
+  }
   test('supports lifecycle command names and expected revision', async () => {
     const app = await setup({ get_item: () => detail(item('a', { status: 'trashed' })), apply_item_command: ({ command }) => detail(item('a', { status: command === 'restore_trash' ? 'archived' : 'inbox' })) });
     await app.select(); expect(app.$('archive-button').hidden).toBe(true);

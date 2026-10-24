@@ -13,7 +13,7 @@ No desktop UI test or desktop launch has occurred during implementation. The WSL
 ## Tauri Continuation
 
 - Rust service tests cover one bounded worker, queue saturation, panic/disconnect, shutdown, restart, optimistic revisions, capture replay, failed saves, argument bounds, and private Linux parent creation.
-- Thirty-two headless Bun/DOM tests cover real frontend state and rendering: hostile saved content, dialogs, conflicts, async search/detail races, newer edits during saves, replayed creates, date/pin filters, hidden selections, settings, close protection, and unavailable backends.
+- Forty-five headless Bun/DOM tests cover frontend state and rendering. Coverage includes hostile content, dialogs, async races, replay conflicts, explicit new captures, native form validation, filters, close protection, and unavailable backends.
 - Tauri grants only declared commands and close-event subscription to the embedded main window. Rust checks its label and origin. Navigation after the frontend handshake, remote pages, and new windows are denied. The CSP forbids remote scripts and `unsafe-eval`.
 - List/detail metadata APIs do not read original attachment or representation blobs. Search applies the pin filter before its result limit. Integer second/nanosecond metadata keeps inclusive UTC day bounds from rounding into the next midnight.
 - Native window close and application quit route through the same Save/Discard/Cancel guard after listener registration. Forced termination and renderer failure do not persist drafts.
@@ -25,7 +25,7 @@ Bun 1.4.4 dependency audit reports no vulnerabilities in its nine development pa
 
 The Tauri dependency audit reports `proc-macro-error` 1.0.4 as unmaintained (`RUSTSEC-2024-0370`) and the Linux GTK dependency `glib` 0.18.5 as unsound in `VariantStrIter` (`RUSTSEC-2024-0429`). These are not ignored or described as warning-free. The application does not directly use that iterator API; framework reachability and an upstream update remain production security review items. Removing `iced` also removes its previous `ttf-parser` warning.
 
-At the initial Tauri implementation commit `74e34db`, [Rust desktop CI 40079486494](https://github.com/narumiruna/stow/actions/runs/40079486494) passed the complete host's formatting, Clippy, headless tests, and release builds on Ubuntu 24.04, Windows 2025, and macOS 15. The dependency audit/license job also passed. [Swift CI 40079486353](https://github.com/narumiruna/stow/actions/runs/40079486353) passed the existing complete non-interactive gate. These native builds validate compilation and generated command permissions, not desktop behavior. A subsequent frontend fix hides unsupported link-body editing and adds its regression test; final head checks must also pass.
+At the initial Tauri implementation commit `74e34db`, [Rust desktop CI 40079486494](https://github.com/narumiruna/stow/actions/runs/40079486494) passed the complete host's formatting, Clippy, headless tests, and release builds on Ubuntu 24.04, Windows 2025, and macOS 15. The dependency audit/license job also passed. [Swift CI 40079486353](https://github.com/narumiruna/stow/actions/runs/40079486353) passed the existing complete non-interactive gate. These native builds validate compilation and generated command permissions, not desktop behavior. Subsequent frontend fixes hide unsupported link-body editing, retain changed create-only replay fields, and disable inapplicable URL validation. Final head checks must also pass.
 
 Earlier repository-stage evidence follows.
 

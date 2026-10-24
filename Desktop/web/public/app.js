@@ -1,4 +1,4 @@
-import { editable, newDraft, sameDraft, searchQuery, errorMessage } from './model.js';
+import { editable, newDraft, sameDraft, searchQuery, errorMessage, createOnlyDifferences } from './model.js';
 
 // All privileged operations pass through this injected command boundary.
 export function createApp(invoke, document) {
@@ -6,12 +6,15 @@ export function createApp(invoke, document) {
   const state = {
     available: false, items: [], selected: null, detail: null, draft: null, base: null,
     creating: false, saving: false, commandBusy: false, searchGeneration: 0,
-    detailGeneration: 0, filters: null, pending: null, searchReady: false,
+    detailGeneration: 0, filters: null, pending: null, searchReady: false, createReplay: null,
   };
   const status = (text) => { $('status').textContent = text; };
   const clearError = () => { $('error').hidden = true; $('error').textContent = ''; };
   const fail = (error) => { $('error').textContent = errorMessage(error); $('error').hidden = false; };
   const dirty = () => state.draft !== null && !sameDraft(state.draft, state.base);
+  const createConflicts = () => state.creating && state.createReplay
+    ? createOnlyDifferences(state.draft, state.createReplay) : [];
+  const createConflictMessage = (fields) => `The item was already saved. Your changes to ${fields.join(', ')} are not saved. Choose Save as new item or Discard changes.`;
   const selectionCurrent = () => state.searchReady && !state.creating && state.detail !== null
     && state.detail.item.id === state.selected && state.items.some((item) => item.id === state.selected);
   const on = (id, event, action) => $(id).addEventListener(event, (e) => {
@@ -34,10 +37,16 @@ export function createApp(invoke, document) {
     $('filter-pin').checked = state.filters.pinned;
   }
   function syncButtons() {
-    $('save-button').disabled = !state.available || state.saving || !dirty();
+    const conflicts = createConflicts();
+    $('create-conflict').hidden = conflicts.length === 0;
+    $('create-conflict').textContent = conflicts.length ? createConflictMessage(conflicts) : '';
+    $('create-new-button').hidden = conflicts.length === 0;
+    $('create-new-button').disabled = !state.available || state.saving || state.commandBusy;
+    $('save-button').disabled = !state.available || state.saving || !dirty() || conflicts.length > 0;
     $('discard-button').disabled = state.saving || !dirty();
     $('edit-state').textContent = state.saving ? 'Saving… You can continue editing text fields.' : dirty() ? 'Unsaved changes' : 'No unsaved changes';
-    for (const id of ['edit-type', 'edit-url', 'edit-pin', 'edit-archive']) $(id).disabled = state.saving || state.commandBusy;
+    for (const id of ['edit-type', 'edit-pin', 'edit-archive']) $(id).disabled = state.saving || state.commandBusy;
+    $('edit-url').disabled = state.saving || state.commandBusy || !state.creating || state.draft?.item_type !== 'link';
     for (const id of ['edit-title', 'edit-text', 'edit-note', 'edit-language']) $(id).disabled = state.commandBusy;
     for (const id of ['pin-button', 'archive-button', 'trash-button']) $(id).disabled = !state.available || state.saving || state.commandBusy || !selectionCurrent();
     $('add-button').disabled = !state.available || state.saving || state.commandBusy;
@@ -146,7 +155,7 @@ export function createApp(invoke, document) {
     if (state.saving || state.commandBusy) return;
     const generation = ++state.detailGeneration;
     state.selected = id; state.creating = false;
-    state.detail = null; state.draft = null; state.base = null;
+    state.detail = null; state.draft = null; state.base = null; state.createReplay = null;
     renderItems(); renderDetail();
     $('detail-state').textContent = 'Loading item…';
     clearError();
@@ -166,6 +175,8 @@ export function createApp(invoke, document) {
   async function save() {
     if (!dirty()) return true;
     if (state.saving || !state.available) return false;
+    const conflicts = createConflicts();
+    if (conflicts.length) { fail(new Error(createConflictMessage(conflicts))); return false; }
     const snapshot = { ...state.draft };
     const creating = state.creating;
     const id = state.selected;
@@ -174,10 +185,21 @@ export function createApp(invoke, document) {
       const detail = await invoke(creating ? 'create_item' : 'update_item', creating
         ? { draft: snapshot }
         : { id, edit: snapshot, expected_updated_at: state.detail.item.updated_at });
+      // Keep the complete create draft if the existing item cannot accept it.
+      // A new capture ID requires an explicit Save as new item action.
+      const replayConflicts = creating && detail.capture_replayed
+        ? createOnlyDifferences(state.draft, detail.item) : [];
+      if (replayConflicts.length) {
+        state.detail = detail; state.createReplay = detail.item;
+        renderDetail(); fail(new Error(createConflictMessage(replayConflicts)));
+        status('The original item is saved. Your draft is kept.');
+        await search();
+        return false;
+      }
       // Navigation is locked during save, but text may change while invoke runs.
       const unchanged = sameDraft(state.draft, snapshot);
       const remaining = editable(state.draft);
-      state.detail = detail; state.selected = detail.item.id; state.creating = false;
+      state.detail = detail; state.selected = detail.item.id; state.creating = false; state.createReplay = null;
       state.base = editable(detail.item);
       const replayDiffers = creating && detail.capture_replayed && !sameDraft(remaining, state.base);
       state.draft = unchanged && !replayDiffers ? { ...state.base } : remaining;
@@ -191,9 +213,15 @@ export function createApp(invoke, document) {
     } finally { state.saving = false; syncButtons(); }
   }
   function discard() {
-    state.draft = state.base ? { ...state.base } : null;
-    renderEditor();
-    status('Changes discarded.');
+    if (state.creating && state.createReplay) {
+      state.selected = state.detail.item.id; state.creating = false; state.createReplay = null;
+      state.base = editable(state.detail.item); state.draft = { ...state.base };
+      renderItems(); renderDetail();
+    } else {
+      state.draft = state.base ? { ...state.base } : null;
+      renderEditor();
+    }
+    clearError(); status('Changes discarded.');
   }
   async function guarded(action) {
     if (state.saving || state.commandBusy || state.pending) return false;
@@ -228,7 +256,7 @@ export function createApp(invoke, document) {
   function showLibrary() { $('settings').hidden = true; $('library').hidden = false; }
   function quickAdd() {
     ++state.detailGeneration;
-    state.selected = null; state.detail = null; state.creating = true;
+    state.selected = null; state.detail = null; state.creating = true; state.createReplay = null;
     state.draft = newDraft(document.defaultView.crypto.randomUUID());
     state.base = { ...state.draft };
     showLibrary(); renderItems(); renderDetail(); clearError(); $('edit-title').focus();
@@ -258,6 +286,15 @@ export function createApp(invoke, document) {
   on('settings-button', 'click', () => guarded(() => { $('library').hidden = true; $('settings').hidden = false; $('rebuild-button').focus(); }));
   on('editor', 'submit', (event) => { event.preventDefault(); return save(); });
   on('discard-button', 'click', () => guarded(() => {}));
+  on('create-new-button', 'click', () => {
+    if (!createConflicts().length || state.saving || state.commandBusy || state.pending || !state.available) return;
+    if (!$('editor').reportValidity()) return;
+    state.draft.capture_id = document.defaultView.crypto.randomUUID();
+    state.base = { ...state.base, capture_id: state.draft.capture_id };
+    state.createReplay = null;
+    renderEditor();
+    return save();
+  });
   for (const [id, field] of Object.entries({ 'edit-title': 'title', 'edit-text': 'text_content', 'edit-note': 'note', 'edit-language': 'language', 'edit-url': 'url_string', 'edit-type': 'item_type', 'edit-pin': 'is_pinned', 'edit-archive': 'directly_archive' })) {
     on(id, 'input', () => {
       if (!state.draft) return;

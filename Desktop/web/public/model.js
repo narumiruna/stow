@@ -20,6 +20,16 @@ export function newDraft(captureId) {
     url_string: '', note: '', language: '', is_pinned: false, directly_archive: false };
 }
 
+// The update API cannot change these creation options.
+export function createOnlyDifferences(draft, item) {
+  const fields = [];
+  if (draft.item_type !== item.item_type) fields.push('type');
+  if (draft.item_type === 'link' && (draft.url_string ?? '').trim() !== (item.url_string ?? '')) fields.push('URL');
+  if (Boolean(draft.is_pinned) !== Boolean(item.is_pinned)) fields.push('pin');
+  if (Boolean(draft.directly_archive) !== (item.status === 'archived')) fields.push('archive');
+  return fields;
+}
+
 export function sameDraft(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }

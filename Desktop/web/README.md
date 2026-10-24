@@ -25,7 +25,11 @@ Search submits explicit filters, including the `pinned_only` boolean. Both date 
 
 - Search, selection, settings, Quick Add, discard, and lifecycle transitions require Save, Discard, or Cancel when the draft has changes.
 - The in-app dialog does not use browser confirmation prompts. Escape cancels the dialog. Outside the dialog, Escape moves editor focus to Search without deleting changes.
-- Save failures retain the draft. If creation returns `capture_replayed: true`, the returned item becomes the saved base. Different editable draft fields remain unsaved and use `update_item` on the next save. A conflict does not overwrite the saved record. To load its current version, select the item again and explicitly discard the draft.
+- Save failures retain the draft. A replay with different type, URL, pin, or archive options keeps the complete Quick Add draft and reports the unsaved fields.
+  - Save as new item explicitly creates another item. It assigns a new capture ID once. Failed retries retain that ID.
+  - Discard changes shows the original saved item. The replay does not change that item.
+- A replay with matching creation options uses the returned item as the saved base. Different editable fields remain unsaved and use `update_item` on the next save.
+- URL validation applies only to Quick Add link drafts. The URL input is disabled for other drafts and existing-item editing.
 - Navigation and lifecycle commands are locked during a save. Text fields remain editable. A completed save does not replace edits made after the request started.
 - Search and detail requests use separate generation counters. Stale responses and errors do not replace newer results or details.
 
