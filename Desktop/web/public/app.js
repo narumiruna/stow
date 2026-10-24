@@ -303,5 +303,8 @@ export function createApp(invoke, document) {
       $('rebuild-button').disabled = true; fail(error);
     }
   })();
-  return { ready, requestClose: () => guarded(() => invoke('close_preview', {})) };
+  return { ready, requestClose: async () => {
+    try { return await guarded(() => invoke('close_preview', {})); }
+    catch (error) { fail(error); status('Close failed. Your draft is retained.'); return false; }
+  } };
 }

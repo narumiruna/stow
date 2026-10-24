@@ -69,6 +69,12 @@ describe('headless application controller', () => {
     await app.click('dialog-discard'); await discarded;
     expect(app.calls.filter(([name]) => name === 'close_preview')).toHaveLength(1);
   });
+  test('native close command failure is visible instead of trapping the window silently', async () => {
+    const app = await setup({ close_preview: () => { throw new Error('Native close failed'); } });
+    expect(await app.requestClose()).toBe(false);
+    expect(app.$('error').textContent).toContain('Native close failed');
+    expect(app.$('status').textContent).toContain('Close failed');
+  });
   test('loads summary list and renders hostile captured content only as text', async () => {
     const hostile = '<script>globalThis.pwned=true</script><img src="https://remote.invalid/pixel">';
     const app = await setup({ get_item: () => detail(item('a', { title: hostile, text_content: hostile, url_string: 'javascript:alert(1)' })) });

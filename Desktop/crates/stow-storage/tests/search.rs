@@ -193,6 +193,32 @@ fn query_language_is_not_executed_and_input_is_bounded() {
 }
 
 #[test]
+fn inclusive_utc_day_does_not_round_into_the_next_midnight() {
+    let (_directory, mut repository) = fixture();
+    let end = DateTime::parse_from_rfc3339("2026-01-01T23:59:59.999999999Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    let next = DateTime::parse_from_rfc3339("2026-01-02T00:00:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    let mut last = item(1, "Last instant", 0);
+    last.created_at = end;
+    let mut midnight = item(2, "Next day", 0);
+    midnight.created_at = next;
+    repository.upsert(&last).unwrap();
+    repository.upsert(&midnight).unwrap();
+    let query = SearchQuery {
+        added_before: Some(end),
+        ..Default::default()
+    };
+    assert_eq!(repository.search_items(&query).unwrap(), vec![last.clone()]);
+    assert_eq!(
+        repository.search_items(&SearchQuery::default()).unwrap(),
+        vec![midnight, last]
+    );
+}
+
+#[test]
 fn pinned_filter_runs_before_the_result_limit() {
     let (_directory, mut repository) = fixture();
     let mut pinned = item(1, "Older pinned item", 100);
