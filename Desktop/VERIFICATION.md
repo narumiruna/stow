@@ -2,13 +2,30 @@
 
 ## Status
 
-The rewrite is incomplete. The workspace contains portable rules, local capture and metadata persistence, filtered search, and an isolated UI feasibility sample. It is not an installable Stow replacement. The existing Swift application, Share Extensions, CLI, and iCloud store are unchanged.
+The rewrite is incomplete. The workspace now includes a Tauri 2 desktop preview, a semantic web Library UI, a dedicated Rust storage worker, and the local repository. It is not an installable replacement release. The existing Swift application, Share Extensions, CLI, and iCloud store are unchanged.
 
-Production UI adoption is stopped: `iced` 0.14 lacks the native accessibility integration required by Phase 0. [ADR 0006](../docs/decisions/0006-rust-desktop-feasibility-gates.md) records upstream evidence and the required framework decision. Tauri 2 remains an unapproved fallback, not a verified solution.
+The user explicitly approved Tauri 2 with a Rust backend and web UI. [ADR 0006](../docs/decisions/0006-rust-desktop-feasibility-gates.md) records the decision. The stopped `iced` sample is removed. Framework approval does not establish native accessibility, IME, focus, or signed Apple compatibility.
 
 Windows storage remains disabled. Its private ACL and durable publication protocol are not implemented. The [storage README](crates/stow-storage/README.md#windows-durability-blocker) records the Win32 API blocker. macOS local SQLite opening remains disabled to protect the canonical SwiftData store.
 
 No desktop UI test or desktop launch has occurred during implementation. The WSL2 development host cannot perform signed Apple integration or two-device CloudKit checks.
+
+## Tauri Continuation
+
+- Rust service tests cover one bounded worker, queue saturation, panic/disconnect, shutdown, restart, optimistic revisions, capture replay, failed saves, argument bounds, and private Linux parent creation.
+- Thirty headless Bun/DOM tests cover real frontend state and rendering: hostile saved content, dialogs, conflicts, async search/detail races, newer edits during saves, replayed creates, date/pin filters, hidden selections, settings, close protection, and unavailable backends.
+- Tauri grants only declared commands and close-event subscription to the embedded main window. Rust checks its label and origin. Navigation after the frontend handshake, remote pages, and new windows are denied. The CSP forbids remote scripts and `unsafe-eval`.
+- List/detail metadata APIs do not read original attachment or representation blobs. Search applies the pin filter before its result limit.
+- Native window close and application quit route through the same Save/Discard/Cancel guard after listener registration. Forced termination and renderer failure do not persist drafts.
+- The preview uses a distinct application-data identity. Disabled macOS and Windows backends report unavailability without creating substitute canonical stores.
+
+Local formatting, Clippy excluding only `stow-desktop`, and 67 portable Rust tests pass. Full host checking stops at missing DBus/GTK/WebKit development libraries on this WSL host; administrative installation is unavailable. The native CI workflow installs these dependencies and must compile, test, and build the complete workspace. No desktop UI was launched.
+
+Bun 1.4.4 dependency audit reports no vulnerabilities in its nine development packages; the frontend has no production package dependencies. Rust license policy passes after adding Tauri's MPL-2.0 and Apache-2.0 WITH LLVM-exception requirements. Preserve their notice/source obligations during distribution.
+
+The Tauri dependency audit reports `proc-macro-error` 1.0.4 as unmaintained (`RUSTSEC-2024-0370`) and the Linux GTK dependency `glib` 0.18.5 as unsound in `VariantStrIter` (`RUSTSEC-2024-0429`). These are not ignored or described as warning-free. The application does not directly use that iterator API; framework reachability and an upstream update remain production security review items. Removing `iced` also removes its previous `ttf-parser` warning.
+
+Current native Tauri CI evidence is pending. Earlier repository-stage evidence follows.
 
 ## Behavior Inventory
 
@@ -25,12 +42,12 @@ Paths below are relative to the repository root. A source mapping is not proof o
 | Share capture and replay | `Packages/StowCore/Tests/StowCoreTests/CaptureSpoolTests.swift` | Swift path retained; Rust bridge remains unimplemented |
 | Attachments | `Packages/StowCore/Tests/StowCoreTests/AttachmentStoreTests.swift` | Full metadata/byte round trips, legacy byte retention, empty files, bounds, and recovery; thumbnail generation/native import remain |
 | Search and filters | `Packages/StowCore/Tests/StowCoreTests/SearchServiceTests.swift` | Prefix/metadata/Trash/date/order tests plus shared native fixtures described below |
-| Index recovery | `Tests/StowAppTests/SearchIndexRecoveryTests.swift` | Transaction rollback and rebuild tests; no application-level generation handling yet |
+| Index recovery | `Tests/StowAppTests/SearchIndexRecoveryTests.swift` | Transaction rollback/rebuild tests plus web search-generation guards |
 | Safe direct paste | `Tests/StowAppTests/RetrievalPastePolicyTests.swift` | Target adapters remain unimplemented |
-| Stale selection | `Tests/StowAppTests/QuickPanelInteractionPolicyTests.swift` | Probe state tests only; no production quick panel |
+| Stale selection | `Tests/StowAppTests/QuickPanelInteractionPolicyTests.swift` | Web state tests reject hidden selections; no native quick panel yet |
 | CLI transport and export | `Packages/StowCore/Tests/StowCoreTests/StowAutomationTests.swift` | Existing CLI retained; Rust transport remains unimplemented |
 
-## Local Continuation Checks
+## Earlier Repository-stage Local Checks
 
 Rust/Cargo 1.99.1 on Linux x86_64 under WSL2:
 
@@ -68,13 +85,13 @@ The previous foundation at `fe56e73` passed [Rust CI 40074019133](https://github
 
 The first Rust continuation runs found a macOS test-fixture path issue: the temporary root used the system `/var` symlink alias, which the repository correctly rejected. Only the test-owned temporary root is now canonicalized; production symlink rejection is unchanged.
 
-At implementation commit `5bd243f`, [Rust CI 40076950305](https://github.com/narumiruna/stow/actions/runs/40076950305) passed all three native OS jobs and the dependency audit/license job. [Swift CI 40076950351](https://github.com/narumiruna/stow/actions/runs/40076950351) passed the complete existing non-interactive gate and all shared search fixtures. No production code changed after this verification. Native Windows/macOS Rust tests verify portable rules and rejection of unsupported local storage without filesystem mutation. They do not run the Linux persistence suite or establish Windows persistence support.
+At implementation commit `5bd243f`, [Rust CI 40076950305](https://github.com/narumiruna/stow/actions/runs/40076950305) passed all three native OS jobs and the dependency audit/license job. [Swift CI 40076950351](https://github.com/narumiruna/stow/actions/runs/40076950351) passed the complete existing non-interactive gate and all shared search fixtures. These results apply to the repository stage before the Tauri host was added. Native Windows/macOS Rust tests verify portable rules and rejection of unsupported local storage without filesystem mutation. They do not run the Linux persistence suite or establish Windows persistence support.
 
 The existing Swift CI gate includes package/app/share tests, macOS/iOS builds, version/project checks, and entitlement/privacy-manifest checks. It cannot run locally because Xcode is unavailable. Its working-tree script also has pre-existing CRLF line endings; these unrelated changes are preserved.
 
 ## Remaining Gates
 
-- Approve a framework decision that can meet native accessibility requirements; then verify keyboard, screen reader, IME, scaling, contrast, reduced motion, multiple monitors, and panel focus.
+- Complete native keyboard, screen-reader, IME, scaling, contrast, reduced-motion, multiple-monitor, and panel-focus verification for the approved Tauri framework.
 - Establish a supported Windows persistence protocol and implement private ACL/reparse-point checks.
 - Implement production UI, platform adapters, local CLI transport, and Swift storage bridge.
 - Verify signed App Group, Share Extension, unchanged iOS interoperability, and two-device iCloud behavior.

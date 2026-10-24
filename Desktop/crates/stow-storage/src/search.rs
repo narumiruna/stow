@@ -16,6 +16,7 @@ pub struct SearchQuery {
     pub added_before: Option<DateTime<Utc>>,
     pub status: Option<ItemStatus>,
     pub include_trashed: bool,
+    pub pinned_only: bool,
     pub limit: usize,
 }
 
@@ -29,6 +30,7 @@ impl Default for SearchQuery {
             added_before: None,
             status: None,
             include_trashed: false,
+            pinned_only: false,
             limit: 200,
         }
     }
@@ -74,6 +76,9 @@ impl LocalRepository {
         } else if !query.include_trashed {
             clauses.push("m.status != ?");
             values.push(Value::Text(ItemStatus::Trashed.as_str().into()));
+        }
+        if query.pinned_only {
+            clauses.push("m.is_pinned = 1");
         }
         let mut sql = String::from(
             "SELECT items.id,items.snapshot FROM item_search_metadata m

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stow Library</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./main.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>Stow</h1>
+    <nav aria-label="Main"><button id="library-button" type="button">Library</button><button id="add-button" type="button">Quick Add</button><button id="settings-button" type="button">Settings</button></nav>
+  </header>
+  <p id="platform-status" class="banner">Checking storage availability…</p>
+  <p id="status" role="status" aria-live="polite" aria-atomic="true"></p>
+  <p id="error" role="alert" hidden></p>
+  <main>
+    <section id="library" aria-labelledby="library-heading">
+      <h2 id="library-heading">Library</h2>
+      <form id="search-form" class="filters" role="search">
+        <label class="search-field">Search<input id="search-text" name="search" type="search" placeholder="Search your library" autocomplete="off"></label>
+        <label>Type<select id="filter-type"><option value="">All types</option><option value="link">Link</option><option value="text">Text</option><option value="code">Code</option><option value="image">Image</option><option value="file">File</option></select></label>
+        <label>Source app<input id="filter-source" type="text" placeholder="Exact source app" autocomplete="off"></label>
+        <label>From (inclusive)<input id="filter-from" type="date"></label>
+        <label>To (inclusive)<input id="filter-to" type="date"></label>
+        <label>Location<select id="filter-status"><option value="inbox">Inbox</option><option value="archived">Archive</option><option value="trashed">Trash</option><option value="">Inbox and Archive</option></select></label>
+        <label class="check"><input id="filter-pin" type="checkbox">Pinned only</label>
+        <button type="submit">Search</button>
+      </form>
+      <div class="library-grid">
+        <section aria-labelledby="results-heading"><h3 id="results-heading">Items</h3><p id="results-state"></p><ul id="items" aria-label="Library items"></ul><button id="retry-search" type="button" hidden>Retry search</button><p class="hint">Use Up and Down on an item to select another item. Results are limited to 200 items. Dates use UTC.</p></section>
+        <section id="details" aria-labelledby="detail-heading"><h3 id="detail-heading">Details</h3><p id="detail-state">Select an item.</p>
+          <div id="item-content" hidden><p id="item-meta"></p><pre id="item-preview"></pre><h4>Attachments</h4><ul id="attachments"></ul><p id="representation-info"></p><p id="attachment-help" class="hint">Attachment preview, opening, export, and original clipboard formats are not available in this frontend.</p>
+            <div id="item-actions" class="actions"><button id="pin-button" type="button">Pin</button><button id="archive-button" type="button">Archive</button><button id="trash-button" type="button">Move to Trash</button></div>
+          </div>
+          <form id="editor" hidden>
+            <h4 id="editor-heading">Edit item</h4>
+            <label id="create-type-label" hidden>Type<select id="edit-type"><option value="text">Text</option><option value="code">Code</option><option value="link">Link</option></select></label>
+            <label>Title<input id="edit-title" type="text" maxlength="1048576"></label>
+            <label id="edit-url-label" hidden>URL<input id="edit-url" type="url" placeholder="https://example.com" maxlength="16384"></label>
+            <label id="edit-text-label">Text / code<textarea id="edit-text" rows="10" maxlength="1048576" spellcheck="false"></textarea></label>
+            <label>Note<textarea id="edit-note" rows="3" maxlength="1048576"></textarea></label>
+            <label id="edit-language-label">Language<input id="edit-language" type="text" maxlength="256"></label>
+            <div id="create-options" hidden><label class="check"><input id="edit-pin" type="checkbox">Pin item</label><label class="check"><input id="edit-archive" type="checkbox">Add to Archive</label></div>
+            <p id="edit-state"></p><div class="actions"><button id="save-button" type="submit">Save</button><button id="discard-button" type="button">Discard changes</button></div>
+          </form>
+        </section>
+      </div>
+    </section>
+    <section id="settings" aria-labelledby="settings-heading" hidden><h2 id="settings-heading">Settings</h2><p>Capabilities are read-only and report the current backend state.</p><dl id="capabilities"></dl><p id="storage-description"></p><button id="rebuild-button" type="button" disabled>Rebuild search index</button><p>Import, file and image creation, clipboard capture controls, copy, direct paste, global shortcuts, and a native quick panel are not implemented in this frontend. Existing image and file records show metadata only.</p><p>Native accessibility, IME, and desktop focus verification remain required. Headless tests do not verify these features.</p></section>
+  </main>
+  <dialog id="unsaved-dialog" aria-labelledby="unsaved-heading" aria-describedby="unsaved-description"><h2 id="unsaved-heading">Unsaved changes</h2><p id="unsaved-description">Save the draft before continuing, discard it, or cancel to keep editing.</p><p id="dialog-error" role="alert"></p><div class="actions"><button id="dialog-save" type="button">Save</button><button id="dialog-discard" type="button">Discard</button><button id="dialog-cancel" type="button" autofocus>Cancel</button></div></dialog>
+</body>
+</html>

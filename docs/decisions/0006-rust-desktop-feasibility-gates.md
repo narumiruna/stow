@@ -1,17 +1,19 @@
 # ADR 0006: Rust Desktop Feasibility Gates
 
-- Status: Blocked; no replacement UI framework is approved by this record.
+- Status: Tauri 2 approved for implementation; native acceptance gates remain open.
 - Date: 2026-10-24
 
 ## Decision
 
-Keep the current Swift desktop app. Continue portable Rust repository work, but stop production adoption of `iced` 0.14. Do not remove accessibility or persistence requirements to proceed.
+Use Tauri 2 with a Rust backend and a web UI. The user explicitly approved this fallback after the `iced` accessibility blocker was reported. Do not request this approval again.
+
+Remove the stopped `iced` sample instead of maintaining two UI implementations. Keep the current Swift desktop app and data paths until all replacement gates pass. Approval of the framework does not waive accessibility, persistence, or signed Apple integration checks.
 
 The [rewrite plan](../plans/2026-10-24_rust-cross-platform-desktop-plan.md) requires screen-reader support and native accessibility checks before replacing the desktop UI. The selected framework does not provide the required native accessibility integration.
 
 ## Accessibility Evidence
 
-The resolved `iced` 0.14 packages have no AccessKit dependency or native accessibility-tree implementation. Upstream records checked on the date above show:
+The previously resolved `iced` 0.14 packages have no AccessKit dependency or native accessibility-tree implementation. Upstream records checked on the date above show:
 
 - [Issue 552: Implement accessibility support](https://github.com/iced-rs/iced/issues/552) is open.
 - [Pull request 1849](https://github.com/iced-rs/iced/pull/1849) is an open draft and is not merged.
@@ -20,11 +22,18 @@ The resolved `iced` 0.14 packages have no AccessKit dependency or native accessi
 
 Passing headless tests and three-platform builds do not supply this missing implementation. Do not expand the feasibility sample into the production desktop app on that basis.
 
-## Required Framework Decision
+## Approved Framework and Security Boundary
 
-The plan names Tauri 2 as a possible fallback, but requires explicit approval because it changes the UI to a web UI. A Tauri implementation must still pass native accessibility, keyboard, IME, panel focus, security, and signed Apple integration gates. This record does not establish that Tauri passes them.
+Tauri 2 supplies a native WebView host. The Library UI uses semantic HTML, local scripts, and local styles. Rust owns repository operations on one dedicated worker thread. The web UI has no filesystem, shell, network, or clipboard plugin permissions.
 
-Do not add a second UI implementation until the framework decision is approved. Do not use an unmerged upstream branch to bypass the gate.
+- Grant only the declared application commands to the local `main` window.
+- Check the window label and embedded application origin before each command.
+- Block remote navigation and new windows. Do not render saved HTML as executable content.
+- Enforce a Content Security Policy without remote scripts or `unsafe-eval`.
+- Do not accept library paths from the web UI. Use a separate preview application-data identity before cutover.
+- Do not log content or expose attachment bytes in list responses.
+
+The implementation must still pass native accessibility, keyboard, IME, panel focus, security, and signed Apple integration gates. This record does not establish that those checks pass.
 
 ## Windows Persistence Gate
 

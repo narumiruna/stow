@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/stow-core", "crates/stow-storage", "spikes/iced-probe"]
+members = ["crates/stow-core", "crates/stow-storage", "crates/stow-desktop-service", "crates/stow-desktop"]
 resolver = "3"
 
 [workspace.package]
@@ -21,3 +21,5 @@ rusqlite = { version = "0.38", features = ["bundled"] }
 fs2 = "0.4"
 tempfile = "3"
 stow-core = { path = "crates/stow-core" }
+stow-storage = { path = "crates/stow-storage" }
+stow-desktop-service = { path = "crates/stow-desktop-service" }

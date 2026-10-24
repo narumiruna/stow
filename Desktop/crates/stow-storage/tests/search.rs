@@ -193,6 +193,22 @@ fn query_language_is_not_executed_and_input_is_bounded() {
 }
 
 #[test]
+fn pinned_filter_runs_before_the_result_limit() {
+    let (_directory, mut repository) = fixture();
+    let mut pinned = item(1, "Older pinned item", 100);
+    pinned.is_pinned = true;
+    let unpinned = item(2, "New unpinned item", 200);
+    repository.upsert(&pinned).unwrap();
+    repository.upsert(&unpinned).unwrap();
+    let query = SearchQuery {
+        pinned_only: true,
+        limit: 1,
+        ..Default::default()
+    };
+    assert_eq!(repository.search_items(&query).unwrap(), vec![pinned]);
+}
+
+#[test]
 fn changed_metadata_and_text_are_indexed_atomically_and_rebuildable() {
     let (directory, mut repository) = fixture();
     let mut item = item(1, "before", 100);

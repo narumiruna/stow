@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Stow Desktop Preview",
+  "version": "0.1.0",
+  "identifier": "dev.narumi.stow.desktop-preview",
+  "build": {
+    "frontendDist": "../../web/public"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+      "freezePrototype": true,
+      "capabilities": [
+        {
+          "identifier": "library",
+          "description": "Only the local main window can access Stow application commands.",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "allow-desktop-status",
+            "allow-search-items",
+            "allow-get-item",
+            "allow-create-item",
+            "allow-update-item",
+            "allow-apply-item-command",
+            "allow-rebuild-search",
+            "allow-close-preview",
+            "core:event:allow-listen",
+            "core:event:allow-unlisten"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["icons/icon.png", "icons/icon.ico"]
+  }
+}

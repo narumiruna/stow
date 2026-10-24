@@ -8,13 +8,13 @@ This is an implementation plan, not an approved framework compatibility claim. C
 
 ## Execution Status
 
-Implementation is incomplete. `Desktop/` contains portable domain rules, local capture and metadata persistence, filtered search, and an isolated `iced` feasibility sample. It does not contain a replacement desktop app. The current Swift application remains unchanged.
+Implementation is incomplete. `Desktop/` contains portable domain rules, local capture and metadata persistence, filtered search, and a Tauri 2 desktop preview connected to the repository through a dedicated worker. The stopped `iced` sample is removed. The current Swift application remains unchanged.
 
-Phase 0 has a confirmed framework blocker: `iced` 0.14 lacks the required native accessibility integration. Production UI adoption is stopped. [ADR 0006](../decisions/0006-rust-desktop-feasibility-gates.md) records the evidence and required framework decision. Signed Apple integration evidence is also unavailable. Windows storage remains disabled because no supported directory durability protocol and private-ACL implementation have been established. Do not interpret headless tests or a sample build as completion of these gates. See [`Desktop/VERIFICATION.md`](../../Desktop/VERIFICATION.md) for the behavior inventory, verification results, and outstanding requirements. The completion checklist below remains unchanged.
+The user approved Tauri 2 with a Rust backend and web UI after `iced` 0.14 failed the native accessibility gate. [ADR 0006](../decisions/0006-rust-desktop-feasibility-gates.md) records the approved decision. Native accessibility and other Phase 0 runtime checks remain unverified. Signed Apple integration evidence is also unavailable. Windows storage remains disabled because no supported directory durability protocol and private-ACL implementation have been established. Do not interpret headless tests or a sample build as completion of these gates. See [`Desktop/VERIFICATION.md`](../../Desktop/VERIFICATION.md) for the behavior inventory, verification results, and outstanding requirements. The completion checklist below remains unchanged.
 
 ## Scope
 
-- Share the desktop UI, domain rules, search behavior, and application commands in Rust.
+- Share Rust domain rules, search behavior, and application commands, with a Tauri 2 web UI for all desktop platforms.
 - Support links, text, code, images, and files.
 - Preserve Library, quick panel, Quick Add, clipboard capture, search, filters, pinning, archive, Trash, restore, and settings.
 - Preserve keyboard-first use, original clipboard formats where supported, and safe copy-only fallback.
@@ -50,11 +50,11 @@ See [capture persistence](../decisions/0002-capture-persistence.md), [clipboard 
 
 ### Desktop UI
 
-Use `iced` as the initial Rust UI candidate. It permits shared Rust views and state without a JavaScript application layer. Confirm current framework and dependency behavior in Phase 0 before selecting versions.
+Use Tauri 2, as explicitly approved by the user. Keep repository operations, domain decisions, and native adapters in Rust. Use semantic HTML and local JavaScript/CSS for the shared web UI. Remove the rejected `iced` sample; do not develop two UI implementations in parallel.
 
-Do not assume that a Rust UI framework supplies native quick-panel focus, tray integration, accessibility, or global shortcuts. Implement these through small platform adapters where necessary.
+Use the operating system WebView, but do not assume this alone proves accessibility, IME, panel focus, tray integration, or shortcut behavior. Complete the native gates before replacing the Swift desktop app.
 
-If `iced` cannot meet the accessibility or quick-panel gate, stop framework adoption and record an alternative decision. Tauri 2 is a possible fallback, but its web UI is not an all-Rust UI and requires explicit scope approval. Do not develop two UI implementations in parallel.
+Restrict IPC to typed application commands from the embedded main window. Do not grant shell, filesystem, HTTP, remote-origin, or clipboard plugin access to the frontend. Run storage on a dedicated worker, not the event loop.
 
 ### Storage
 
@@ -109,8 +109,10 @@ Desktop/
     stow-core/          # Domain types, validation, commands, repository contract
     stow-storage/       # Windows/Linux SQLite storage and attachment handling
     stow-platform/      # Platform adapters and macOS bridge client
-    stow-desktop/       # UI, application state, and desktop entry point
+    stow-desktop-service/ # Worker, validated commands, and response DTOs
+    stow-desktop/       # Tauri host and IPC boundary
     stow-cli/           # CLI client; preserve existing macOS contract
+  web/                 # Local semantic HTML, scripts, styles, and headless tests
   native/macos/        # Swift bridge and native host integration
 ```
 
@@ -175,7 +177,7 @@ Windows/Linux settings must state that the library is stored only on this device
 
 - Inventory current behavior and map relevant Swift tests to portable fixtures.
 - Confirm minimum OS versions and release architectures. Start with macOS 14+, Windows 11 x64, and a named Linux x86_64 distribution; confirm exact Linux distribution and desktop versions before release.
-- Build an `iced` sample on all three systems. Check keyboard navigation, IME, scaling, screen readers, high contrast, reduced motion, multiple monitors, and panel focus restoration.
+- Build the approved Tauri 2 UI on all three systems. Check keyboard navigation, IME, scaling, screen readers, high contrast, reduced motion, multiple monitors, and panel focus restoration.
 - Build a signed macOS Rust host that loads the Swift bridge, opens the existing store, and exchanges changes with the unchanged iOS app through iCloud.
 - Check App Group access, Share Extension packaging, CLI compatibility, and native dependencies.
 - Record current search latency and memory use on fixed 10,000-item and 100,000-item datasets, with machine and build details.
