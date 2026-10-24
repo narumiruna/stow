@@ -8,9 +8,9 @@ This is an implementation plan, not an approved framework compatibility claim. C
 
 ## Execution Status
 
-Implementation is incomplete. `Desktop/` contains portable domain and local storage foundations plus an isolated `iced` feasibility sample. It does not contain a replacement desktop app. The current Swift application remains unchanged.
+Implementation is incomplete. `Desktop/` contains portable domain rules, local capture and metadata persistence, filtered search, and an isolated `iced` feasibility sample. It does not contain a replacement desktop app. The current Swift application remains unchanged.
 
-Phase 0 is blocked on native platform and signed Apple integration evidence. Windows local storage also remains blocked until private ACL and durable attachment publication support is implemented. Do not interpret headless tests or a sample build as completion of these gates. See [`Desktop/VERIFICATION.md`](../../Desktop/VERIFICATION.md) for the behavior inventory, verification results, and outstanding requirements. The completion checklist below remains unchanged.
+Phase 0 has a confirmed framework blocker: `iced` 0.14 lacks the required native accessibility integration. Production UI adoption is stopped. [ADR 0006](../decisions/0006-rust-desktop-feasibility-gates.md) records the evidence and required framework decision. Signed Apple integration evidence is also unavailable. Windows storage remains disabled because no supported directory durability protocol and private-ACL implementation have been established. Do not interpret headless tests or a sample build as completion of these gates. See [`Desktop/VERIFICATION.md`](../../Desktop/VERIFICATION.md) for the behavior inventory, verification results, and outstanding requirements. The completion checklist below remains unchanged.
 
 ## Scope
 

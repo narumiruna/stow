@@ -1,0 +1,78 @@
+{
+  "datasets": [
+    {
+      "name": "prefixes and metadata",
+      "items": [
+        {"id":"00000000-0000-0000-0000-000000000001","title":"Swift structured","text_content":"concurrency guide","type":"file","source_app":"Safari","created_at":200,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000002","title":"Swift concurrency notes","type":"text","source_app":"Safari","created_at":300,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000003","title":"Swift concurrency guide","type":"file","source_app":"Notes","created_at":400,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000004","title":"Swift reference","type":"file","source_app":"Safari","created_at":500,"status":"inbox"}
+      ],
+      "queries": [
+        {"name":"all token prefixes across title and body with case insensitive source","text":"sWi con","filters":{"type":"file","source_app":"sAfArI"},"expected_ids":["00000000-0000-0000-0000-000000000001"]},
+        {"name":"all tokens required","text":"swift missing","filters":{},"expected_ids":[]},
+        {"name":"source app is not searchable content","text":"Safari","filters":{},"expected_ids":[]},
+        {"name":"source is an exact filter not a prefix","text":"swift","filters":{"source_app":"Saf"},"expected_ids":[]},
+        {"name":"prefix result membership without ranking assumptions","text":"swift concur","filters":{},"sort_ids":true,"expected_ids":["00000000-0000-0000-0000-000000000001","00000000-0000-0000-0000-000000000002","00000000-0000-0000-0000-000000000003"]}
+      ]
+    },
+    {
+      "name": "width folding and UTF8 binding",
+      "items": [
+        {"id":"00000000-0000-0000-0000-000000000001","title":"Swift concurrency guide","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000002","title":"Ｐａｎｅｌ　Ｔｅｘｔ","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000003","title":"Boundary","text_content":"beforeToken\u0000afterToken","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000004","title":"咖啡 手帳","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000005","title":"ガイド","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000006","title":"ｶﾞｲﾄﾞ","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000007","title":"","text_content":"","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000008","title":"ㄱㄴㄷ","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000009","title":"\uffa1\uffa4\uffa7","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000010","title":"naïve","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000011","title":"nai\u0308ve","type":"text","created_at":100,"status":"inbox"}
+      ],
+      "queries": [
+        {"name":"fullwidth ASCII query","text":"Ｓｗｉｆｔ　ｃｏｎｃｕｒｒｅｎｃｙ","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000001"]},
+        {"name":"fullwidth ASCII content","text":"Panel Text","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000002"]},
+        {"name":"before embedded NUL","text":"beforeToken","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000003"]},
+        {"name":"after embedded NUL","text":"afterToken","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000003"]},
+        {"name":"Chinese UTF8","text":"咖啡","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000004"]},
+        {"name":"Japanese fullwidth query matches both widths","text":"ガイド","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000005","00000000-0000-0000-0000-000000000006"]},
+        {"name":"Japanese halfwidth query matches both widths","text":"ｶﾞｲﾄﾞ","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000005","00000000-0000-0000-0000-000000000006"]},
+        {"name":"Korean compatibility jamo query matches both widths","text":"ㄱㄴㄷ","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000008","00000000-0000-0000-0000-000000000009"]},
+        {"name":"Korean halfwidth query matches both widths","text":"\uffa1\uffa4\uffa7","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000008","00000000-0000-0000-0000-000000000009"]},
+        {"name":"decomposed combining-mark query matches both forms","text":"nai\u0308ve","filters":{},"sort_ids":true,"expected_ids":["00000000-0000-0000-0000-000000000010","00000000-0000-0000-0000-000000000011"]},
+        {"name":"composed query matches decomposed content","text":"naïve","filters":{},"sort_ids":true,"expected_ids":["00000000-0000-0000-0000-000000000010","00000000-0000-0000-0000-000000000011"]}
+      ]
+    },
+    {
+      "name": "lifecycle filters",
+      "items": [
+        {"id":"00000000-0000-0000-0000-000000000001","title":"receipt","type":"text","created_at":100,"status":"inbox"},
+        {"id":"00000000-0000-0000-0000-000000000002","title":"receipt","type":"text","created_at":100,"status":"archived"},
+        {"id":"00000000-0000-0000-0000-000000000003","title":"receipt","type":"text","created_at":100,"status":"trashed"}
+      ],
+      "queries": [
+        {"name":"trash excluded by default","text":"receipt","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000001","00000000-0000-0000-0000-000000000002"]},
+        {"name":"explicit trash overrides default exclusion","text":"receipt","filters":{"status":"trashed"},"expected_ids":["00000000-0000-0000-0000-000000000003"]},
+        {"name":"include all statuses","text":"receipt","filters":{"include_trashed":true},"expected_ids":["00000000-0000-0000-0000-000000000001","00000000-0000-0000-0000-000000000002","00000000-0000-0000-0000-000000000003"]},
+        {"name":"explicit status still filters when trash included","text":"receipt","filters":{"status":"archived","include_trashed":true},"expected_ids":["00000000-0000-0000-0000-000000000002"]},
+        {"name":"empty query also excludes trash","text":"","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000001","00000000-0000-0000-0000-000000000002"]}
+      ]
+    },
+    {
+      "name": "inclusive dates and stable creation ordering",
+      "items": [
+        {"id":"00000000-0000-0000-0000-000000000003","title":"newer b","type":"text","created_at":200,"status":"inbox","pinned":true},
+        {"id":"00000000-0000-0000-0000-000000000001","title":"old","type":"text","created_at":100,"status":"inbox","pinned":true},
+        {"id":"00000000-0000-0000-0000-000000000002","title":"newer a","type":"text","created_at":200,"status":"inbox"}
+      ],
+      "queries": [
+        {"name":"empty query ignores pin and insertion order","text":"","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000002","00000000-0000-0000-0000-000000000003","00000000-0000-0000-0000-000000000001"]},
+        {"name":"both date boundaries inclusive","text":"","filters":{"added_after":100,"added_before":200},"expected_ids":["00000000-0000-0000-0000-000000000002","00000000-0000-0000-0000-000000000003","00000000-0000-0000-0000-000000000001"]},
+        {"name":"same date on both boundaries","text":"","filters":{"added_after":200,"added_before":200},"expected_ids":["00000000-0000-0000-0000-000000000002","00000000-0000-0000-0000-000000000003"]},
+        {"name":"reversed date range","text":"","filters":{"added_after":200,"added_before":100},"expected_ids":[]}
+      ]
+    }
+  ]
+}

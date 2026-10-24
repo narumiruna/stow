@@ -50,6 +50,23 @@ impl LocalRepository {
         if self.get(item_id)?.is_none() {
             return Err(Error::ItemNotFound);
         }
+        let info = self.publish_reader(item_id, &mut source, expected_size, expected_sha256)?;
+        let transaction = self.connection.transaction()?;
+        insert_blob(&transaction, "attachments", &info, None)?;
+        transaction.commit()?;
+        Ok(info)
+    }
+
+    pub(crate) fn publish_reader(
+        &self,
+        item_id: Uuid,
+        mut source: impl Read,
+        expected_size: u64,
+        expected_sha256: [u8; 32],
+    ) -> Result<AttachmentInfo> {
+        if expected_size > MAX_ATTACHMENT_BYTES {
+            return Err(Error::AttachmentTooLarge);
+        }
         let id = Uuid::new_v4();
         let stage = self.root.join("staging").join(format!("{id}.part"));
         let published = self.root.join("blobs").join(id.to_string());
@@ -86,25 +103,7 @@ impl LocalRepository {
                 .collect(),
         };
         verify_file(&stage, &info, false)?;
-        // A hard link atomically publishes without replacing an existing name.
-        // Both directories are private and on the same filesystem. This is not
-        // a copy and needs no second write of attachment contents.
-        fs::hard_link(&stage, &published)?;
-        fs::remove_file(&stage)?;
-        // Durably publish before SQLite is allowed to commit its reference.
-        paths::sync_dir(&self.root.join("blobs"))?;
-        paths::sync_dir(&self.root.join("staging"))?;
-        let transaction = self.connection.transaction()?;
-        transaction.execute(
-            "INSERT INTO attachments(id,item_id,byte_count,sha256) VALUES (?1,?2,?3,?4)",
-            params![
-                id.to_string(),
-                item_id.to_string(),
-                count as i64,
-                info.sha256
-            ],
-        )?;
-        transaction.commit()?;
+        paths::publish(&stage, &published)?;
         Ok(info)
     }
 
@@ -131,6 +130,38 @@ impl LocalRepository {
             })
         })
         .collect()
+    }
+
+    pub(crate) fn blob_info(&self, id: Uuid) -> Result<Option<AttachmentInfo>> {
+        let row = self
+            .connection
+            .query_row(
+                "SELECT item_id,byte_count,sha256 FROM attachments WHERE id=?1
+             UNION ALL SELECT item_id,byte_count,sha256 FROM representations WHERE id=?1",
+                [id.to_string()],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, String>(2)?,
+                    ))
+                },
+            )
+            .optional()?;
+        row.map(|(item_id, count, sha256)| {
+            Ok(AttachmentInfo {
+                id,
+                item_id: Uuid::parse_str(&item_id).map_err(|_| Error::InvalidData)?,
+                byte_count: u64::try_from(count).map_err(|_| Error::InvalidData)?,
+                sha256,
+            })
+        })
+        .transpose()
+    }
+
+    pub(crate) fn read_blob(&self, id: Uuid) -> Result<Vec<u8>> {
+        let info = self.blob_info(id)?.ok_or(Error::AttachmentNotFound)?;
+        verify_file(&self.root.join("blobs").join(id.to_string()), &info, true)
     }
 
     pub fn read_attachment(&self, id: Uuid) -> Result<Vec<u8>> {
@@ -170,14 +201,16 @@ impl LocalRepository {
         crate::repository::validate_foreign_keys(&self.connection)?;
         let ids: Vec<String> = self
             .connection
-            .prepare("SELECT id FROM attachments")?
+            .prepare("SELECT id FROM attachments UNION ALL SELECT id FROM representations")?
             .query_map([], |r| r.get(0))?
             .collect::<std::result::Result<_, _>>()?;
         let mut references = HashMap::new();
         for id in ids {
             let uuid = parse_name(&id)?;
-            let info = self.attachment_info(uuid)?.ok_or(Error::InvalidData)?;
-            references.insert(id, info);
+            let info = self.blob_info(uuid)?.ok_or(Error::InvalidData)?;
+            if references.insert(id, info).is_some() {
+                return Err(Error::InvalidData);
+            }
         }
         let stages = scan(&self.root.join("staging"), true)?;
         let blobs = scan(&self.root.join("blobs"), false)?;
@@ -200,6 +233,34 @@ impl LocalRepository {
         paths::sync_dir(&self.root.join("blobs"))?;
         Ok(())
     }
+}
+
+pub(crate) fn insert_blob(
+    transaction: &rusqlite::Transaction<'_>,
+    table: &str,
+    info: &AttachmentInfo,
+    metadata: Option<&str>,
+) -> Result<()> {
+    let sql = match table {
+        "attachments" => {
+            "INSERT INTO attachments(id,item_id,byte_count,sha256,metadata) VALUES (?1,?2,?3,?4,?5)"
+        }
+        "representations" => {
+            "INSERT INTO representations(id,item_id,byte_count,sha256,metadata) VALUES (?1,?2,?3,?4,?5)"
+        }
+        _ => return Err(Error::InvalidData),
+    };
+    transaction.execute(
+        sql,
+        params![
+            info.id.to_string(),
+            info.item_id.to_string(),
+            info.byte_count as i64,
+            info.sha256,
+            metadata
+        ],
+    )?;
+    Ok(())
 }
 
 fn parse_name(name: &str) -> Result<Uuid> {
@@ -227,14 +288,18 @@ fn scan(directory: &Path, staged: bool) -> Result<Vec<std::path::PathBuf>> {
         // A crash between link and unlink can leave two links to the same inode.
         // Only permit it for recovery, with no reads/writes through that inode.
         check_recovery_file(&metadata)?;
+        #[cfg(windows)]
+        paths::check_file(&path)?;
         paths.push(path);
     }
     Ok(paths)
 }
 
 fn check_recovery_file(metadata: &fs::Metadata) -> Result<()> {
-    #[cfg(not(unix))]
-    let _ = metadata;
+    #[cfg(windows)]
+    if metadata.is_file() && !metadata.is_symlink() {
+        return Ok(());
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;

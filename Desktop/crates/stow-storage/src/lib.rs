@@ -2,11 +2,16 @@
 //! See the crate README for security boundaries and unsupported platforms.
 
 mod blobs;
+mod capture;
 mod paths;
 mod repository;
+mod search;
+mod width;
 
 pub use blobs::{AttachmentInfo, MAX_ATTACHMENT_BYTES};
+pub use capture::{AttachmentDraft, CaptureKind, CaptureOutcome, ItemCommand, ItemEdit};
 pub use repository::{DeleteOutcome, LocalRepository};
+pub use search::SearchQuery;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -33,6 +38,8 @@ pub enum Error {
     CorruptAttachment,
     #[error("invalid stored data")]
     InvalidData,
+    #[error("invalid capture payload")]
+    InvalidCapture,
     #[error("filesystem operation failed")]
     Io(#[from] std::io::Error),
     // Do not expose SQLite error text: constraint messages can contain user input.
