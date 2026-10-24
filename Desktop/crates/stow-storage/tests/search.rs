@@ -1,6 +1,7 @@
 #![cfg(all(unix, not(target_os = "macos")))]
 
 use chrono::{DateTime, Utc};
+use rusqlite::{Connection, params};
 use stow_core::{Item, ItemStatus, ItemType};
 use stow_storage::{Error, LocalRepository, SearchQuery};
 use tempfile::TempDir;
@@ -32,6 +33,189 @@ fn query(text: &str) -> SearchQuery {
 
 fn ids(items: Vec<Item>) -> Vec<Uuid> {
     items.into_iter().map(|item| item.id).collect()
+}
+
+fn assert_rowid_mapping(db: &Connection, expected: &[(i64, Uuid)]) {
+    for table in ["items", "item_search"] {
+        let mut statement = db
+            .prepare(&format!("SELECT rowid,id FROM {table} ORDER BY rowid"))
+            .unwrap();
+        let actual = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap()
+            .map(|row| {
+                let (rowid, id) = row.unwrap();
+                (rowid, Uuid::parse_str(&id).unwrap())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{table}");
+    }
+    let metadata_count: i64 = db
+        .query_row("SELECT count(*) FROM item_search_metadata", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(metadata_count, expected.len() as i64);
+}
+
+#[test]
+fn noncontiguous_rowids_and_uuid_ties_survive_legacy_reopen_and_rebuild() {
+    let (directory, mut repository) = fixture();
+    let root = directory.path().join("library");
+    let db = Connection::open(root.join("library.sqlite3")).unwrap();
+    let high = item(30, "shared token", 100);
+    let low = item(10, "shared token", 100);
+    // Canonical insertion order is the reverse of UUID order, with a rowid gap.
+    for (rowid, item) in [(7, &high), (42, &low)] {
+        db.execute(
+            "INSERT INTO items(rowid,id,snapshot) VALUES (?1,?2,?3)",
+            params![
+                rowid,
+                item.id.to_string(),
+                serde_json::to_string(item).unwrap()
+            ],
+        )
+        .unwrap();
+    }
+    repository.rebuild_index().unwrap();
+    let mapping = [(7, high.id), (42, low.id)];
+    assert_rowid_mapping(&db, &mapping);
+    let expected = vec![low.id, high.id];
+    for search in [SearchQuery::default(), query("shared")] {
+        assert_eq!(ids(repository.search_items(&search).unwrap()), expected);
+    }
+    repository.rebuild_index().unwrap();
+    assert_rowid_mapping(&db, &mapping);
+    for search in [SearchQuery::default(), query("shared")] {
+        assert_eq!(ids(repository.search_items(&search).unwrap()), expected);
+    }
+    drop(repository);
+    // Simulate the old index: automatic FTS rowids follow UUID-sorted rebuild
+    // order, not canonical rowids. Open must discard this derived state.
+    db.execute_batch("DELETE FROM item_search").unwrap();
+    for item in [&low, &high] {
+        db.execute(
+            "INSERT INTO item_search(id,content) VALUES (?1,'legacytoken')",
+            [item.id.to_string()],
+        )
+        .unwrap();
+    }
+    let legacy_rowids = db
+        .query_row(
+            "SELECT count(*) FROM item_search WHERE rowid IN (1,2)",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .unwrap();
+    assert_eq!(legacy_rowids, 2);
+    let repository = LocalRepository::open(&root).unwrap();
+    assert_eq!(repository.get(high.id).unwrap(), Some(high.clone()));
+    assert_eq!(repository.get(low.id).unwrap(), Some(low.clone()));
+    assert_eq!(
+        db.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+            .unwrap(),
+        3
+    );
+    assert_rowid_mapping(&db, &mapping);
+    assert!(
+        repository
+            .search_items(&query("legacytoken"))
+            .unwrap()
+            .is_empty()
+    );
+    for search in [SearchQuery::default(), query("shared")] {
+        assert_eq!(ids(repository.search_items(&search).unwrap()), expected);
+    }
+}
+
+#[test]
+fn repeated_updates_delete_missing_delete_and_rowid_reuse_leave_no_stale_tokens() {
+    let (directory, mut repository) = fixture();
+    let db = Connection::open(directory.path().join("library/library.sqlite3")).unwrap();
+    let mut updated = item(30, "originaltoken", 100);
+    repository.upsert(&updated).unwrap();
+    for title in ["secondtoken", "thirdtoken", "finaltoken"] {
+        let previous = updated.title.clone();
+        updated.title = title.into();
+        repository.upsert(&updated).unwrap();
+        assert!(
+            repository
+                .search_items(&query(&previous))
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            repository.search_items(&query(title)).unwrap(),
+            vec![updated.clone()]
+        );
+        assert_rowid_mapping(&db, &[(1, updated.id)]);
+    }
+    assert!(!repository.delete(Uuid::from_u128(999)).unwrap().deleted);
+    assert_rowid_mapping(&db, &[(1, updated.id)]);
+    assert!(repository.delete(updated.id).unwrap().deleted);
+    assert!(!repository.delete(updated.id).unwrap().deleted);
+    assert_rowid_mapping(&db, &[]);
+    let replacement = item(10, "replacementtoken", 100);
+    repository.upsert(&replacement).unwrap();
+    assert_rowid_mapping(&db, &[(1, replacement.id)]);
+    for old in ["originaltoken", "secondtoken", "thirdtoken", "finaltoken"] {
+        assert!(repository.search_items(&query(old)).unwrap().is_empty());
+    }
+    assert_eq!(
+        repository.search_items(&query("replacementtoken")).unwrap(),
+        vec![replacement]
+    );
+}
+
+#[test]
+fn metadata_failure_rolls_back_canonical_row_and_replaced_fts_tokens() {
+    let (directory, mut repository) = fixture();
+    let db = Connection::open(directory.path().join("library/library.sqlite3")).unwrap();
+    let original = item(30, "originaltoken", 100);
+    repository.upsert(&original).unwrap();
+    db.execute_batch(
+        "CREATE TRIGGER reject_metadata BEFORE INSERT ON item_search_metadata
+         BEGIN SELECT RAISE(ABORT, 'injected failure'); END;",
+    )
+    .unwrap();
+    let mut changed = original.clone();
+    changed.title = "replacementtoken".into();
+    assert!(matches!(repository.upsert(&changed), Err(Error::Sqlite(_))));
+    assert_eq!(repository.get(original.id).unwrap(), Some(original.clone()));
+    assert_rowid_mapping(&db, &[(1, original.id)]);
+    assert_eq!(
+        repository.search_items(&query("originaltoken")).unwrap(),
+        vec![original]
+    );
+    assert!(
+        repository
+            .search_items(&query("replacementtoken"))
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn purge_removes_fts_before_canonical_row_and_preserves_live_entries() {
+    let (directory, mut repository) = fixture();
+    let db = Connection::open(directory.path().join("library/library.sqlite3")).unwrap();
+    let mut expired = item(30, "expiredtoken", 100);
+    expired.trash(DateTime::from_timestamp(200, 0).unwrap());
+    let live = item(10, "livetoken", 100);
+    repository.upsert(&expired).unwrap();
+    repository.upsert(&live).unwrap();
+    let purge_at = DateTime::from_timestamp(40 * 86_400, 0).unwrap();
+    assert_eq!(repository.purge_expired_trash(purge_at, 30).unwrap(), 1);
+    assert_rowid_mapping(&db, &[(2, live.id)]);
+    let mut search = query("expiredtoken");
+    search.include_trashed = true;
+    assert!(repository.search_items(&search).unwrap().is_empty());
+    assert_eq!(
+        repository.search_items(&query("livetoken")).unwrap(),
+        vec![live]
+    );
 }
 
 #[test]

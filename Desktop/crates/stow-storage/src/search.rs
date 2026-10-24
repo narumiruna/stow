@@ -147,10 +147,16 @@ pub(crate) fn index_item(transaction: &Transaction<'_>, item: &Item) -> Result<(
     .collect::<Vec<_>>()
     .join("\n");
     let id = item.id.to_string();
+    // The canonical row must exist before indexing. Its rowid gives FTS a
+    // direct key, avoiding a scan of the UNINDEXED UUID column on each write.
+    let rowid: i64 =
+        transaction.query_row("SELECT rowid FROM items WHERE id=?1", [&id], |row| {
+            row.get(0)
+        })?;
     remove_item(transaction, item.id)?;
     transaction.execute(
-        "INSERT INTO item_search(id,content) VALUES (?1,?2)",
-        params![id, width_fold(&content)],
+        "INSERT INTO item_search(rowid,id,content) VALUES (?1,?2,?3)",
+        params![rowid, id, width_fold(&content)],
     )?;
     transaction.execute(
         "INSERT INTO item_search_metadata
@@ -172,7 +178,11 @@ pub(crate) fn index_item(transaction: &Transaction<'_>, item: &Item) -> Result<(
 
 pub(crate) fn remove_item(transaction: &Transaction<'_>, id: Uuid) -> Result<()> {
     let id = id.to_string();
-    transaction.execute("DELETE FROM item_search WHERE id=?1", [&id])?;
+    // Remove the index entry before deleting the canonical row.
+    transaction.execute(
+        "DELETE FROM item_search WHERE rowid=(SELECT rowid FROM items WHERE id=?1)",
+        [&id],
+    )?;
     transaction.execute("DELETE FROM item_search_metadata WHERE id=?1", [&id])?;
     Ok(())
 }
