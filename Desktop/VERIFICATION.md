@@ -66,7 +66,9 @@ The 25 cases cover token prefixes, metadata filters, source case handling, ASCII
 
 The previous foundation at `fe56e73` passed [Rust CI 40074019133](https://github.com/narumiruna/stow/actions/runs/40074019133) on Ubuntu 24.04, Windows 2025, and macOS 15, plus [Swift CI 40074019198](https://github.com/narumiruna/stow/actions/runs/40074019198). The documentation-only successor also passed both workflows.
 
-The first Rust continuation runs found a macOS test-fixture path issue: the temporary root used the system `/var` symlink alias, which the repository correctly rejected. Only the test-owned temporary root is now canonicalized; production symlink rejection is unchanged. A fresh native Rust run is required after this correction. Native Windows/macOS Rust tests verify portable rules and rejection of unsupported local storage without filesystem mutation. They do not run the Linux persistence suite or establish Windows persistence support.
+The first Rust continuation runs found a macOS test-fixture path issue: the temporary root used the system `/var` symlink alias, which the repository correctly rejected. Only the test-owned temporary root is now canonicalized; production symlink rejection is unchanged.
+
+At implementation commit `5bd243f`, [Rust CI 40076950305](https://github.com/narumiruna/stow/actions/runs/40076950305) passed all three native OS jobs and the dependency audit/license job. [Swift CI 40076950351](https://github.com/narumiruna/stow/actions/runs/40076950351) passed the complete existing non-interactive gate and all shared search fixtures. No production code changed after this verification. Native Windows/macOS Rust tests verify portable rules and rejection of unsupported local storage without filesystem mutation. They do not run the Linux persistence suite or establish Windows persistence support.
 
 The existing Swift CI gate includes package/app/share tests, macOS/iOS builds, version/project checks, and entitlement/privacy-manifest checks. It cannot run locally because Xcode is unavailable. Its working-tree script also has pre-existing CRLF line endings; these unrelated changes are preserved.
 
