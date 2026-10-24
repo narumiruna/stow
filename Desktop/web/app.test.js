@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
+import { typedItems, longContent, deniedStorage } from './fixtures/frontend.js';
 import { createApp } from './public/app.js';
-import { createOnlyDifferences, errorMessage, searchQuery } from './public/model.js';
+import { createOnlyDifferences, errorMessage, searchQuery, relativeDate } from './public/model.js';
 
 const markup = await Bun.file(new URL('./public/index.html', import.meta.url)).text();
 const windows = [];
@@ -29,11 +30,13 @@ async function setup(overrides = {}) {
   await app.ready;
   const $ = (id) => window.document.getElementById(id);
   const click = async (id) => { $(id).click(); await tick(); };
-  const input = async (id, value) => { $(id).value = value; $(id).dispatchEvent(new window.Event('input', { bubbles: true })); await tick(); };
-  const select = async (id = 'a') => { [...$('items').querySelectorAll('button')].find((button) => button.dataset.itemId === id).click(); await tick(); };
+  // Existing regression cases edit immediately; new read-mode cases use selectReadOnly.
+  const input = async (id, value) => { if (id.startsWith('edit-') && $('editor').hidden) { $('edit-button').click(); await tick(); } $(id).value = value; $(id).dispatchEvent(new window.Event('input', { bubbles: true })); await tick(); };
+  const selectReadOnly = async (id = 'a') => { [...$('items').querySelectorAll('button')].find((button) => button.dataset.itemId === id).click(); await tick(); };
+  const select = async (id = 'a') => { await selectReadOnly(id); if (!$('edit-button').hidden) await click('edit-button'); };
   const search = async () => { $('search-form').dispatchEvent(new window.Event('submit', { cancelable: true, bubbles: true })); await tick(); };
   const save = async () => { $('editor').dispatchEvent(new window.Event('submit', { cancelable: true, bubbles: true })); await tick(); };
-  return { window, $, click, input, select, search, save, calls, handlers, requestClose: app.requestClose };
+  return { window, $, click, input, select, selectReadOnly, search, save, calls, handlers, requestClose: app.requestClose };
 }
 
 async function committedLinkWithLostResponse() {
@@ -75,12 +78,190 @@ describe('query and error model', () => {
     expect(createOnlyDifferences({ ...matching, is_pinned: false, directly_archive: false }, original)).toEqual(['pin', 'archive']);
     expect(createOnlyDifferences({ item_type: 'text', url_string: '', is_pinned: false, directly_archive: false }, item('text', { url_string: null }))).toEqual([]);
   });
+  test('relative dates retain a safe fallback and deterministic rendering', () => {
+    const now = Date.parse('2026-01-02T00:00:00Z');
+    expect(relativeDate('2026-01-01T00:00:00Z', now)).toBe('yesterday');
+    expect(relativeDate('2026-01-03T00:00:00Z', now)).toBe('tomorrow');
+    expect(relativeDate('invalid', now)).toBe('Date unavailable');
+  });
   test('formats structured errors without losing conflict codes', () => {
     expect(errorMessage('{"code":"conflict","message":"Reload required","retryable":false}')).toBe('conflict: Reload required');
   });
 });
 
+describe('M1 Library presentation', () => {
+  test('filter tokens remove applied criteria with draft protection and preserve search and collection', async () => {
+    const app = await setup();
+    app.$('filter-type').value = 'code'; app.$('filter-source').value = '<script>Editor</script>';
+    app.$('filter-from').value = '2026-01-01';
+    await app.input('search-text', 'needle'); await app.search();
+    expect(app.$('filter-tokens').querySelectorAll('button')).toHaveLength(3);
+    expect(app.$('filter-menu').querySelector('summary').textContent).toBe('Filter (3)');
+    expect(app.$('filter-tokens').querySelector('script')).toBeNull();
+    app.$('filter-tokens').querySelector('[data-filter="source"]').click(); await tick();
+    expect(app.calls.filter(([name]) => name === 'search_items').at(-1)[1].query.source_app).toBeNull();
+    await app.select(); await app.input('edit-note', 'Retain draft');
+    app.$('filter-tokens').querySelector('[data-filter="type"]').click(); await tick();
+    await app.click('dialog-cancel');
+    expect(app.$('filter-type').value).toBe('code');
+    expect(app.$('filter-tokens').querySelectorAll('button')).toHaveLength(2);
+    await app.click('clear-filters'); await app.click('dialog-discard');
+    expect(app.$('filter-tokens').hidden).toBe(true);
+    expect(app.calls.filter(([name]) => name === 'search_items').at(-1)[1].query).toMatchObject({ text: 'needle', status: 'inbox', pinned_only: false, item_type: null, added_after: null, added_before: null });
+    expect(app.window.document.activeElement.id).toBe('search-text');
+  });
+  test('selection starts in read mode; Edit and Quick Add have explicit focus destinations', async () => {
+    const app = await setup();
+    expect(app.$('editor').hidden).toBe(true);
+    await app.selectReadOnly();
+    expect(app.$('editor').hidden).toBe(true);
+    expect(app.$('item-content').hidden).toBe(false);
+    expect(app.$('edit-button').hidden).toBe(false);
+    await app.click('edit-button');
+    expect(app.$('editor').hidden).toBe(false);
+    expect(app.window.document.activeElement.id).toBe('edit-title');
+    await app.click('cancel-edit-button');
+    expect(app.$('editor').hidden).toBe(true);
+    expect(app.$('detail-heading').textContent).toBe('Item a');
+    expect(app.window.document.activeElement.id).toBe('edit-button');
+    await app.click('add-button');
+    expect(app.$('editor').hidden).toBe(false);
+    expect(app.$('item-content').hidden).toBe(true);
+    expect(app.window.document.activeElement.id).toBe('edit-title');
+    await app.click('cancel-edit-button');
+    expect(app.$('editor').hidden).toBe(true);
+    expect(app.window.document.activeElement.id).toBe('add-button');
+  });
+  test('successful Save Changes returns to read mode after controls unlock', async () => {
+    const app = await setup(); await app.select(); await app.input('edit-title', 'Saved');
+    await app.save();
+    expect(app.$('editor').hidden).toBe(true);
+    expect(app.$('detail-heading').textContent).toBe('Saved');
+    expect(app.$('edit-button').disabled).toBe(false);
+    expect(app.window.document.activeElement.id).toBe('edit-button');
+  });
+  test('Cancel Edit shares Save/Discard/Cancel and retains the canonical detail', async () => {
+    const app = await setup(); await app.select(); await app.input('edit-title', 'Draft');
+    await app.click('cancel-edit-button'); await app.click('dialog-cancel');
+    expect(app.$('editor').hidden).toBe(false);
+    expect(app.$('edit-title').value).toBe('Draft');
+    expect(app.$('detail-heading').textContent).toBe('Item a');
+    await app.click('cancel-edit-button'); await app.click('dialog-discard');
+    expect(app.$('editor').hidden).toBe(true);
+    expect(app.$('detail-heading').textContent).toBe('Item a');
+    await app.click('edit-button'); await app.input('edit-title', 'Saved');
+    await app.click('cancel-edit-button'); await app.click('dialog-save');
+    expect(app.$('editor').hidden).toBe(true);
+    expect(app.$('detail-heading').textContent).toBe('Saved');
+  });
+  test('failed Cancel Edit save keeps the editor and dialog open', async () => {
+    const app = await setup({ update_item: () => { throw new Error('Disk denied'); } });
+    await app.select(); await app.input('edit-note', 'Keep');
+    await app.click('cancel-edit-button'); await app.click('dialog-save');
+    expect(app.$('editor').hidden).toBe(false);
+    expect(app.$('unsaved-dialog').open).toBe(true);
+    expect(app.$('dialog-error').textContent).toContain('Disk denied');
+    expect(app.$('edit-note').value).toBe('Keep');
+  });
+  test('collections issue server-side membership filters without fake counts or recent approximation', async () => {
+    const app = await setup();
+    for (const [name, status, pinned] of [['inbox', 'inbox', false], ['pinned', null, true], ['archive', 'archived', false], ['trash', 'trashed', false]]) {
+      await app.click(`nav-${name}`);
+      expect(app.calls.filter(([command]) => command === 'search_items').at(-1)[1].query).toMatchObject({ status, pinned_only: pinned, include_trashed: false });
+      expect(app.$(`nav-${name}`).getAttribute('aria-current')).toBe('page');
+      expect(app.$('results-heading').textContent.toLowerCase()).toContain(name);
+    }
+    const count = app.calls.length;
+    expect(app.$('nav-recent').disabled).toBe(true);
+    await app.click('nav-recent');
+    expect(app.calls).toHaveLength(count);
+    expect(app.calls.some(([name]) => name === 'get_item')).toBe(false);
+  });
+  test('navigation retains filters and restores canceled filter changes and selected collection', async () => {
+    const app = await setup(); await app.click('nav-inbox'); await app.select();
+    await app.input('edit-title', 'Draft');
+    await app.click('nav-pinned'); await app.click('dialog-cancel');
+    expect(app.$('nav-inbox').getAttribute('aria-current')).toBe('page');
+    expect(app.$('filter-status').value).toBe('inbox');
+    expect(app.$('filter-pin').checked).toBe(false);
+    await app.click('nav-pinned'); await app.click('dialog-discard');
+    expect(app.$('nav-pinned').getAttribute('aria-current')).toBe('page');
+    app.$('filter-status').value = 'archived'; app.$('filter-pin').checked = false;
+    await app.input('search-text', 'needle'); await app.search();
+    expect(app.$('nav-archive').getAttribute('aria-current')).toBe('page');
+    expect(app.$('results-heading').textContent).toBe('Archive — Search results');
+    await app.click('nav-trash');
+    expect(app.calls.filter(([name]) => name === 'search_items').at(-1)[1].query.text).toBe('needle');
+  });
+  for (const fixture of typedItems) {
+    test(`${fixture.item_type} uses safe typed read presentation without per-row detail requests`, async () => {
+      const app = await setup({ search_items: () => typedItems.map((value) => item(value.id, value)), get_item: ({ id }) => detail(item(id, fixture)) });
+      expect(app.calls.map(([name]) => name)).toEqual(['desktop_status', 'search_items']);
+      await app.selectReadOnly(fixture.id);
+      expect(app.$('editor').hidden).toBe(true);
+      expect(app.$('item-preview').classList.contains(`preview-${fixture.item_type}`)).toBe(true);
+      expect(app.$('item-preview').textContent).toContain(longContent);
+      expect(app.$('item-preview').querySelector('img,script,a,iframe')).toBeNull();
+      expect(app.$('item-preview').querySelector('.preview-kind').textContent.toLowerCase()).toBe(fixture.item_type);
+      expect(app.$('items').querySelectorAll('.type-icon')).toHaveLength(5);
+      expect(app.calls.filter(([name]) => name === 'get_item')).toHaveLength(1);
+      if (['image', 'file'].includes(fixture.item_type)) expect(app.$('item-preview').textContent).toContain('Attachment metadata only');
+    });
+  }
+  test('empty collection, no matches, failed search, and unavailable storage are distinct', async () => {
+    const app = await setup({ search_items: () => [] });
+    expect(app.$('results-state').textContent).toContain('Inbox is empty');
+    await app.click('nav-trash'); expect(app.$('results-state').textContent).toContain('No items in Trash');
+    await app.input('search-text', 'missing'); await app.search();
+    expect(app.$('results-state').textContent).toContain('No matching items');
+    app.handlers.search_items = () => { throw new Error('Index unavailable'); };
+    await app.search(); expect(app.$('results-state').textContent).toContain('Search unavailable');
+    expect(app.$('retry-search').hidden).toBe(false);
+    await app.click('add-button');
+    expect(app.$('results-state').textContent).toContain('Search unavailable');
+    const denied = await setup({ desktop_status: () => deniedStorage });
+    expect(denied.$('results-state').textContent).toContain('Storage unavailable');
+    expect(denied.$('retry-search').hidden).toBe(true);
+    expect(denied.$('nav-inbox').disabled).toBe(true);
+    expect(denied.calls.map(([name]) => name)).toEqual(['desktop_status']);
+  });
+  test('Settings pages have one active target and focus; capabilities stay read-only', async () => {
+    const app = await setup(); await app.click('settings-button');
+    for (const name of ['paste', 'storage', 'privacy', 'capture']) {
+      await app.click(`settings-${name}`);
+      expect(app.$(`settings-${name}`).getAttribute('aria-current')).toBe('page');
+      expect(app.window.document.activeElement.id).toBe(`settings-page-${name}`);
+      for (const page of ['capture', 'paste', 'storage', 'privacy']) expect(app.$(`settings-page-${page}`).hidden).toBe(page !== name);
+    }
+    expect(app.$('capabilities').querySelector('input,button,select')).toBeNull();
+    expect(app.$('settings').textContent).not.toContain('iCloud');
+  });
+});
+
 describe('headless application controller', () => {
+  test('IME key events do not move editor focus or change list selection', async () => {
+    const app = await setup(); await app.select();
+    app.$('edit-note').focus();
+    app.$('edit-note').dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'Escape', isComposing: true, bubbles: true }));
+    expect(app.window.document.activeElement.id).toBe('edit-note');
+    const before = app.calls.filter(([name]) => name === 'get_item').length;
+    app.$('items').querySelector('button').dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'ArrowDown', isComposing: true, bubbles: true }));
+    await tick();
+    expect(app.calls.filter(([name]) => name === 'get_item')).toHaveLength(before);
+    expect(app.$('detail-heading').textContent).toBe('Item a');
+  });
+  test('pane links move focus without navigating the embedded origin', async () => {
+    const app = await setup();
+    for (const link of app.window.document.querySelectorAll('a[href^="#"]')) {
+      const target = link.getAttribute('href').slice(1);
+      link.click(); await tick();
+      expect(app.window.document.activeElement.id).toBe(target);
+      expect(app.window.location.hash).toBe('');
+    }
+    expect(app.$('library-heading').textContent).toBe('Inbox');
+    await app.click('nav-pinned');
+    expect(app.$('library-heading').textContent).toBe('Pinned');
+  });
   test('native close uses the draft guard and waits for an active save', async () => {
     const app = await setup(); await app.select(); await app.input('edit-title', 'Retain me');
     const canceled = app.requestClose(); await tick();

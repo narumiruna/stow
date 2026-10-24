@@ -8,34 +8,77 @@
   <script type="module" src="./main.js"></script>
 </head>
 <body>
-  <header class="app-header">
-    <h1>Stow</h1>
-    <nav aria-label="Main"><button id="library-button" type="button">Library</button><button id="add-button" type="button">Quick Add</button><button id="settings-button" type="button">Settings</button></nav>
-  </header>
-  <p id="platform-status" class="banner">Checking storage availability…</p>
-  <p id="status" role="status" aria-live="polite" aria-atomic="true"></p>
-  <p id="error" role="alert" hidden></p>
-  <main>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <aside class="app-sidebar" aria-label="Library navigation">
+    <button id="library-button" class="brand" type="button" aria-label="Stow Library">
+      <span class="brand-mark" aria-hidden="true">◇</span>
+      <span><strong>Stow</strong><small>Your content, collected.</small></span>
+    </button>
+    <nav class="collection-nav" aria-label="Collections">
+      <h2 class="nav-heading">Library</h2>
+      <button id="nav-inbox" type="button" aria-current="page"><span class="nav-icon" aria-hidden="true">▱</span>Inbox</button>
+      <button id="nav-recent" type="button" disabled aria-describedby="recent-unavailable"><span class="nav-icon" aria-hidden="true">◷</span>Recently Used</button>
+      <p id="recent-unavailable" class="nav-explanation">Usage history unavailable</p>
+      <button id="nav-pinned" type="button"><span class="nav-icon" aria-hidden="true">⌖</span>Pinned</button>
+      <h2 class="nav-heading manage-heading">Manage</h2>
+      <button id="nav-archive" type="button"><span class="nav-icon" aria-hidden="true">▤</span>Archive</button>
+      <button id="nav-trash" type="button"><span class="nav-icon" aria-hidden="true">♲</span>Trash</button>
+    </nav>
+    <div class="sidebar-bottom">
+      <button id="settings-button" class="settings-link" type="button"><span class="nav-icon" aria-hidden="true">⚙</span>Settings</button>
+      <button id="add-button" class="primary" type="button"><span aria-hidden="true">＋</span> Quick Add</button>
+      <p id="platform-status" class="storage-status">Checking storage availability…</p>
+    </div>
+  </aside>
+  <main id="main-content" class="app-main" tabindex="-1">
+    <div class="app-feedback">
+      <p id="status" role="status" aria-live="polite" aria-atomic="true"></p>
+      <p id="error" role="alert" hidden></p>
+    </div>
     <section id="library" aria-labelledby="library-heading">
-      <h2 id="library-heading">Library</h2>
-      <form id="search-form" class="filters" role="search">
-        <label class="search-field">Search<input id="search-text" name="search" type="search" placeholder="Search your library" autocomplete="off"></label>
-        <label>Type<select id="filter-type"><option value="">All types</option><option value="link">Link</option><option value="text">Text</option><option value="code">Code</option><option value="image">Image</option><option value="file">File</option></select></label>
-        <label>Source app<input id="filter-source" type="text" placeholder="Exact source app" autocomplete="off"></label>
-        <label>From (inclusive)<input id="filter-from" type="date"></label>
-        <label>To (inclusive)<input id="filter-to" type="date"></label>
-        <label>Location<select id="filter-status"><option value="inbox">Inbox</option><option value="archived">Archive</option><option value="trashed">Trash</option><option value="">Inbox and Archive</option></select></label>
-        <label class="check"><input id="filter-pin" type="checkbox">Pinned only</label>
-        <button type="submit">Search</button>
-      </form>
+      <header class="library-toolbar">
+        <h1 id="library-heading" tabindex="-1">Inbox</h1>
+        <form id="search-form" role="search">
+          <label class="search-field"><span class="sr-only">Search saved content</span><input id="search-text" name="search" type="search" placeholder="Search saved content" autocomplete="off"></label>
+          <details id="filter-menu" class="filter-menu">
+            <summary>Filter</summary>
+            <div class="filter-popover">
+              <h2>Filter library</h2>
+              <label>Type<select id="filter-type"><option value="">All types</option><option value="link">Link</option><option value="text">Text</option><option value="code">Code</option><option value="image">Image</option><option value="file">File</option></select></label>
+              <label>Source app<input id="filter-source" type="text" placeholder="Exact source app" autocomplete="off"></label>
+              <div class="date-fields"><label>From (inclusive)<input id="filter-from" type="date"></label><label>To (inclusive)<input id="filter-to" type="date"></label></div>
+              <label>Location<select id="filter-status"><option value="inbox">Inbox</option><option value="archived">Archive</option><option value="trashed">Trash</option><option value="">Inbox and Archive</option></select></label>
+              <label class="check"><input id="filter-pin" type="checkbox">Pinned only</label>
+              <p class="hint">Dates use UTC. Source app must match exactly.</p>
+              <button type="submit" class="primary">Apply filters</button>
+            </div>
+          </details>
+          <button class="search-submit" type="submit">Search</button>
+        </form>
+      </header>
+      <div class="active-filter-bar"><div id="filter-tokens" aria-label="Active filters" role="group" hidden></div><button id="clear-filters" type="button" hidden>Clear filters</button></div>
+      <nav class="pane-navigation" aria-label="Library panes"><a href="#results-heading">Items</a><a href="#detail-heading">Details / editor</a></nav>
       <div class="library-grid">
-        <section aria-labelledby="results-heading"><h3 id="results-heading">Items</h3><p id="results-state"></p><ul id="items" aria-label="Library items"></ul><button id="retry-search" type="button" hidden>Retry search</button><p class="hint">Use Up and Down on an item to select another item. Results are limited to 200 items. Dates use UTC.</p></section>
-        <section id="details" aria-labelledby="detail-heading"><h3 id="detail-heading">Details</h3><p id="detail-state">Select an item.</p>
-          <div id="item-content" hidden><p id="item-meta"></p><pre id="item-preview"></pre><h4>Attachments</h4><ul id="attachments"></ul><p id="representation-info"></p><p id="attachment-help" class="hint">Attachment preview, opening, export, and original clipboard formats are not available in this frontend.</p>
-            <div id="item-actions" class="actions"><button id="pin-button" type="button">Pin</button><button id="archive-button" type="button">Archive</button><button id="trash-button" type="button">Move to Trash</button></div>
+        <section class="collection-pane" aria-labelledby="results-heading">
+          <header class="collection-header"><h2 id="results-heading" tabindex="-1">Items</h2><span class="hint">Saved content</span></header>
+          <div class="results-presentation">
+            <p id="results-state" role="status" aria-live="polite"></p>
+            <ul id="items" aria-label="Library items"></ul>
+            <button id="retry-search" type="button" hidden>Retry search</button>
+          </div>
+          <footer class="collection-footer"><p class="hint">Up / Down to select · Up to 200 results</p></footer>
+        </section>
+        <section id="details" class="detail-pane" aria-labelledby="detail-heading">
+          <header class="detail-header"><h2 id="detail-heading" tabindex="-1">Details</h2></header>
+          <div class="empty-state"><span class="empty-mark" aria-hidden="true">◇</span><p id="detail-state">Select an item.</p></div>
+          <div id="item-content" hidden>
+            <div class="detail-primary-actions actions"><button id="edit-button" type="button">Edit</button><button type="button" disabled title="Native clipboard support is not available">Copy unavailable</button></div>
+            <section class="content-surface" aria-label="Content preview"><div id="item-preview"></div></section>
+            <section class="metadata-surface" aria-label="Item information"><h3>Information</h3><p id="item-meta"></p><h4>Attachments</h4><ul id="attachments"></ul><p id="representation-info"></p><p id="attachment-help" class="hint">Attachment preview, opening, export, and original clipboard formats are not available in this frontend.</p></section>
+            <div id="item-actions" class="actions management-actions"><button id="pin-button" type="button">Pin</button><button id="archive-button" type="button">Archive</button><button id="trash-button" type="button">Move to Trash</button></div>
           </div>
           <form id="editor" hidden>
-            <h4 id="editor-heading">Edit item</h4>
+            <h3 id="editor-heading">Edit item</h3>
             <label id="create-type-label" hidden>Type<select id="edit-type"><option value="text">Text</option><option value="code">Code</option><option value="link">Link</option></select></label>
             <label>Title<input id="edit-title" type="text" maxlength="1048576"></label>
             <label id="edit-url-label" hidden>URL<input id="edit-url" type="url" placeholder="https://example.com" maxlength="16384"></label>
@@ -45,13 +88,47 @@
             <div id="create-options" hidden><label class="check"><input id="edit-pin" type="checkbox">Pin item</label><label class="check"><input id="edit-archive" type="checkbox">Add to Archive</label></div>
             <p id="create-conflict" role="alert" hidden></p>
             <button id="create-new-button" type="button" hidden>Save as new item</button>
-            <p id="edit-state"></p><div class="actions"><button id="save-button" type="submit">Save</button><button id="discard-button" type="button">Discard changes</button></div>
+            <p id="edit-state" role="status"></p>
+            <div class="actions editor-actions"><button id="cancel-edit-button" type="button">Cancel</button><button id="discard-button" type="button">Discard changes</button><button id="save-button" class="primary" type="submit">Save Changes</button></div>
           </form>
         </section>
       </div>
     </section>
-    <section id="settings" aria-labelledby="settings-heading" hidden><h2 id="settings-heading">Settings</h2><p>Capabilities are read-only and report the current backend state.</p><dl id="capabilities"></dl><p id="storage-description"></p><button id="rebuild-button" type="button" disabled>Rebuild search index</button><p>Import, file and image creation, clipboard capture controls, copy, direct paste, global shortcuts, and a native quick panel are not implemented in this frontend. Existing image and file records show metadata only.</p><p>Native accessibility, IME, and desktop focus verification remain required. Headless tests do not verify these features.</p></section>
+    <section id="settings" aria-labelledby="settings-heading" hidden>
+      <header class="settings-header"><h1 id="settings-heading" tabindex="-1">Settings</h1><p class="hint">Device capabilities and local storage</p></header>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="Settings pages">
+          <button id="settings-capture" type="button" aria-current="page">Capture</button>
+          <button id="settings-paste" type="button">Paste &amp; Shortcuts</button>
+          <button id="settings-storage" type="button">Storage</button>
+          <button id="settings-privacy" type="button">Privacy</button>
+        </nav>
+        <div class="settings-pages">
+          <section id="settings-page-capture" class="settings-page" tabindex="-1" aria-labelledby="capture-heading">
+            <h2 id="capture-heading">Capture</h2><p class="page-intro">Choose what you keep.</p>
+            <div class="settings-group"><h3>Clipboard monitoring <span class="capability-badge">Unavailable</span></h3><p>Automatic clipboard capture is not implemented. Stow does not monitor your clipboard.</p></div>
+            <div class="settings-group"><h3>Files &amp; images <span class="capability-badge">Unavailable</span></h3><p>File import, image capture, and drag and drop are not implemented. Quick Add supports text, code, and links when storage is available.</p></div>
+          </section>
+          <section id="settings-page-paste" class="settings-page" tabindex="-1" aria-labelledby="paste-heading" hidden>
+            <h2 id="paste-heading">Paste &amp; Shortcuts</h2><p class="page-intro">Native actions on this device.</p>
+            <div class="settings-group"><h3>Copy &amp; direct paste <span class="capability-badge">Unavailable</span></h3><p>Native copy and direct paste are not implemented. No keyboard input is sent to other applications.</p></div>
+            <div class="settings-group"><h3>Global shortcuts &amp; Quick Panel <span class="capability-badge">Unavailable</span></h3><p>Shortcut registration and the native Quick Panel are not implemented. Use Library to browse saved content.</p></div>
+          </section>
+          <section id="settings-page-storage" class="settings-page" tabindex="-1" aria-labelledby="storage-heading" hidden>
+            <h2 id="storage-heading">Storage</h2><p class="page-intro">Actual backend capabilities on this device.</p>
+            <div class="settings-group"><h3>Local library</h3><p id="storage-description"></p><p class="hint">Windows storage remains disabled until its security and durability requirements are verified. The macOS SwiftData bridge is not implemented.</p></div>
+            <div class="settings-group"><h3>Search index</h3><p>Rebuild the local search index when the backend supports it.</p><button id="rebuild-button" type="button" disabled>Rebuild search index</button></div>
+            <div class="settings-group"><h3>Backend capabilities</h3><p class="hint">Read-only status reported by the current backend.</p><dl id="capabilities"></dl></div>
+          </section>
+          <section id="settings-page-privacy" class="settings-page" tabindex="-1" aria-labelledby="privacy-heading" hidden>
+            <h2 id="privacy-heading">Privacy</h2><p class="page-intro">Your content stays under your control.</p>
+            <div class="settings-group"><h3>Content presentation</h3><p>Saved content is displayed as text. Remote images, fonts, and link previews are not loaded.</p></div>
+            <div class="settings-group"><h3>Platform limits</h3><p>This frontend does not provide accounts or sync. Existing image and file records show metadata only.</p><p class="hint">Native accessibility, IME, and desktop focus verification remain required. Headless tests do not verify these features.</p></div>
+          </section>
+        </div>
+      </div>
+    </section>
   </main>
-  <dialog id="unsaved-dialog" aria-labelledby="unsaved-heading" aria-describedby="unsaved-description"><h2 id="unsaved-heading">Unsaved changes</h2><p id="unsaved-description">Save the draft before continuing, discard it, or cancel to keep editing.</p><p id="dialog-error" role="alert"></p><div class="actions"><button id="dialog-save" type="button">Save</button><button id="dialog-discard" type="button">Discard</button><button id="dialog-cancel" type="button" autofocus>Cancel</button></div></dialog>
+  <dialog id="unsaved-dialog" aria-labelledby="unsaved-heading" aria-describedby="unsaved-description"><h2 id="unsaved-heading">Unsaved changes</h2><p id="unsaved-description">Save the draft before continuing, discard it, or cancel to keep editing.</p><p id="dialog-error" role="alert"></p><div class="actions"><button id="dialog-save" type="button" class="primary">Save</button><button id="dialog-discard" type="button">Discard</button><button id="dialog-cancel" type="button" autofocus>Cancel</button></div></dialog>
 </body>
 </html>

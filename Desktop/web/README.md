@@ -17,9 +17,17 @@ bun test
 
 `public/app.js` exports `createApp(invoke, document)`. Its `ready` promise completes the initial status and search requests. Tests inject a command function and a document. `public/main.js` connects it to `window.__TAURI__.core.invoke`.
 
-The frontend uses only `desktop_status`, `search_items`, `get_item`, `create_item`, `update_item`, `apply_item_command`, and `rebuild_search`. Each Quick Add draft has one `capture_id` UUID. Failed creation retries retain this ID. Edits and lifecycle commands send the authoritative `updated_at` value for optimistic concurrency.
+The frontend uses only `desktop_status`, `search_items`, `get_item`, `create_item`, `update_item`, `apply_item_command`, `rebuild_search`, and `close_preview`. Each Quick Add draft has one `capture_id` UUID. Failed creation retries retain this ID. Edits and lifecycle commands send the authoritative `updated_at` value for optimistic concurrency.
 
 Search submits explicit filters, including the `pinned_only` boolean. Both date boundaries are inclusive UTC dates. To maps to `23:59:59.999999999Z` on the selected day. The backend applies the pinned filter before the 200-result limit. A selected detail and its draft can remain visible outside the current results, but lifecycle actions are disabled. Lifecycle commands also validate result membership before invocation. Pending or failed searches disable lifecycle actions.
+
+## Presentation and evidence
+
+The shared shell has Library navigation, a collection pane, and a detail/editor pane. Narrow work areas stack panes without removing the draft. Search filters use a compact disclosure and removable applied-filter tokens. Clearing filters preserves the search and selected collection. Sidebar queries use backend membership filters; counts and Recently Used are not inferred from the limited result page.
+
+Selection opens read mode. Edit explicitly opens the editor; Cancel uses the existing Save/Discard/Cancel guard. Settings has separate Capture, Paste & Shortcuts, Storage, and Privacy pages. Content previews use text nodes; image/file content and native actions remain unavailable rather than simulated.
+
+Fixtures in `fixtures/` cover all five types and hostile/long content. They are not embedded in the application. DOM tests do not verify CSS layout or native accessibility. See [the parity execution record](../PARITY.md) for the uncompleted gates.
 
 ## Draft safety
 

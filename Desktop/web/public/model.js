@@ -10,6 +10,36 @@ export function searchQuery(values) {
   };
 }
 
+// Collection membership stays in the search service, before its result limit.
+export const collections = {
+  inbox: { title: 'Inbox', status: 'inbox', pinned: false },
+  pinned: { title: 'Pinned', status: '', pinned: true },
+  archive: { title: 'Archive', status: 'archived', pinned: false },
+  trash: { title: 'Trash', status: 'trashed', pinned: false },
+};
+
+export function collectionFor(filters) {
+  return Object.keys(collections).find((name) => collections[name].status === filters.status
+    && collections[name].pinned === Boolean(filters.pinned)) ?? null;
+}
+
+export function filterTokens(filters) {
+  const tokens = [];
+  if (filters.type) tokens.push({ key: 'type', label: `Type: ${filters.type}`, clear: { type: '' } });
+  if (filters.source.trim()) tokens.push({ key: 'source', label: `App: ${filters.source.trim()}`, clear: { source: '' } });
+  if (filters.from || filters.to) tokens.push({ key: 'date', label: `Added: ${filters.from || 'Any'} — ${filters.to || 'Any'} (UTC)`, clear: { from: '', to: '' } });
+  return tokens;
+}
+
+export function relativeDate(value, now = Date.now()) {
+  const seconds = (Date.parse(value) - now) / 1000;
+  if (!Number.isFinite(seconds)) return 'Date unavailable';
+  const format = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  for (const [unit, size] of [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]]) {
+    if (Math.abs(seconds) >= size || unit === 'second') return format.format(Math.round(seconds / size), unit);
+  }
+}
+
 export function editable(item) {
   return { title: item.title ?? '', note: item.note ?? '',
     text_content: item.text_content ?? '', language: item.language ?? '' };
