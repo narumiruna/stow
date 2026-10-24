@@ -28,11 +28,11 @@ Paths below are relative to the repository root. A mapped test is a source refer
 
 ## Gate Evidence Required Outside This Host
 
-- Native macOS and Windows builds and tests from the Rust workflow.
+- Native GUI, signing, and distribution verification beyond the passing Rust headless CI matrix.
 - Framework accessibility, keyboard, IME, display scaling, reduced motion, and panel focus checks on all supported desktops.
 - Signed Rust-to-Swift bridge, existing-store access, App Group capture, and unchanged iOS interoperability.
 - Signed two-device iCloud create, edit, archive, restore, delete, attachment, offline, and unavailable-account checks.
-- Existing Swift CI gate under the configured Xcode/Swift versions.
+- Continued existing Swift CI coverage under the configured Xcode/Swift versions; the initial foundation commit passes this gate.
 - Native installers, upgrade, uninstall, backup, and rollback checks.
 - Current search latency and memory baseline for fixed 10,000-item and 100,000-item datasets. No numeric performance limit has been approved or claimed.
 
@@ -50,7 +50,9 @@ The final local run uses Rust/Cargo 1.99.1. The following checks passed:
 
 Independent reviews covered correctness, security, lifecycle, compatibility, regressions, and scope. Corrected findings include package license/publication inheritance, attachment rediscovery after restart, explicit committed-delete cleanup outcomes, and dangling-reference validation before cleanup. Regression tests cover all three storage findings. URL validation now rejects known incompatible raw spellings; complete Foundation URL parity remains unverified.
 
-The new Rust workflow runs native Linux, Windows, and macOS formatting, Clippy, headless tests, and release builds. It also checks advisories and licenses. Remote results are pending; workflow configuration is not passing execution evidence.
+At implementation commit `fe56e73`, [Rust CI run 40074019133](https://github.com/narumiruna/stow/actions/runs/40074019133) passed native formatting, Clippy, headless tests, and release builds on Ubuntu 24.04, Windows 2025, and macOS 15 runners. The advisory/license job also passed. Linux ran 33 tests; Windows and macOS each ran 10 domain tests, 5 probe tests, and 1 storage-platform guard test. The Linux storage tests are intentionally not run on the two unsupported storage platforms.
+
+[Existing Swift CI run 40074019198](https://github.com/narumiruna/stow/actions/runs/40074019198) passed the repository's complete non-interactive gate, including package/app/share tests, macOS/iOS builds, version/project checks, and entitlement/privacy-manifest checks. These results do not establish signed CloudKit access or UI behavior.
 
 `cargo audit` 0.22.2 exited successfully and reported no known vulnerabilities in the resolved lockfile. It reported one maintenance warning: `ttf-parser` 0.25.1, `RUSTSEC-2026-0192`, through the `iced` font stack. No advisory is ignored. Resolve or explicitly evaluate this dependency before adopting the framework for production.
 

@@ -44,6 +44,6 @@ These commands passed on Ubuntu 26.04.1 LTS under WSL2, Linux 6.18.33.2-microsof
 
 ## Unproven gates
 
-This sample **cannot prove platform gates**. No native Windows or macOS build, minimum-Rust build, packaged installation, accessibility, IME, keyboard navigation, high contrast, reduced motion, scaling, multiple-monitor behavior, panel focus restoration, native clipboard support, signed Swift bridge, App Group, Share Extension, CLI, or iCloud compatibility has been verified. The workspace Linux release build passed. WSL compilation is not a native three-platform build result. No performance baseline has been measured.
+This sample **cannot prove platform gates**. Native Linux, Windows, and macOS CI release builds and headless tests passed at `fe56e73`; see `../../VERIFICATION.md`. No minimum-Rust build, packaged installation, accessibility, IME, keyboard navigation, high contrast, reduced motion, scaling, multiple-monitor behavior, panel focus restoration, native clipboard support, signed Swift bridge, App Group, Share Extension, CLI, or iCloud compatibility has been verified. WSL compilation is not a native three-platform build result. No performance baseline has been measured.
 
 Keep the existing desktop app. Further platform and signed integration checks remain required by `docs/plans/2026-10-24_rust-cross-platform-desktop-plan.md`.

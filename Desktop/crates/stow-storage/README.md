@@ -8,7 +8,7 @@ This crate stores local item snapshots and attachment bytes. It has no sync engi
 - This implementation supports Unix filesystems with file locks, hard links, and durable directory synchronization. Linux tests use an isolated temporary directory.
 - Windows open fails with `UnsupportedPlatform`. Private ACLs, reparse-point rejection, and durable directory publication must be implemented and tested before Windows storage can be enabled.
 - Network filesystems and filesystems without these guarantees are not supported.
-- Native Windows and macOS checks have not been performed.
+- Native Windows and macOS CI compiles this crate and verifies that opening storage fails before creating files. It does not enable or verify local persistence on these platforms.
 
 ## API and consistency
 
