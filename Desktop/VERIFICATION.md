@@ -52,7 +52,7 @@ The continuation also adds representation metadata validation before blob reads,
 - `Packages/StowCore/Tests/StowCoreTests/PortableSearchFixtureTests.swift`, using the existing `SQLiteSearchIndex` actor and native Foundation transform.
 - `Desktop/crates/stow-storage/tests/shared_search.rs`, using the Rust local repository on Linux.
 
-The 25 cases cover token prefixes, metadata filters, source case handling, ASCII/Japanese/Korean width conversion, embedded NUL, Chinese text, lifecycle filters, inclusive dates, and stable creation ordering. Rust execution passes. Native Swift execution is pending the continuation CI run. Passing a finite fixture set will not establish complete ICU or URL normalization equivalence.
+The 25 cases cover token prefixes, metadata filters, source case handling, ASCII/Japanese/Korean width conversion, embedded NUL, Chinese text, lifecycle filters, inclusive dates, and stable creation ordering. Rust execution passes. The first native Swift run, [40076571267](https://github.com/narumiruna/stow/actions/runs/40076571267), found two incorrect Korean width-equivalence assumptions. Existing Foundation search keeps those jamo forms distinct. The Rust transform and fixture expectations were corrected to preserve that behavior; a fresh native run is required. Passing a finite fixture set will not establish complete ICU or URL normalization equivalence.
 
 ## Interruption and Corruption Evidence
 

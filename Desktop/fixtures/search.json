@@ -39,8 +39,8 @@
         {"name":"Chinese UTF8","text":"咖啡","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000004"]},
         {"name":"Japanese fullwidth query matches both widths","text":"ガイド","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000005","00000000-0000-0000-0000-000000000006"]},
         {"name":"Japanese halfwidth query matches both widths","text":"ｶﾞｲﾄﾞ","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000005","00000000-0000-0000-0000-000000000006"]},
-        {"name":"Korean compatibility jamo query matches both widths","text":"ㄱㄴㄷ","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000008","00000000-0000-0000-0000-000000000009"]},
-        {"name":"Korean halfwidth query matches both widths","text":"\uffa1\uffa4\uffa7","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000008","00000000-0000-0000-0000-000000000009"]},
+        {"name":"Korean compatibility jamo remains distinct","text":"ㄱㄴㄷ","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000008"]},
+        {"name":"Korean halfwidth jamo remains distinct","text":"\uffa1\uffa4\uffa7","filters":{},"expected_ids":["00000000-0000-0000-0000-000000000009"]},
         {"name":"decomposed combining-mark query matches both forms","text":"nai\u0308ve","filters":{},"sort_ids":true,"expected_ids":["00000000-0000-0000-0000-000000000010","00000000-0000-0000-0000-000000000011"]},
         {"name":"composed query matches decomposed content","text":"naïve","filters":{},"sort_ids":true,"expected_ids":["00000000-0000-0000-0000-000000000010","00000000-0000-0000-0000-000000000011"]}
       ]
