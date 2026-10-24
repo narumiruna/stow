@@ -1,0 +1,16 @@
+[licenses]
+# First-party crates use the repository license. Dependency choices must remain
+# compatible with it; distribution notices and bundled native code need review.
+allow = [
+    "AGPL-3.0-only",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.8
