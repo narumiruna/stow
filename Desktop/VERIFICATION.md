@@ -13,7 +13,7 @@ No desktop UI test or desktop launch has occurred during implementation. The WSL
 ## Tauri Continuation
 
 - Rust service tests cover one bounded worker, queue saturation, panic/disconnect, shutdown, restart, optimistic revisions, capture replay, failed saves, argument bounds, and private Linux parent creation.
-- Thirty headless Bun/DOM tests cover real frontend state and rendering: hostile saved content, dialogs, conflicts, async search/detail races, newer edits during saves, replayed creates, date/pin filters, hidden selections, settings, close protection, and unavailable backends.
+- Thirty-one headless Bun/DOM tests cover real frontend state and rendering: hostile saved content, dialogs, conflicts, async search/detail races, newer edits during saves, replayed creates, date/pin filters, hidden selections, settings, close protection, and unavailable backends.
 - Tauri grants only declared commands and close-event subscription to the embedded main window. Rust checks its label and origin. Navigation after the frontend handshake, remote pages, and new windows are denied. The CSP forbids remote scripts and `unsafe-eval`.
 - List/detail metadata APIs do not read original attachment or representation blobs. Search applies the pin filter before its result limit.
 - Native window close and application quit route through the same Save/Discard/Cancel guard after listener registration. Forced termination and renderer failure do not persist drafts.

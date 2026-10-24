@@ -79,6 +79,15 @@ describe('headless application controller', () => {
     expect(app.window.pwned).toBeUndefined();
     expect(app.$('storage-description').textContent).toContain('only on this device');
   });
+  test('link details expose only fields supported by the update command', async () => {
+    const app = await setup({ get_item: () => detail(item('a', { item_type: 'link', url_string: 'https://example.com', text_content: 'Captured description' })) });
+    await app.select();
+    expect(app.$('edit-text-label').hidden).toBe(true);
+    expect(app.$('edit-url-label').hidden).toBe(true);
+    expect(app.$('item-preview').textContent).toContain('Captured description');
+    await app.input('edit-note', 'New note'); await app.save();
+    expect(app.calls.find(([name]) => name === 'update_item')[1].edit.note).toBe('New note');
+  });
   test('keeps drafts on failed save with optimistic concurrency revision', async () => {
     const app = await setup({ update_item: () => { throw { code: 'conflict', message: 'Changed elsewhere', retryable: false }; } });
     await app.select(); await app.input('edit-title', 'Draft'); await app.save();

@@ -52,7 +52,7 @@ export function createApp(invoke, document) {
     $('edit-url-label').hidden = !state.creating || d.item_type !== 'link';
     const type = state.creating ? d.item_type : state.detail.item.item_type;
     $('edit-language-label').hidden = type !== 'code';
-    $('edit-text-label').hidden = !['text', 'code', 'link'].includes(type);
+    $('edit-text-label').hidden = !['text', 'code'].includes(type);
     for (const [key, id] of Object.entries({ title: 'edit-title', note: 'edit-note', text_content: 'edit-text', language: 'edit-language' })) $(id).value = d[key];
     if (state.creating) {
       $('edit-type').value = d.item_type;
