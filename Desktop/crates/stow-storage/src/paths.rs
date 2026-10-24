@@ -140,8 +140,11 @@ mod tests {
     #[test]
     fn publish_never_replaces_an_existing_blob() {
         let temp = tempfile::TempDir::new().unwrap();
-        let staging = temp.path().join("staging");
-        let blobs = temp.path().join("blobs");
+        // macOS temporary paths can use the /var -> /private/var alias.
+        // Resolve this test-owned root, not paths supplied to the repository.
+        let root = temp.path().canonicalize().unwrap();
+        let staging = root.join("staging");
+        let blobs = root.join("blobs");
         private_dir(&staging).unwrap();
         private_dir(&blobs).unwrap();
         let stage = staging.join("stage");
@@ -158,5 +161,9 @@ mod tests {
         assert!(publish(&stage, &published).is_err());
         assert_eq!(fs::read(&published).unwrap(), b"committed bytes");
         assert_eq!(fs::read(&stage).unwrap(), b"new bytes");
+        fs::remove_file(&published).unwrap();
+        publish(&stage, &published).unwrap();
+        assert_eq!(fs::read(&published).unwrap(), b"new bytes");
+        assert!(!stage.exists());
     }
 }

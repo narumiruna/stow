@@ -52,7 +52,7 @@ The continuation also adds representation metadata validation before blob reads,
 - `Packages/StowCore/Tests/StowCoreTests/PortableSearchFixtureTests.swift`, using the existing `SQLiteSearchIndex` actor and native Foundation transform.
 - `Desktop/crates/stow-storage/tests/shared_search.rs`, using the Rust local repository on Linux.
 
-The 25 cases cover token prefixes, metadata filters, source case handling, ASCII/Japanese/Korean width conversion, embedded NUL, Chinese text, lifecycle filters, inclusive dates, and stable creation ordering. Rust execution passes. The first native Swift run, [40076571267](https://github.com/narumiruna/stow/actions/runs/40076571267), found two incorrect Korean width-equivalence assumptions. Existing Foundation search keeps those jamo forms distinct. The Rust transform and fixture expectations were corrected to preserve that behavior; a fresh native run is required. Passing a finite fixture set will not establish complete ICU or URL normalization equivalence.
+The 25 cases cover token prefixes, metadata filters, source case handling, ASCII/Japanese/Korean width conversion, embedded NUL, Chinese text, lifecycle filters, inclusive dates, and stable creation ordering. Rust execution passes. The first native Swift run, [40076571267](https://github.com/narumiruna/stow/actions/runs/40076571267), found two incorrect Korean width-equivalence assumptions. Existing Foundation search keeps those jamo forms distinct. The Rust transform and fixture expectations were corrected to preserve that behavior; [Swift CI 40076721888](https://github.com/narumiruna/stow/actions/runs/40076721888) then passed all 134 package tests, including the shared fixture test, plus 87 app tests, 6 share tests, both builds, and repository static checks. Passing a finite fixture set will not establish complete ICU or URL normalization equivalence.
 
 ## Interruption and Corruption Evidence
 
@@ -66,7 +66,7 @@ The 25 cases cover token prefixes, metadata filters, source case handling, ASCII
 
 The previous foundation at `fe56e73` passed [Rust CI 40074019133](https://github.com/narumiruna/stow/actions/runs/40074019133) on Ubuntu 24.04, Windows 2025, and macOS 15, plus [Swift CI 40074019198](https://github.com/narumiruna/stow/actions/runs/40074019198). The documentation-only successor also passed both workflows.
 
-Continuation native results are pending. Native Windows/macOS Rust tests verify portable rules and rejection of unsupported local storage without filesystem mutation. They do not run the Linux persistence suite or establish Windows persistence support.
+The first Rust continuation runs found a macOS test-fixture path issue: the temporary root used the system `/var` symlink alias, which the repository correctly rejected. Only the test-owned temporary root is now canonicalized; production symlink rejection is unchanged. A fresh native Rust run is required after this correction. Native Windows/macOS Rust tests verify portable rules and rejection of unsupported local storage without filesystem mutation. They do not run the Linux persistence suite or establish Windows persistence support.
 
 The existing Swift CI gate includes package/app/share tests, macOS/iOS builds, version/project checks, and entitlement/privacy-manifest checks. It cannot run locally because Xcode is unavailable. Its working-tree script also has pre-existing CRLF line endings; these unrelated changes are preserved.
 
