@@ -4,10 +4,10 @@
 allow = [
     "AGPL-3.0-only",
     "Apache-2.0",
-    "BSD-2-Clause",
+    "Apache-2.0 WITH LLVM-exception",
+    # Tauri cssparser/selectors/option-ext: preserve MPL source/notice obligations.
+    "MPL-2.0",
     "BSD-3-Clause",
-    "BSL-1.0",
-    "ISC",
     "MIT",
     "Unicode-3.0",
     "Unlicense",

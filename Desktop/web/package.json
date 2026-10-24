@@ -1,0 +1,11 @@
+{
+  "name": "stow-desktop-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "happy-dom": "21.0.4"
+  }
+}

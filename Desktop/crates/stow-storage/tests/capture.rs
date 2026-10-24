@@ -387,6 +387,31 @@ fn committed_representation_corruption_fails_closed_on_restart() {
 }
 
 #[test]
+fn detail_metadata_does_not_read_original_attachment_or_representation_blobs() {
+    let temp = TempDir::new().unwrap();
+    let root = temp.path().join("library");
+    let mut repo = LocalRepository::open(&root).unwrap();
+    let (draft, attachment) = image();
+    let item = repo
+        .create(&draft, Some(&attachment), &reps(), at())
+        .unwrap()
+        .item;
+    let id = repo.attachments(item.id).unwrap()[0].id;
+    for entry in fs::read_dir(root.join("blobs")).unwrap() {
+        fs::remove_file(entry.unwrap().path()).unwrap();
+    }
+    let metadata = repo.attachment_descriptors(item.id).unwrap();
+    assert_eq!(metadata.len(), 1);
+    assert_eq!(metadata[0].id, id);
+    assert_eq!(metadata[0].file_name.as_deref(), Some("original.png"));
+    assert_eq!(metadata[0].content_type.as_deref(), Some("image/png"));
+    assert_eq!(metadata[0].byte_count, 3);
+    assert_eq!(repo.representation_count(item.id).unwrap(), 2);
+    assert!(repo.read_attachment(id).is_err());
+    assert_eq!(repo.representation_count(Uuid::new_v4()).unwrap(), 0);
+}
+
+#[test]
 fn invalid_representation_metadata_is_rejected_without_changing_bytes() {
     let temp = TempDir::new().unwrap();
     let root = temp.path().join("library");

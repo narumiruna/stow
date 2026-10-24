@@ -16,6 +16,7 @@ pub struct SearchQuery {
     pub added_before: Option<DateTime<Utc>>,
     pub status: Option<ItemStatus>,
     pub include_trashed: bool,
+    pub pinned_only: bool,
     pub limit: usize,
 }
 
@@ -29,6 +30,7 @@ impl Default for SearchQuery {
             added_before: None,
             status: None,
             include_trashed: false,
+            pinned_only: false,
             limit: 200,
         }
     }
@@ -61,12 +63,14 @@ impl LocalRepository {
             values.push(Value::Text(source.clone()));
         }
         if let Some(after) = query.added_after {
-            clauses.push("m.created_at >= ?");
-            values.push(Value::Real(epoch_seconds(after)));
+            clauses.push("(m.created_at_seconds,m.created_at_nanos) >= (?,?)");
+            values.push(Value::Integer(after.timestamp()));
+            values.push(Value::Integer(i64::from(after.timestamp_subsec_nanos())));
         }
         if let Some(before) = query.added_before {
-            clauses.push("m.created_at <= ?");
-            values.push(Value::Real(epoch_seconds(before)));
+            clauses.push("(m.created_at_seconds,m.created_at_nanos) <= (?,?)");
+            values.push(Value::Integer(before.timestamp()));
+            values.push(Value::Integer(i64::from(before.timestamp_subsec_nanos())));
         }
         if let Some(status) = query.status {
             clauses.push("m.status = ?");
@@ -74,6 +78,9 @@ impl LocalRepository {
         } else if !query.include_trashed {
             clauses.push("m.status != ?");
             values.push(Value::Text(ItemStatus::Trashed.as_str().into()));
+        }
+        if query.pinned_only {
+            clauses.push("m.is_pinned = 1");
         }
         let mut sql = String::from(
             "SELECT items.id,items.snapshot FROM item_search_metadata m
@@ -87,9 +94,9 @@ impl LocalRepository {
             sql.push_str(&clauses.join(" AND "));
         }
         sql.push_str(if expression.is_some() {
-            " ORDER BY bm25(item_search),m.created_at DESC,m.id ASC LIMIT ?"
+            " ORDER BY bm25(item_search),m.created_at_seconds DESC,m.created_at_nanos DESC,m.id ASC LIMIT ?"
         } else {
-            " ORDER BY m.created_at DESC,m.id ASC LIMIT ?"
+            " ORDER BY m.created_at_seconds DESC,m.created_at_nanos DESC,m.id ASC LIMIT ?"
         });
         values.push(Value::Integer(query.limit.clamp(1, 10_000) as i64));
         let mut statement = self.connection.prepare(&sql)?;
@@ -115,7 +122,8 @@ pub(crate) fn reset_index(transaction: &Transaction<'_>) -> Result<()> {
              id TEXT PRIMARY KEY NOT NULL,
              type TEXT NOT NULL,
              source_app TEXT,
-             created_at REAL NOT NULL,
+             created_at_seconds INTEGER NOT NULL,
+             created_at_nanos INTEGER NOT NULL,
              status TEXT NOT NULL,
              is_pinned INTEGER NOT NULL,
              last_used_at REAL
@@ -146,13 +154,14 @@ pub(crate) fn index_item(transaction: &Transaction<'_>, item: &Item) -> Result<(
     )?;
     transaction.execute(
         "INSERT INTO item_search_metadata
-         (id,type,source_app,created_at,status,is_pinned,last_used_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7)",
+         (id,type,source_app,created_at_seconds,created_at_nanos,status,is_pinned,last_used_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
         params![
             id,
             item.item_type.as_str(),
             item.source_app,
-            epoch_seconds(item.created_at),
+            item.created_at.timestamp(),
+            i64::from(item.created_at.timestamp_subsec_nanos()),
             item.status.as_str(),
             item.is_pinned,
             item.last_used_at.map(epoch_seconds),

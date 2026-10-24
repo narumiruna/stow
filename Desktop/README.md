@@ -1,56 +1,61 @@
-# Rust Desktop Work
+# Rust Desktop Preview
 
-This workspace contains rewrite foundations and an isolated UI feasibility sample. It is not a replacement for the current Stow app. Do not use it with a production library.
+Tauri 2 is approved for the desktop rewrite. The preview connects a local web UI to the Rust repository through one storage worker. It is not a replacement release for the current Swift app.
 
-The [implementation plan](../docs/plans/2026-10-24_rust-cross-platform-desktop-plan.md) defines the complete delivery gates. macOS must continue to use the existing SwiftData store and iCloud container. Windows and Linux storage must be local only. Windows storage is currently disabled because its security and durability gate has not passed.
+## Current Behavior
 
-## Build and Check
+- Library search by text, type, source app, inclusive UTC dates, lifecycle state, and pin state.
+- Text, code, and link Quick Add; stable capture IDs make retries idempotent.
+- Editing, pinning, archive, Trash, and restore with optimistic revision checks.
+- Save/Discard/Cancel protection for navigation and native close/quit requests.
+- Draft retention after failed saves, conflicts, and edits made during a save.
+- Attachment metadata and representation counts without reading original blobs.
+- Explicit unavailable capabilities instead of simulated clipboard, hotkey, or sync controls.
 
-Use the Rust toolchain in `rust-toolchain.toml`. Run from `Desktop/`:
+Linux uses a separate preview application-data directory under the platform data root, identified by `dev.narumi.stow.desktop-preview`. Missing Linux parent directories are created privately. The frontend cannot choose a library path. Do not point this preview at production data.
+
+Windows storage remains disabled until its durability/private-ACL gate passes. macOS storage remains unavailable until the Swift bridge is integrated; the preview never opens a replacement SQLite canonical library on macOS. The existing SwiftData/iCloud store, iOS app, Share Extensions, and CLI are unchanged.
+
+File/image import and previews, native clipboard adapters, direct paste, shortcuts, quick panel, Rust CLI transport, Swift bridge, and installers are not delivered yet. See the [plan](../docs/plans/2026-10-24_rust-cross-platform-desktop-plan.md) and [verification record](VERIFICATION.md).
+
+## Build and Non-interactive Checks
+
+Run from `Desktop/`. Rust is pinned in `rust-toolchain.toml`; web tests use Bun 1.4.4.
 
 ```sh
+bun install --frozen-lockfile --cwd web
+bun test --cwd web
+bun audit --cwd web
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 cargo build --workspace --release --locked
-```
-
-Dependency checks use `cargo-audit` 0.22.2 and `cargo-deny` 0.20.2:
-
-```sh
 cargo audit
 cargo deny --locked check licenses
 ```
 
-The current lockfile has an unmaintained `ttf-parser` dependency through the UI probe. See `VERIFICATION.md`; a successful audit is not a warning-free audit.
+The frontend has no production package dependencies or build step. Tauri embeds only `web/public/`, not tests or `node_modules`.
 
-These commands do not open a desktop window or access the clipboard. On Linux, install a C compiler, `pkg-config`, and the native display libraries required by the UI probe. See the probe's README for its exact feature selection.
+Linux host builds require a C compiler, `pkg-config`, WebKitGTK 4.1, GTK 3, DBus, and the development packages listed in `.github/workflows/rust.yml`. Windows uses WebView2; macOS uses WKWebView. Native runtime compatibility remains a separate gate.
 
-Keep build outputs outside a Windows-mounted WSL checkout when possible:
+For a host without Linux WebView development packages, portable checks can exclude only the host binary:
 
 ```sh
-CARGO_TARGET_DIR=/tmp/stow-rust-target cargo test --workspace --locked
+cargo test --workspace --exclude stow-desktop --locked
+cargo clippy --workspace --exclude stow-desktop --all-targets --locked -- -D warnings
 ```
 
-Use isolated temporary libraries in tests. Do not pass the existing App Group directory or a SwiftData store to the Rust local repository. Local storage is not an iCloud replacement.
+This exclusion is not proof that the Tauri host builds. CI must build and test the complete workspace on all three native platforms. None of these test commands launches the application or desktop UI.
 
-## Boundaries
+## Security and Verification
 
-- `crates/stow-core`: Portable data types, capture validation, lifecycle rules, and fingerprints.
-- `crates/stow-storage`: Local capture/replay/coalescing commands, lifecycle edits, full attachment/representation storage, transactional migrations, and filtered search. It is not connected to the current app.
-- `spikes/iced-probe`: Disposable UI feasibility sample. Production adoption is stopped because `iced` 0.14 lacks the required native accessibility integration. See [ADR 0006](../docs/decisions/0006-rust-desktop-feasibility-gates.md).
-- `fixtures/search.json`: Shared cases consumed by Rust and native Swift tests.
-- `licenses/Unicode-3.0.txt`: Required notice for the Unicode width mapping data.
+- IPC grants only declared application commands and close-event subscription to the embedded main window.
+- Rust verifies the window label and embedded origin. Remote navigation, new windows, and post-handshake reload are blocked.
+- Saved content is rendered as text. The CSP permits no remote scripts, shell access, or `unsafe-eval`.
+- Storage runs on a bounded single-writer queue. The UI event loop does not wait synchronously for database operations.
+- Status reports actual backend availability. A successful local save is not cloud-delivery evidence.
+- Native close/quit protection depends on a live frontend; forced termination or renderer failure is not draft persistence.
 
-No Rust desktop host, macOS bridge, native clipboard adapter, replacement CLI, installer, or cutover is delivered by these foundations. The existing Swift app, Share Extensions, and CLI are unchanged.
+The `iced` probe is removed. [ADR 0006](../docs/decisions/0006-rust-desktop-feasibility-gates.md) records the approved Tauri decision; no second UI implementation is maintained.
 
-## Verification Limits
-
-Native builds and headless tests do not establish:
-
-- Signed macOS CloudKit or App Group access.
-- iOS interoperability or two-device sync.
-- Screen-reader support, IME operation, native focus restoration, or direct paste safety.
-- Installer behavior, notarization, or rollback.
-
-Do not remove these gates or mark the rewrite complete without their evidence. Interactive checks must remain in `Scripts/ui_tests.sh` and run only after the complete implementation and all relevant non-interactive checks.
+Native screen-reader, IME, focus, signed iCloud, distribution, and final interactive checks remain open. Finish implementation and relevant non-interactive checks before the final UI batch through `Scripts/ui_tests.sh`. Never invoke that script or UI test schemes from CI.

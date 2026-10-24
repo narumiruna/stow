@@ -9,7 +9,9 @@ mod search;
 mod width;
 
 pub use blobs::{AttachmentInfo, MAX_ATTACHMENT_BYTES};
-pub use capture::{AttachmentDraft, CaptureKind, CaptureOutcome, ItemCommand, ItemEdit};
+pub use capture::{
+    AttachmentDescriptor, AttachmentDraft, CaptureKind, CaptureOutcome, ItemCommand, ItemEdit,
+};
 pub use repository::{DeleteOutcome, LocalRepository};
 pub use search::SearchQuery;
 

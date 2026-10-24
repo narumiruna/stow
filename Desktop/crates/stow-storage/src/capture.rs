@@ -22,6 +22,15 @@ pub struct AttachmentDraft {
     pub pixel_height: Option<i64>,
 }
 
+/// Attachment information for a list/detail view, without blob or thumbnail bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AttachmentDescriptor {
+    pub id: Uuid,
+    pub file_name: Option<String>,
+    pub content_type: Option<String>,
+    pub byte_count: u64,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CaptureKind {
     Created,
@@ -262,6 +271,44 @@ impl LocalRepository {
             item,
             kind: CaptureKind::Created,
         })
+    }
+
+    pub fn attachment_descriptors(&self, item_id: Uuid) -> Result<Vec<AttachmentDescriptor>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id,byte_count,json_extract(metadata,'$.file_name'),
+             json_extract(metadata,'$.content_type') FROM attachments WHERE item_id=?1 ORDER BY id",
+        )?;
+        let rows = statement.query_map([item_id.to_string()], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, Option<String>>(3)?,
+            ))
+        })?;
+        rows.map(|row| {
+            let (id, count, file_name, content_type) = row?;
+            let byte_count = u64::try_from(count).map_err(|_| Error::InvalidData)?;
+            if byte_count > crate::MAX_ATTACHMENT_BYTES {
+                return Err(Error::InvalidData);
+            }
+            Ok(AttachmentDescriptor {
+                id: Uuid::parse_str(&id).map_err(|_| Error::InvalidData)?,
+                file_name,
+                content_type,
+                byte_count,
+            })
+        })
+        .collect()
+    }
+
+    pub fn representation_count(&self, item_id: Uuid) -> Result<usize> {
+        let count: i64 = self.connection.query_row(
+            "SELECT count(*) FROM representations WHERE item_id=?1",
+            [item_id.to_string()],
+            |row| row.get(0),
+        )?;
+        usize::try_from(count).map_err(|_| Error::InvalidData)
     }
 
     /// Legacy v2 byte-only attachments have no full metadata and return None.
