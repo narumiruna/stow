@@ -65,6 +65,10 @@ pub(crate) fn check_private(metadata: &fs::Metadata, directory: bool) -> Result<
     Ok(())
 }
 
+pub(crate) fn check_file(path: &Path) -> Result<()> {
+    check_private(&fs::symlink_metadata(path)?, false)
+}
+
 /// Open regular files without following their final component. Parent directories
 /// are private and checked separately. Never accepts caller-selected blob names.
 pub(crate) fn open_file(path: &Path, create: bool, write: bool) -> Result<File> {
@@ -98,8 +102,68 @@ pub(crate) fn new_file(path: &Path) -> Result<File> {
     Ok(file)
 }
 
+/// Publish verified staged bytes without replacing an existing blob. The caller
+/// must flush and close the staging file before calling this function.
+pub(crate) fn publish(stage: &Path, published: &Path) -> Result<()> {
+    #[cfg(unix)]
+    {
+        let source = stage.parent().ok_or(Error::UnsafePath)?;
+        let destination = published.parent().ok_or(Error::UnsafePath)?;
+        check_components(source)?;
+        check_components(destination)?;
+        fs::hard_link(stage, published)?;
+        fs::remove_file(stage)?;
+        // Commit database references only after both directory changes persist.
+        sync_dir(destination)?;
+        sync_dir(source)?;
+        Ok(())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (stage, published);
+        // Do not substitute rename or ignore unsupported directory flushing.
+        Err(Error::UnsupportedPlatform)
+    }
+}
+
 pub(crate) fn sync_dir(path: &Path) -> Result<()> {
     check_components(path)?;
     File::open(path)?.sync_all()?;
     Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn publish_never_replaces_an_existing_blob() {
+        let temp = tempfile::TempDir::new().unwrap();
+        // macOS temporary paths can use the /var -> /private/var alias.
+        // Resolve this test-owned root, not paths supplied to the repository.
+        let root = temp.path().canonicalize().unwrap();
+        let staging = root.join("staging");
+        let blobs = root.join("blobs");
+        private_dir(&staging).unwrap();
+        private_dir(&blobs).unwrap();
+        let stage = staging.join("stage");
+        let published = blobs.join("blob");
+        let mut file = new_file(&stage).unwrap();
+        file.write_all(b"new bytes").unwrap();
+        file.sync_all().unwrap();
+        drop(file);
+        let mut file = new_file(&published).unwrap();
+        file.write_all(b"committed bytes").unwrap();
+        file.sync_all().unwrap();
+        drop(file);
+
+        assert!(publish(&stage, &published).is_err());
+        assert_eq!(fs::read(&published).unwrap(), b"committed bytes");
+        assert_eq!(fs::read(&stage).unwrap(), b"new bytes");
+        fs::remove_file(&published).unwrap();
+        publish(&stage, &published).unwrap();
+        assert_eq!(fs::read(&published).unwrap(), b"new bytes");
+        assert!(!stage.exists());
+    }
 }

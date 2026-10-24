@@ -2,7 +2,7 @@
 
 This workspace contains rewrite foundations and an isolated UI feasibility sample. It is not a replacement for the current Stow app. Do not use it with a production library.
 
-The [implementation plan](../docs/plans/2026-10-24_rust-cross-platform-desktop-plan.md) defines the complete delivery gates. macOS must continue to use the existing SwiftData store and iCloud container. Windows and Linux storage is local only.
+The [implementation plan](../docs/plans/2026-10-24_rust-cross-platform-desktop-plan.md) defines the complete delivery gates. macOS must continue to use the existing SwiftData store and iCloud container. Windows and Linux storage must be local only. Windows storage is currently disabled because its security and durability gate has not passed.
 
 ## Build and Check
 
@@ -37,8 +37,10 @@ Use isolated temporary libraries in tests. Do not pass the existing App Group di
 ## Boundaries
 
 - `crates/stow-core`: Portable data types, capture validation, lifecycle rules, and fingerprints.
-- `crates/stow-storage`: Local SQLite repository foundations, derived search, and attachment storage. It is not connected to the current app.
-- `spikes/iced-probe`: Disposable UI feasibility sample. Its state tests are not evidence of screen-reader support or native panel behavior.
+- `crates/stow-storage`: Local capture/replay/coalescing commands, lifecycle edits, full attachment/representation storage, transactional migrations, and filtered search. It is not connected to the current app.
+- `spikes/iced-probe`: Disposable UI feasibility sample. Production adoption is stopped because `iced` 0.14 lacks the required native accessibility integration. See [ADR 0006](../docs/decisions/0006-rust-desktop-feasibility-gates.md).
+- `fixtures/search.json`: Shared cases consumed by Rust and native Swift tests.
+- `licenses/Unicode-3.0.txt`: Required notice for the Unicode width mapping data.
 
 No Rust desktop host, macOS bridge, native clipboard adapter, replacement CLI, installer, or cutover is delivered by these foundations. The existing Swift app, Share Extensions, and CLI are unchanged.
 

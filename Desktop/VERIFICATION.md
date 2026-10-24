@@ -2,62 +2,84 @@
 
 ## Status
 
-The rewrite is incomplete. The workspace is an isolated foundation, not an installable Stow replacement. All completion criteria in the implementation plan remain subject to their original gates.
+The rewrite is incomplete. The workspace contains portable rules, local capture and metadata persistence, filtered search, and an isolated UI feasibility sample. It is not an installable Stow replacement. The existing Swift application, Share Extensions, CLI, and iCloud store are unchanged.
 
-The development host is Linux x86_64 under WSL2. It cannot build or sign the macOS host, open SwiftData, or run two-device CloudKit checks. No desktop UI tests have been run during implementation.
+Production UI adoption is stopped: `iced` 0.14 lacks the native accessibility integration required by Phase 0. [ADR 0006](../docs/decisions/0006-rust-desktop-feasibility-gates.md) records upstream evidence and the required framework decision. Tauri 2 remains an unapproved fallback, not a verified solution.
 
-## Existing Behavior Inventory
+Windows storage remains disabled. Its private ACL and durable publication protocol are not implemented. The [storage README](crates/stow-storage/README.md#windows-durability-blocker) records the Win32 API blocker. macOS local SQLite opening remains disabled to protect the canonical SwiftData store.
 
-Paths below are relative to the repository root. A mapped test is a source reference, not proof that the complete Swift behavior has been ported.
+No desktop UI test or desktop launch has occurred during implementation. The WSL2 development host cannot perform signed Apple integration or two-device CloudKit checks.
 
-| Behavior | Existing test source | Rust foundation or remaining work |
+## Behavior Inventory
+
+Paths below are relative to the repository root. A source mapping is not proof of complete behavioral compatibility.
+
+| Behavior | Existing Swift test source | Rust evidence and remaining limits |
 |---|---|---|
-| URL normalization and title derivation | `Packages/StowCore/Tests/StowCoreTests/CaptureDraftTests.swift` | Core capture fixtures; Foundation URL equivalence still needs native comparison |
-| Unicode and line-ending fingerprints | `Packages/StowCore/Tests/StowCoreTests/ClipboardContentFingerprintTests.swift` | Core tests use the existing stable plain-text hash and normalization cases |
-| Original format allowlist and byte limits | `Packages/StowCore/Tests/StowCoreTests/StowRepresentationTests.swift` | Core validation only; native selection and persistence remain |
-| Pin, archive, Trash, restore, purge | `Packages/StowCore/Tests/StowCoreTests/ItemLifecycleTests.swift` | Portable lifecycle tests |
-| Clipboard coalescing and field preservation | `Packages/StowCore/Tests/StowCoreTests/ClipboardIngestionTests.swift` | Command-level ingestion remains unimplemented |
-| Original-format and plain-text paste | `Packages/StowCore/Tests/StowCoreTests/OriginalClipboardFormatTests.swift` | Native clipboard adapters remain unimplemented |
-| Atomic share capture and replay | `Packages/StowCore/Tests/StowCoreTests/CaptureSpoolTests.swift` | Existing Swift path retained; Rust bridge remains unimplemented |
-| Attachment round trip and size bounds | `Packages/StowCore/Tests/StowCoreTests/AttachmentStoreTests.swift` | Isolated local storage tests; thumbnails and native import remain |
-| Search tokens, filters, NUL, Unicode | `Packages/StowCore/Tests/StowCoreTests/SearchServiceTests.swift` | Local repository search is a foundation, not search parity |
-| Search rollback and superseded results | `Tests/StowAppTests/SearchIndexRecoveryTests.swift` | Local index rebuild tests and probe state tests do not establish application parity |
-| Safe paste target and permission fallback | `Tests/StowAppTests/RetrievalPastePolicyTests.swift` | Native target adapters remain unimplemented |
-| Stale selection | `Tests/StowAppTests/QuickPanelInteractionPolicyTests.swift` | Probe state tests only; no actual quick panel |
-| CLI request identity, recovery, export | `Packages/StowCore/Tests/StowCoreTests/StowAutomationTests.swift` | Existing CLI retained; Rust transport remains unimplemented |
+| URL normalization and titles | `Packages/StowCore/Tests/StowCoreTests/CaptureDraftTests.swift` | Core fixtures; complete Foundation URL equivalence remains unverified |
+| Unicode and line-ending fingerprints | `Packages/StowCore/Tests/StowCoreTests/ClipboardContentFingerprintTests.swift` | Stable text vector and normalization tests; no existing macOS fingerprints imported |
+| Representation limits and ordering | `Packages/StowCore/Tests/StowCoreTests/StowRepresentationTests.swift` | Validation, byte/metadata round trips, stale-format removal, and corruption tests |
+| Lifecycle and purge | `Packages/StowCore/Tests/StowCoreTests/ItemLifecycleTests.swift` | Explicit-clock domain and repository command tests |
+| Clipboard coalescing | `Packages/StowCore/Tests/StowCoreTests/ClipboardIngestionTests.swift` | Local receipts, state/edit preservation, Trash exclusion, replay, and rollback tests |
+| Native capture and paste | `Packages/StowCore/Tests/StowCoreTests/OriginalClipboardFormatTests.swift` | Native adapters remain unimplemented |
+| Share capture and replay | `Packages/StowCore/Tests/StowCoreTests/CaptureSpoolTests.swift` | Swift path retained; Rust bridge remains unimplemented |
+| Attachments | `Packages/StowCore/Tests/StowCoreTests/AttachmentStoreTests.swift` | Full metadata/byte round trips, legacy byte retention, empty files, bounds, and recovery; thumbnail generation/native import remain |
+| Search and filters | `Packages/StowCore/Tests/StowCoreTests/SearchServiceTests.swift` | Prefix/metadata/Trash/date/order tests plus shared native fixtures described below |
+| Index recovery | `Tests/StowAppTests/SearchIndexRecoveryTests.swift` | Transaction rollback and rebuild tests; no application-level generation handling yet |
+| Safe direct paste | `Tests/StowAppTests/RetrievalPastePolicyTests.swift` | Target adapters remain unimplemented |
+| Stale selection | `Tests/StowAppTests/QuickPanelInteractionPolicyTests.swift` | Probe state tests only; no production quick panel |
+| CLI transport and export | `Packages/StowCore/Tests/StowCoreTests/StowAutomationTests.swift` | Existing CLI retained; Rust transport remains unimplemented |
 
-## Gate Evidence Required Outside This Host
+## Local Continuation Checks
 
-- Native GUI, signing, and distribution verification beyond the passing Rust headless CI matrix.
-- Framework accessibility, keyboard, IME, display scaling, reduced motion, and panel focus checks on all supported desktops.
-- Signed Rust-to-Swift bridge, existing-store access, App Group capture, and unchanged iOS interoperability.
-- Signed two-device iCloud create, edit, archive, restore, delete, attachment, offline, and unavailable-account checks.
-- Continued existing Swift CI coverage under the configured Xcode/Swift versions; the initial foundation commit passes this gate.
-- Native installers, upgrade, uninstall, backup, and rollback checks.
-- Current search latency and memory baseline for fixed 10,000-item and 100,000-item datasets. No numeric performance limit has been approved or claimed.
+Rust/Cargo 1.99.1 on Linux x86_64 under WSL2:
 
-These checks must not be replaced with passing mock tests. No production-data cutover is authorized by a successful foundation build.
+- `cargo fmt --all -- --check`: passed.
+- `cargo clippy --workspace --all-targets --locked -- -D warnings`: passed.
+- `cargo test --workspace --locked`: 60 tests passed, including 25 shared search cases in one fixture test. Repository tests also invoke child-process checks.
+- `cargo build --workspace --release --locked`: passed.
+- `cargo deny --locked check licenses`: passed.
+- `cargo audit` 0.22.2: successful, no known vulnerabilities; one unmaintained `ttf-parser` 0.25.1 warning, `RUSTSEC-2026-0192`. No advisory is ignored.
 
-## Local Results
+An independent review found a regression in the retained literal `search()` API: indexed content was width-folded but query text was not. Both now use the same transformation, with regression tests. Width conversion uses the Unicode 17.0 `<wide>` and `<narrow>` mappings, not unrestricted NFKC. The derived table and Unicode license are included. Tests check sorted/unique mappings, idempotence, Japanese voiced kana, Korean forms, and preservation of unrelated compatibility characters. A second review found that decomposed combining marks were split out of query tokens; token generation now retains Unicode marks, with shared composed/decomposed fixtures.
 
-The final local run uses Rust/Cargo 1.99.1. The following checks passed:
+The continuation also adds representation metadata validation before blob reads, detection of attachment/representation ID collisions before recovery cleanup, an indexed fingerprint lookup, and a directly constructed v2 schema test. Migration preserves legacy fingerprint strings; new local fingerprints use a separate namespace and do not coalesce with them.
 
-- `cargo fmt --all -- --check`.
-- `cargo clippy --workspace --all-targets --locked -- -D warnings`.
-- `cargo test --workspace --locked`: 10 domain tests, 18 local repository tests, and 5 probe state tests. The repository run also invokes a child-process writer-lock check.
-- `cargo build --workspace --release --locked`.
-- `cargo deny --locked check licenses`.
+## Shared Search Fixtures
 
-Independent reviews covered correctness, security, lifecycle, compatibility, regressions, and scope. Corrected findings include package license/publication inheritance, attachment rediscovery after restart, explicit committed-delete cleanup outcomes, and dangling-reference validation before cleanup. Regression tests cover all three storage findings. URL validation now rejects known incompatible raw spellings; complete Foundation URL parity remains unverified.
+`Desktop/fixtures/search.json` is consumed by:
 
-At implementation commit `fe56e73`, [Rust CI run 40074019133](https://github.com/narumiruna/stow/actions/runs/40074019133) passed native formatting, Clippy, headless tests, and release builds on Ubuntu 24.04, Windows 2025, and macOS 15 runners. The advisory/license job also passed. Linux ran 33 tests; Windows and macOS each ran 10 domain tests, 5 probe tests, and 1 storage-platform guard test. The Linux storage tests are intentionally not run on the two unsupported storage platforms.
+- `Packages/StowCore/Tests/StowCoreTests/PortableSearchFixtureTests.swift`, using the existing `SQLiteSearchIndex` actor and native Foundation transform.
+- `Desktop/crates/stow-storage/tests/shared_search.rs`, using the Rust local repository on Linux.
 
-[Existing Swift CI run 40074019198](https://github.com/narumiruna/stow/actions/runs/40074019198) passed the repository's complete non-interactive gate, including package/app/share tests, macOS/iOS builds, version/project checks, and entitlement/privacy-manifest checks. These results do not establish signed CloudKit access or UI behavior.
+The 25 cases cover token prefixes, metadata filters, source case handling, ASCII/Japanese/Korean width conversion, embedded NUL, Chinese text, lifecycle filters, inclusive dates, and stable creation ordering. Rust execution passes. The first native Swift run, [40076571267](https://github.com/narumiruna/stow/actions/runs/40076571267), found two incorrect Korean width-equivalence assumptions. Existing Foundation search keeps those jamo forms distinct. The Rust transform and fixture expectations were corrected to preserve that behavior; [Swift CI 40076721888](https://github.com/narumiruna/stow/actions/runs/40076721888) then passed all 134 package tests, including the shared fixture test, plus 87 app tests, 6 share tests, both builds, and repository static checks. Passing a finite fixture set will not establish complete ICU or URL normalization equivalence.
 
-`cargo audit` 0.22.2 exited successfully and reported no known vulnerabilities in the resolved lockfile. It reported one maintenance warning: `ttf-parser` 0.25.1, `RUSTSEC-2026-0192`, through the `iced` font stack. No advisory is ignored. Resolve or explicitly evaluate this dependency before adopting the framework for production.
+## Interruption and Corruption Evidence
 
-`cargo license` 0.7.0 examined the resolved dependency SPDX metadata. `cargo deny` 0.20.2 passed the explicit license policy in `deny.toml`. All first-party packages inherit the repository license and prohibit publication. This is not a complete distribution-notice or bundled-native-code license audit.
+- A child process exits without destructors after writing a partial attachment stage. Reopen removes that stage and preserves the existing item and committed attachment.
+- Tests construct persistent states before/after publication and between hard-link creation and staging unlink.
+- SQLite trigger failures test transaction rollback of capture, coalescing, edits, lifecycle batches, and indexes. They do not simulate an operating-system kill during COMMIT.
+- Tests reject missing/corrupt committed bytes, malformed representation metadata, unknown formats, duplicate format order/type, unsafe permissions, symlinks, dangling references, and duplicate blob IDs without removing committed data.
+- These tests do not prove device-specific power-loss behavior.
 
-The existing Swift CI script could not run locally. Its tracked, LF copy fails at `xcodebuild: command not found`. The working tree's pre-existing CRLF copy also fails Bash parsing; it was not rewritten. The existing macOS CI workflow is retained and must supply the native checks.
+## Native CI Evidence
 
-Interactive verification is not eligible while the full implementation is incomplete. No UI test or desktop launch was performed.
+The previous foundation at `fe56e73` passed [Rust CI 40074019133](https://github.com/narumiruna/stow/actions/runs/40074019133) on Ubuntu 24.04, Windows 2025, and macOS 15, plus [Swift CI 40074019198](https://github.com/narumiruna/stow/actions/runs/40074019198). The documentation-only successor also passed both workflows.
+
+The first Rust continuation runs found a macOS test-fixture path issue: the temporary root used the system `/var` symlink alias, which the repository correctly rejected. Only the test-owned temporary root is now canonicalized; production symlink rejection is unchanged.
+
+At implementation commit `5bd243f`, [Rust CI 40076950305](https://github.com/narumiruna/stow/actions/runs/40076950305) passed all three native OS jobs and the dependency audit/license job. [Swift CI 40076950351](https://github.com/narumiruna/stow/actions/runs/40076950351) passed the complete existing non-interactive gate and all shared search fixtures. No production code changed after this verification. Native Windows/macOS Rust tests verify portable rules and rejection of unsupported local storage without filesystem mutation. They do not run the Linux persistence suite or establish Windows persistence support.
+
+The existing Swift CI gate includes package/app/share tests, macOS/iOS builds, version/project checks, and entitlement/privacy-manifest checks. It cannot run locally because Xcode is unavailable. Its working-tree script also has pre-existing CRLF line endings; these unrelated changes are preserved.
+
+## Remaining Gates
+
+- Approve a framework decision that can meet native accessibility requirements; then verify keyboard, screen reader, IME, scaling, contrast, reduced motion, multiple monitors, and panel focus.
+- Establish a supported Windows persistence protocol and implement private ACL/reparse-point checks.
+- Implement production UI, platform adapters, local CLI transport, and Swift storage bridge.
+- Verify signed App Group, Share Extension, unchanged iOS interoperability, and two-device iCloud behavior.
+- Record search latency and memory baselines on fixed 10,000-item and 100,000-item datasets.
+- Complete native installers, upgrade, uninstall, backup, and rollback verification.
+- Complete all relevant non-interactive checks before the one final local UI batch through `Scripts/ui_tests.sh`.
+
+No completion criterion is waived. No production-data cutover is permitted by passing repository tests or CI builds.

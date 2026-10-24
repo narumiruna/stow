@@ -1,6 +1,6 @@
 # iced feasibility probe
 
-This is an isolated Phase 0 sample, **not a production app**. It does not complete Phase 0 or approve `iced` for Stow.
+This is an isolated Phase 0 sample, **not a production app**. Production adoption is stopped: `iced` 0.14 lacks the required native accessibility integration. See [ADR 0006](../../../docs/decisions/0006-rust-desktop-feasibility-gates.md). Passing builds do not resolve that blocker.
 
 ## Scope
 

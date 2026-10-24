@@ -2,16 +2,16 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
 use fs2::FileExt;
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use stow_core::Item;
 use uuid::Uuid;
 
 use crate::{Error, Result, paths};
 
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 // Only additive migrations exist. A destructive migration must add a durable
 // backup before it is included here.
-const MIGRATIONS: [&str; 2] = [
+const MIGRATIONS: [&str; 3] = [
     "CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, snapshot TEXT NOT NULL);
      CREATE TABLE attachments (
        id TEXT PRIMARY KEY NOT NULL,
@@ -20,6 +20,22 @@ const MIGRATIONS: [&str; 2] = [
        sha256 TEXT NOT NULL CHECK(length(sha256) = 64)
      );",
     "CREATE VIRTUAL TABLE item_search USING fts5(id UNINDEXED, content, tokenize='unicode61');",
+    "ALTER TABLE attachments ADD COLUMN metadata TEXT;
+     CREATE INDEX items_fingerprint ON items(json_extract(snapshot,'$.content_fingerprint'));
+     CREATE TABLE representations (
+       id TEXT PRIMARY KEY NOT NULL,
+       item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+       byte_count INTEGER NOT NULL CHECK(byte_count BETWEEN 1 AND 104857600),
+       sha256 TEXT NOT NULL CHECK(length(sha256)=64),
+       metadata TEXT NOT NULL
+     );
+     CREATE INDEX representations_item ON representations(item_id);
+     CREATE TABLE capture_receipts (
+       capture_id TEXT PRIMARY KEY NOT NULL,
+       item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE
+     );
+     INSERT OR IGNORE INTO capture_receipts(capture_id,item_id)
+       SELECT json_extract(snapshot,'$.capture_id'),id FROM items;",
 ];
 
 /// Result after the delete transaction commits.
@@ -63,7 +79,7 @@ impl LocalRepository {
             "library.sqlite3-shm",
         ] {
             match fs::symlink_metadata(root.join(name)) {
-                Ok(metadata) => paths::check_private(&metadata, false)?,
+                Ok(_) => paths::check_file(&root.join(name))?,
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
                 Err(error) => return Err(error.into()),
             }
@@ -111,12 +127,26 @@ impl LocalRepository {
     pub fn upsert(&mut self, item: &Item) -> Result<()> {
         let snapshot = serde_json::to_string(item)?;
         let transaction = self.connection.transaction()?;
+        let owner: Option<String> = transaction
+            .query_row(
+                "SELECT item_id FROM capture_receipts WHERE capture_id=?1",
+                [item.capture_id.to_string()],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if owner.is_some_and(|id| id != item.id.to_string()) {
+            return Err(Error::InvalidData);
+        }
         transaction.execute(
             "INSERT INTO items(id,snapshot) VALUES (?1,?2)
              ON CONFLICT(id) DO UPDATE SET snapshot=excluded.snapshot",
             params![item.id.to_string(), snapshot],
         )?;
-        index_item(&transaction, item)?;
+        transaction.execute(
+            "INSERT OR IGNORE INTO capture_receipts(capture_id,item_id) VALUES (?1,?2)",
+            params![item.capture_id.to_string(), item.id.to_string()],
+        )?;
+        crate::search::index_item(&transaction, item)?;
         transaction.commit()?;
         Ok(())
     }
@@ -158,7 +188,7 @@ impl LocalRepository {
     pub fn delete(&mut self, id: Uuid) -> Result<DeleteOutcome> {
         validate_foreign_keys(&self.connection)?;
         let transaction = self.connection.transaction()?;
-        transaction.execute("DELETE FROM item_search WHERE id=?1", [id.to_string()])?;
+        crate::search::remove_item(&transaction, id)?;
         let changed = transaction.execute("DELETE FROM items WHERE id=?1", [id.to_string()])?;
         transaction.commit()?;
         let cleanup_pending = self.recover_attachments().is_err();
@@ -171,10 +201,9 @@ impl LocalRepository {
     pub fn rebuild_index(&mut self) -> Result<()> {
         let items = self.list()?;
         let transaction = self.connection.transaction()?;
-        transaction.execute_batch("DROP TABLE IF EXISTS item_search;
-            CREATE VIRTUAL TABLE item_search USING fts5(id UNINDEXED, content, tokenize='unicode61');")?;
+        crate::search::reset_index(&transaction)?;
         for item in items {
-            index_item(&transaction, &item)?;
+            crate::search::index_item(&transaction, &item)?;
         }
         transaction.commit()?;
         Ok(())
@@ -186,7 +215,7 @@ impl LocalRepository {
         if query.trim().is_empty() || query.len() > 4096 || query.chars().any(char::is_control) {
             return Err(Error::InvalidQuery);
         }
-        let query = query.trim();
+        let query = crate::search::width_fold(query.trim());
         let literal = format!("\"{}\"", query.replace('"', "\"\""));
         let mut statement = self.connection.prepare(
             "SELECT items.id,items.snapshot FROM item_search
@@ -215,32 +244,10 @@ pub(crate) fn validate_foreign_keys(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn decode_item(id: Uuid, snapshot: &str) -> Result<Item> {
+pub(crate) fn decode_item(id: Uuid, snapshot: &str) -> Result<Item> {
     let item: Item = serde_json::from_str(snapshot)?;
     if item.id != id {
         return Err(Error::InvalidData);
     }
     Ok(item)
-}
-
-fn index_item(transaction: &Transaction<'_>, item: &Item) -> Result<()> {
-    let content = [
-        Some(item.title.as_str()),
-        item.text_content.as_deref(),
-        item.note.as_deref(),
-        item.url_string.as_deref(),
-        item.source_app.as_deref(),
-        item.source_domain.as_deref(),
-        item.file_name.as_deref(),
-    ]
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>()
-    .join("\n");
-    transaction.execute("DELETE FROM item_search WHERE id=?1", [item.id.to_string()])?;
-    transaction.execute(
-        "INSERT INTO item_search(id,content) VALUES (?1,?2)",
-        params![item.id.to_string(), content],
-    )?;
-    Ok(())
 }

@@ -297,8 +297,12 @@ fn failed_migration_rolls_back_schema_and_version() {
     let (_temp, root) = fixture();
     drop(LocalRepository::open(&root).unwrap());
     let db = Connection::open(root.join("library.sqlite3")).unwrap();
-    // Force migration 2 to fail because its table already exists.
-    db.pragma_update(None, "user_version", 1).unwrap();
+    // Reconstruct v1 with an unexpected index, so migration 2 fails.
+    db.execute_batch(
+        "DROP INDEX items_fingerprint; DROP TABLE capture_receipts; DROP TABLE representations;
+        ALTER TABLE attachments DROP COLUMN metadata; PRAGMA user_version=1",
+    )
+    .unwrap();
     drop(db);
     assert!(LocalRepository::open(&root).is_err());
     let db = Connection::open(root.join("library.sqlite3")).unwrap();
@@ -339,8 +343,12 @@ fn migration_from_version_one_and_repair_missing_index() {
     repository.upsert(&first).unwrap();
     drop(repository);
     let db = Connection::open(root.join("library.sqlite3")).unwrap();
-    db.execute_batch("DROP TABLE item_search; PRAGMA user_version=1")
-        .unwrap();
+    db.execute_batch(
+        "DROP INDEX items_fingerprint; DROP TABLE item_search; DROP TABLE capture_receipts;
+        DROP TABLE representations; ALTER TABLE attachments DROP COLUMN metadata;
+        PRAGMA user_version=1",
+    )
+    .unwrap();
     drop(db);
     let repository = LocalRepository::open(&root).unwrap();
     assert_eq!(repository.search("migration").unwrap(), vec![first.clone()]);
