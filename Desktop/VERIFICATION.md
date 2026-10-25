@@ -13,19 +13,21 @@ No desktop UI test or desktop launch has occurred during implementation. The WSL
 ## Tauri Continuation
 
 - Rust service tests cover one bounded worker, queue saturation, panic/disconnect, shutdown, restart, optimistic revisions, capture replay, failed saves, argument bounds, and private Linux parent creation.
-- Forty-five headless Bun/DOM tests cover frontend state and rendering. Coverage includes hostile content, dialogs, async races, replay conflicts, explicit new captures, native form validation, filters, close protection, and unavailable backends.
+- Sixty-two headless Bun/DOM tests cover frontend state and rendering. Coverage includes hostile content, dialogs, async races, replay conflicts, explicit new captures, native form validation, filters, close protection, and unavailable backends.
 - Tauri grants only declared commands and close-event subscription to the embedded main window. Rust checks its label and origin. Navigation after the frontend handshake, remote pages, and new windows are denied. The CSP forbids remote scripts and `unsafe-eval`.
 - List/detail metadata APIs do not read original attachment or representation blobs. Search applies the pin filter before its result limit. Integer second/nanosecond metadata keeps inclusive UTC day bounds from rounding into the next midnight.
 - Native window close and application quit route through the same Save/Discard/Cancel guard after listener registration. Forced termination and renderer failure do not persist drafts.
 - The preview uses a distinct application-data identity. Disabled macOS and Windows backends report unavailability without creating substitute canonical stores.
 
-Local formatting, Clippy excluding only `stow-desktop`, and 68 portable Rust tests pass. Full host checking stops at missing DBus/GTK/WebKit development libraries on this WSL host; administrative installation is unavailable. The native CI workflow installs these dependencies and must compile, test, and build the complete workspace. No desktop UI was launched.
+Local formatting, Clippy excluding only `stow-desktop`, and 72 portable Rust tests plus a benchmark-helper unit test pass. Full host checking stops at missing DBus/GTK/WebKit development libraries on this WSL host; administrative installation is unavailable. The native CI workflow installs these dependencies and must compile, test, and build the complete workspace. No desktop UI was launched.
 
 Bun 1.4.4 dependency audit reports no vulnerabilities in its nine development packages; the frontend has no production package dependencies. Rust license policy passes after adding Tauri's MPL-2.0 and Apache-2.0 WITH LLVM-exception requirements. Preserve their notice/source obligations during distribution.
 
 The Tauri dependency audit reports `proc-macro-error` 1.0.4 as unmaintained (`RUSTSEC-2024-0370`) and the Linux GTK dependency `glib` 0.18.5 as unsound in `VariantStrIter` (`RUSTSEC-2024-0429`). These are not ignored or described as warning-free. The application does not directly use that iterator API; framework reachability and an upstream update remain production security review items. Removing `iced` also removes its previous `ttf-parser` warning.
 
 At the initial Tauri implementation commit `74e34db`, [Rust desktop CI 40079486494](https://github.com/narumiruna/stow/actions/runs/40079486494) passed the complete host's formatting, Clippy, headless tests, and release builds on Ubuntu 24.04, Windows 2025, and macOS 15. The dependency audit/license job also passed. [Swift CI 40079486353](https://github.com/narumiruna/stow/actions/runs/40079486353) passed the existing complete non-interactive gate. These native builds validate compilation and generated command permissions, not desktop behavior. Subsequent frontend fixes hide unsupported link-body editing, retain changed create-only replay fields, and disable inapplicable URL validation. Final head checks must also pass.
+
+The partial Swift parity continuation adds the three-column shell, compact filter tokens, read/Edit transitions, grouped Settings, and test-only five-type fixtures. Index maintenance now aligns disposable FTS rowids with canonical item rowids, retaining schema version 3 and UUID tie ordering. Native Windows workspace tests and the complete host release build pass locally; Windows storage remains rejected. [PARITY.md](PARITY.md) records the 10k/100k measurements, the directory-flush probe, and every incomplete milestone. No native UI, signed Apple, or replacement-release gate is claimed as complete.
 
 Earlier repository-stage evidence follows.
 

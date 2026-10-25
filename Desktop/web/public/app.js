@@ -1,11 +1,11 @@
-import { editable, newDraft, sameDraft, searchQuery, errorMessage, createOnlyDifferences } from './model.js';
+import { editable, newDraft, sameDraft, searchQuery, errorMessage, createOnlyDifferences, collections, collectionFor, filterTokens, relativeDate } from './model.js';
 
 // All privileged operations pass through this injected command boundary.
 export function createApp(invoke, document) {
   const $ = (id) => document.getElementById(id);
   const state = {
     available: false, items: [], selected: null, detail: null, draft: null, base: null,
-    creating: false, saving: false, commandBusy: false, searchGeneration: 0,
+    creating: false, editing: false, saving: false, commandBusy: false, searchGeneration: 0,
     detailGeneration: 0, filters: null, pending: null, searchReady: false, createReplay: null,
   };
   const status = (text) => { $('status').textContent = text; };
@@ -36,7 +36,56 @@ export function createApp(invoke, document) {
     }
     $('filter-pin').checked = state.filters.pinned;
   }
+  let renderedFilterKey = '';
+  function syncFilters() {
+    const tokens = filterTokens(state.filters);
+    const key = JSON.stringify(tokens);
+    if (key !== renderedFilterKey) {
+      renderedFilterKey = key;
+      $('filter-tokens').replaceChildren(...tokens.map((token) => {
+        const button = element('button', `${token.label} ×`);
+        button.type = 'button'; button.dataset.filter = token.key;
+        button.title = token.label;
+        button.setAttribute('aria-label', `Remove ${token.label} filter`);
+        button.addEventListener('click', () => { clearFilters(token.clear).catch(fail); });
+        return button;
+      }));
+    }
+    $('filter-tokens').hidden = tokens.length === 0;
+    $('clear-filters').hidden = tokens.length === 0;
+    $('filter-menu').querySelector('summary').textContent = tokens.length ? `Filter (${tokens.length})` : 'Filter';
+    for (const button of [...$('filter-tokens').querySelectorAll('button'), $('clear-filters')]) {
+      button.disabled = !state.available || state.saving || state.commandBusy;
+    }
+  }
+  async function clearFilters(changes) {
+    const accepted = await guarded(async () => {
+      state.filters = { ...state.filters, ...changes };
+      restoreFilters(); clearError(); await search();
+      $('search-text').focus();
+    });
+    if (!accepted) restoreFilters();
+  }
+  function syncNavigation() {
+    const active = collectionFor(state.filters);
+    for (const name of Object.keys(collections)) {
+      $(`nav-${name}`).setAttribute('aria-current', active === name ? 'page' : 'false');
+      $(`nav-${name}`).disabled = !state.available;
+    }
+    $('nav-recent').disabled = true;
+    $('nav-recent').setAttribute('aria-disabled', 'true');
+    $('nav-recent').title = 'Recently Used is not available. Usage ordering is not supported by this backend.';
+    const filtered = state.filters.text || state.filters.type || state.filters.source.trim() || state.filters.from || state.filters.to;
+    const title = active ? collections[active].title : 'Library';
+    $('library-heading').textContent = title;
+    $('results-heading').textContent = `${title}${filtered ? ' — Search results' : ''}`;
+  }
   function syncButtons() {
+    syncNavigation(); syncFilters();
+    $('edit-button').hidden = !state.detail || state.creating || state.editing;
+    $('edit-button').disabled = !state.available || state.saving || state.commandBusy || !state.detail;
+    $('cancel-edit-button').disabled = state.saving || state.commandBusy;
+    $('save-button').textContent = state.creating ? 'Save' : 'Save Changes';
     const conflicts = createConflicts();
     $('create-conflict').hidden = conflicts.length === 0;
     $('create-conflict').textContent = conflicts.length ? createConflictMessage(conflicts) : '';
@@ -52,8 +101,8 @@ export function createApp(invoke, document) {
     $('add-button').disabled = !state.available || state.saving || state.commandBusy;
   }
   function renderEditor() {
-    $('editor').hidden = !state.draft;
-    if (!state.draft) return;
+    $('editor').hidden = !state.draft || (!state.creating && !state.editing);
+    if (!state.draft) { syncButtons(); return; }
     const d = state.draft;
     $('editor-heading').textContent = state.creating ? 'Quick Add' : 'Edit item';
     $('create-type-label').hidden = !state.creating;
@@ -75,11 +124,27 @@ export function createApp(invoke, document) {
     $('item-content').hidden = !state.detail || state.creating;
     if (state.detail && !state.creating) {
       const { item, attachments, representations_count } = state.detail;
+      $('item-content').dataset.type = item.item_type;
       $('detail-heading').textContent = item.title || 'Untitled item';
       $('detail-state').textContent = '';
       $('item-meta').textContent = `${item.item_type} · ${item.status}${item.is_pinned ? ' · Pinned' : ''} · Source: ${item.source_app || 'Not recorded'} · Created: ${item.created_at} · Updated: ${item.updated_at}`;
       // Captured HTML, URLs, and names are text only. No links or HTML rendering.
-      $('item-preview').textContent = [item.url_string, item.text_content, item.link_description, item.file_name].filter(Boolean).join('\n\n') || 'No text preview.';
+      const types = { link: 'Link', text: 'Text', code: 'Code', image: 'Image', file: 'File' };
+      const type = Object.hasOwn(types, item.item_type) ? item.item_type : 'text';
+      const preview = $('item-preview');
+      preview.className = `typed-preview preview-${type}`;
+      const part = (tag, text, className) => {
+        const node = element(tag, text); node.className = className; return node;
+      };
+      preview.replaceChildren(part('p', types[type], `preview-kind type-${type}`));
+      if (type === 'link' && item.url_string) preview.append(part('p', item.url_string, 'preview-url'));
+      if (item.text_content) preview.append(part(type === 'code' ? 'pre' : 'p', item.text_content, 'preview-body'));
+      if (item.link_description) preview.append(part('p', item.link_description, 'preview-description'));
+      if (item.file_name) preview.append(part('p', item.file_name, 'preview-file-name'));
+      if (type === 'code' && item.language) preview.append(part('p', item.language, 'preview-language'));
+      if (['image', 'file'].includes(type)) preview.append(part('p', `${types[type]} preview unavailable. Attachment metadata only.`, 'preview-unavailable'));
+      else if (!item.url_string && !item.text_content && !item.link_description) preview.append(part('p', 'No text preview.', 'preview-unavailable'));
+      if (item.note) preview.append(part('p', item.note, 'preview-note'));
       $('attachments').replaceChildren(...attachments.map((a) => element('li', `${a.file_name ?? 'File name unavailable'} · ${a.content_type ?? 'Content type unavailable'} · ${a.byte_count} bytes (content unavailable)`)));
       if (!attachments.length) $('attachments').append(element('li', 'No attachments.'));
       $('representation-info').textContent = `Preserved representations: ${representations_count}`;
@@ -98,14 +163,26 @@ export function createApp(invoke, document) {
     const visible = state.items;
     $('items').replaceChildren(...visible.map((item) => {
       const row = document.createElement('li');
-      const button = element('button', `${item.is_pinned ? 'Pinned · ' : ''}${item.title || 'Untitled item'}`);
+      row.className = 'item-row';
+      const button = document.createElement('button');
+      const types = { link: 'Link', text: 'Text', code: 'Code', image: 'Image', file: 'File' };
+      const type = Object.hasOwn(types, item.item_type) ? item.item_type : 'text';
+      const icon = element('span', types[type]);
+      icon.className = `type-icon type-${type}`;
+      const title = element('span', `${item.is_pinned ? 'Pinned · ' : ''}${item.title || 'Untitled item'}`);
+      title.className = 'item-title';
+      button.append(icon, title);
       button.type = 'button';
+      button.dataset.type = type;
       button.dataset.itemId = item.id;
       button.setAttribute('aria-current', String(item.id === state.selected));
-      button.append(element('small', `${item.item_type} · ${item.source_app || 'No source'} · ${item.status}`));
+      const meta = element('small', `${item.source_app || 'No source'} · ${item.status} · ${relativeDate(item.created_at)}`);
+      meta.title = item.created_at;
+      meta.className = 'item-meta';
+      button.append(meta);
       button.addEventListener('click', () => { guarded(() => select(item.id)).catch(fail); });
       button.addEventListener('keydown', (event) => {
-        if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        if (event.isComposing || event.keyCode === 229 || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
         event.preventDefault();
         const index = visible.findIndex((candidate) => candidate.id === item.id);
         const next = visible[Math.max(0, Math.min(visible.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)))];
@@ -119,7 +196,14 @@ export function createApp(invoke, document) {
       return row;
     }));
     if (focusedId) [...$('items').querySelectorAll('button')].find((button) => button.dataset.itemId === focusedId)?.focus();
-    $('results-state').textContent = visible.length ? `${visible.length} item${visible.length === 1 ? '' : 's'}${state.items.length === 200 ? ' (result limit reached; narrow your search)' : ''}.` : 'No matching items.';
+    // Local selection/editor changes must not turn search errors or loading into empty results.
+    if (!state.searchReady) return;
+    const filtered = state.filters.text || state.filters.type || state.filters.source.trim() || state.filters.from || state.filters.to;
+    const collection = collectionFor(state.filters);
+    $('results-state').textContent = visible.length ? `${visible.length} item${visible.length === 1 ? '' : 's'} shown${state.items.length === 200 ? ' (result limit reached; narrow your search)' : ''}.`
+      : filtered ? 'No matching items. Change the search or filters.'
+      : collection === 'inbox' ? 'Inbox is empty. Use Quick Add to save an item.'
+      : `No items in ${collection ? collections[collection].title : 'this collection'}.`;
   }
   async function search() {
     if (!state.available) return;
@@ -154,7 +238,7 @@ export function createApp(invoke, document) {
   async function select(id) {
     if (state.saving || state.commandBusy) return;
     const generation = ++state.detailGeneration;
-    state.selected = id; state.creating = false;
+    state.selected = id; state.creating = false; state.editing = false;
     state.detail = null; state.draft = null; state.base = null; state.createReplay = null;
     renderItems(); renderDetail();
     $('detail-state').textContent = 'Loading item…';
@@ -203,6 +287,7 @@ export function createApp(invoke, document) {
       state.base = editable(detail.item);
       const replayDiffers = creating && detail.capture_replayed && !sameDraft(remaining, state.base);
       state.draft = unchanged && !replayDiffers ? { ...state.base } : remaining;
+      state.editing = dirty();
       renderDetail();
       status(dirty() ? 'Saved locally. Newer edits are not saved.' : 'Saved locally.');
       await search();
@@ -210,7 +295,10 @@ export function createApp(invoke, document) {
     } catch (error) {
       fail(error); status('Save failed. Your draft is retained.');
       return false;
-    } finally { state.saving = false; syncButtons(); }
+    } finally {
+      state.saving = false; syncButtons();
+      if (!dirty() && !state.creating && !state.editing && !state.pending) $('edit-button').focus();
+    }
   }
   function discard() {
     if (state.creating && state.createReplay) {
@@ -256,7 +344,7 @@ export function createApp(invoke, document) {
   function showLibrary() { $('settings').hidden = true; $('library').hidden = false; }
   function quickAdd() {
     ++state.detailGeneration;
-    state.selected = null; state.detail = null; state.creating = true; state.createReplay = null;
+    state.selected = null; state.detail = null; state.creating = true; state.editing = true; state.createReplay = null;
     state.draft = newDraft(document.defaultView.crypto.randomUUID());
     state.base = { ...state.draft };
     showLibrary(); renderItems(); renderDetail(); clearError(); $('edit-title').focus();
@@ -280,10 +368,59 @@ export function createApp(invoke, document) {
     const accepted = await guarded(async () => { state.filters = next; clearError(); await search(); });
     if (!accepted) restoreFilters();
   });
+  for (const [name, collection] of Object.entries(collections)) {
+    on(`nav-${name}`, 'click', async () => {
+      if (!state.available) return;
+      const accepted = await guarded(async () => {
+        state.filters = { ...state.filters, status: collection.status, pinned: collection.pinned };
+        restoreFilters(); syncNavigation(); showLibrary(); clearError(); await search();
+      });
+      if (!accepted) restoreFilters();
+    });
+  }
+  on('edit-button', 'click', () => {
+    if (!state.detail || state.creating || state.saving || state.commandBusy || state.pending || !state.available) return;
+    state.editing = true; renderEditor(); $('edit-title').focus();
+  });
+  on('cancel-edit-button', 'click', () => guarded(() => {
+    state.editing = false;
+    if (state.creating) {
+      ++state.detailGeneration;
+      state.creating = false; state.selected = null; state.detail = null;
+      state.draft = null; state.base = null; state.createReplay = null;
+    }
+    renderItems(); renderDetail();
+    (state.detail ? $('edit-button') : $('add-button')).focus();
+  }));
+  on('clear-filters', 'click', () => clearFilters({ type: '', source: '', from: '', to: '' }));
   on('retry-search', 'click', () => guarded(search));
   on('add-button', 'click', () => guarded(quickAdd));
   on('library-button', 'click', () => guarded(() => { showLibrary(); $('search-text').focus(); }));
-  on('settings-button', 'click', () => guarded(() => { $('library').hidden = true; $('settings').hidden = false; $('rebuild-button').focus(); }));
+  // Keep pane navigation local; do not trigger the host's navigation policy.
+  for (const link of document.querySelectorAll('a[href^="#"]')) {
+    link.addEventListener('click', (event) => {
+      const target = $(link.getAttribute('href').slice(1));
+      if (!target) return;
+      event.preventDefault();
+      target.focus();
+      target.scrollIntoView({ block: 'nearest' });
+    });
+  }
+  let settingsPage = 'capture';
+  function showSettingsPage(name, focus = true) {
+    settingsPage = name;
+    for (const page of ['capture', 'paste', 'storage', 'privacy']) {
+      $(`settings-page-${page}`).hidden = page !== name;
+      $(`settings-${page}`).setAttribute('aria-current', page === name ? 'page' : 'false');
+    }
+    if (focus) {
+      const target = $(`settings-page-${name}`);
+      target.setAttribute('tabindex', '-1'); target.focus();
+    }
+  }
+  for (const page of ['capture', 'paste', 'storage', 'privacy']) on(`settings-${page}`, 'click', () => showSettingsPage(page));
+  showSettingsPage(settingsPage, false);
+  on('settings-button', 'click', () => guarded(() => { $('library').hidden = true; $('settings').hidden = false; showSettingsPage(settingsPage); }));
   on('editor', 'submit', (event) => { event.preventDefault(); return save(); });
   on('discard-button', 'click', () => guarded(() => {}));
   on('create-new-button', 'click', () => {
@@ -297,7 +434,7 @@ export function createApp(invoke, document) {
   });
   for (const [id, field] of Object.entries({ 'edit-title': 'title', 'edit-text': 'text_content', 'edit-note': 'note', 'edit-language': 'language', 'edit-url': 'url_string', 'edit-type': 'item_type', 'edit-pin': 'is_pinned', 'edit-archive': 'directly_archive' })) {
     on(id, 'input', () => {
-      if (!state.draft) return;
+      if (!state.draft || (!state.creating && !state.editing)) return;
       state.draft[field] = $(id).type === 'checkbox' ? $(id).checked : $(id).value;
       if (id === 'edit-type') renderEditor(); else syncButtons();
     });
@@ -308,7 +445,7 @@ export function createApp(invoke, document) {
   for (const choice of ['save', 'discard', 'cancel']) on(`dialog-${choice}`, 'click', () => resolveDialog(choice));
   on('unsaved-dialog', 'cancel', (event) => { event.preventDefault(); return resolveDialog('cancel'); });
   document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || $('unsaved-dialog').open) return;
+    if (event.isComposing || event.keyCode === 229 || event.key !== 'Escape' || $('unsaved-dialog').open) return;
     // Escape never deletes a draft or triggers a mutation.
     if ($('editor').contains(document.activeElement)) { event.preventDefault(); $('search-text').focus(); }
   });
@@ -336,6 +473,8 @@ export function createApp(invoke, document) {
       if (state.available) await search();
       else { $('results-state').textContent = 'Storage unavailable. Library actions are disabled.'; status('Storage unavailable.'); }
     } catch (error) {
+      $('results-state').textContent = 'Storage status unavailable. Library actions are disabled.';
+      status('Desktop backend unavailable.');
       $('platform-status').textContent = 'Desktop backend unavailable. Open this frontend in the Stow desktop host.';
       $('rebuild-button').disabled = true; fail(error);
     }
