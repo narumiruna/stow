@@ -40,19 +40,39 @@ final class AppModel {
     @ObservationIgnored private let loadRepresentationsOverride: ((UUID) throws -> [StowRepresentation])?
     @ObservationIgnored private let runtimePathsOverride: StowRuntimePaths?
     private var runtimePaths: StowRuntimePaths { runtimePathsOverride ?? .current }
+    private(set) var automaticLinkPreviewsEnabled: Bool
+    @ObservationIgnored private let linkMetadataEnricher: LinkMetadataEnricher
+    @ObservationIgnored private var linkPreviewTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var linkPreviewGeneration = 0
+
+    static var defaultAutomaticLinkPreviewsEnabled: Bool {
+        #if os(iOS)
+        false
+        #else
+        true
+        #endif
+    }
 
     init(
         searchDocuments: (() throws -> [SearchDocument])? = nil,
         searchCoordinator: SearchCoordinator? = nil,
         captureSpool: CaptureSpool? = nil,
         runtimePaths: StowRuntimePaths? = nil,
-        loadRepresentations: ((UUID) throws -> [StowRepresentation])? = nil
+        loadRepresentations: ((UUID) throws -> [StowRepresentation])? = nil,
+        automaticLinkPreviewsEnabled: Bool = AppModel.defaultAutomaticLinkPreviewsEnabled,
+        linkMetadataEnricher: LinkMetadataEnricher = LinkMetadataEnricher()
     ) {
         searchDocumentsOverride = searchDocuments
         self.searchCoordinator = searchCoordinator
         captureSpoolOverride = captureSpool
         runtimePathsOverride = runtimePaths
         loadRepresentationsOverride = loadRepresentations
+        self.automaticLinkPreviewsEnabled = automaticLinkPreviewsEnabled
+        self.linkMetadataEnricher = linkMetadataEnricher
+    }
+
+    deinit {
+        for task in linkPreviewTasks.values { task.cancel() }
     }
 
     func markLaunchReady() {
@@ -107,7 +127,7 @@ final class AppModel {
             presentedError = nil
             try? metrics?.record(.captureSucceeded)
             if case .created(let item) = outcome, item.type == .link {
-                Task { await LinkMetadataEnricher().enrich(item: item, repository: repository) }
+                scheduleLinkPreview(for: item)
             }
             return true
         } catch {
@@ -138,7 +158,7 @@ final class AppModel {
             try? metrics?.record(.captureSucceeded)
             try? metrics?.recordDuration(.captureDuration, seconds: started.duration(to: .now).secondsValue)
             if item.type == .link {
-                Task { await LinkMetadataEnricher().enrich(item: item, repository: repository) }
+                scheduleLinkPreview(for: item)
             }
             return item
         } catch {
@@ -307,6 +327,46 @@ final class AppModel {
         performUse(item, action: .preview, metric: metric) {}
     }
 
+    /// Commit the iOS switch synchronously, before queued network responses can resume.
+    func setAutomaticLinkPreviewsEnabled(_ enabled: Bool, preferences: IOSPreferences) {
+        setAutomaticLinkPreviewsEnabled(enabled)
+        preferences.automaticLinkPreviewsEnabled = enabled
+    }
+
+    func setAutomaticLinkPreviewsEnabled(_ enabled: Bool) {
+        guard automaticLinkPreviewsEnabled != enabled else { return }
+        automaticLinkPreviewsEnabled = enabled
+        linkPreviewGeneration += 1
+        if enabled {
+            scheduleMaintenanceLinkPreviews()
+        } else {
+            // Keep ownership until completion, including loaders that ignore cancellation.
+            for task in linkPreviewTasks.values { task.cancel() }
+        }
+    }
+
+    private func scheduleLinkPreview(for item: StowItem) {
+        guard automaticLinkPreviewsEnabled, item.type == .link,
+              item.linkDescription == nil, linkPreviewTasks[item.id] == nil,
+              let repository else { return }
+        let generation = linkPreviewGeneration
+        let itemID = item.id
+        let enricher = linkMetadataEnricher
+        linkPreviewTasks[itemID] = Task { [weak self] in
+            defer { self?.linkPreviewTasks[itemID] = nil }
+            await enricher.enrich(item: item, repository: repository) { [weak self] in
+                guard let self else { return false }
+                return self.automaticLinkPreviewsEnabled && self.linkPreviewGeneration == generation
+            }
+        }
+    }
+
+    private func scheduleMaintenanceLinkPreviews() {
+        guard automaticLinkPreviewsEnabled,
+              let links = try? repository?.allItems().filter({ $0.type == .link && $0.linkDescription == nil }) else { return }
+        for item in links.prefix(10) { scheduleLinkPreview(for: item) }
+    }
+
     func setMetricsEnabled(_ enabled: Bool) {
         metrics?.setEnabled(enabled)
     }
@@ -469,9 +529,7 @@ final class AppModel {
         do {
             while try repository.backfillContentFingerprints() > 0 {}
         } catch { presentedError = error.localizedDescription }
-        if let links = try? repository.allItems().filter({ $0.type == .link && $0.linkDescription == nil }) {
-            for item in links.prefix(10) { Task { await LinkMetadataEnricher().enrich(item: item, repository: repository) } }
-        }
+        scheduleMaintenanceLinkPreviews()
     }
 }
 

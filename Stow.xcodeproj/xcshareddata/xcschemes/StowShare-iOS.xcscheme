@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "4B51E86890624AE86FF65984"
+               BlueprintIdentifier = "3FC668A6993235FAC41BA43D"
                BuildableName = "StowShare-iOS.appex"
                BlueprintName = "StowShare-iOS"
                ReferencedContainer = "container:Stow.xcodeproj">

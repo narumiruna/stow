@@ -12,7 +12,11 @@ For ordinary clipboard changes, Stow preserves supported original formats, not e
 
 Stow does not include advertising, cross-app tracking, or third-party analytics. Optional product counters are aggregate, remain on device, and can be disabled in Settings.
 
-The app contacts a saved link's host to retrieve ordinary page title, description, and icon metadata. It does not send the rest of your library with that request. Opening, sharing, or exporting an item sends it only to the destination you choose through system services.
+On iPhone and iPad, automatic link previews are off by default, including upgrades without a stored choice. Enable them under Settings → Security & Privacy to let Stow fetch saved pages, descriptions, icons, and preview images. Existing links without metadata can also be fetched. Page hosts, redirect destinations, and referenced image/icon hosts can receive these requests. The requests do not send the rest of your library. Turning the option off cancels pending work and prevents new automatic requests on that device; it cannot recall requests already sent or remove existing metadata. Metadata can still sync from another device. macOS keeps its existing automatic link-preview behavior. Opening, sharing, or exporting an item remains an explicit action through system services.
+
+Optional iOS App Lock uses Apple's device-owner authentication, with Face ID or Touch ID where available and the system device passcode as fallback. Stow receives the authentication result, not biometric data or the device passcode. App Lock is off by default. Enabling it, disabling it, or extending its background grace period requires authentication. A new launch always starts locked when enabled. Inactive content is hidden even with App Lock off; existing editor drafts remain in memory through lock/unlock. The Share Extension can stage new incoming content while the host is locked, but cannot browse the library.
+
+App Lock is an app-access control, not additional database or end-to-end encryption. It does not stop private iCloud sync, protect a different device, or revoke content already shared. App Lock, preview fetching, launch-page, and appearance preferences are device-local and are not added to the synced library.
 
 Deleting an item moves it to Trash. Trashed items are permanently deleted after 30 days unless restored earlier. Private iCloud synchronization follows the iCloud account and retention behavior controlled by Apple.
 

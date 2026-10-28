@@ -9,7 +9,7 @@ Build Stow from source and verify changes locally. Run all commands from the rep
 - macOS with Xcode 26.6 (build 17F113) and Swift 6.3 for the local toolchain baseline.
 - `just` for the build and CLI installation recipes in `justfile`.
 - Ruby with the `xcodeproj` gem for project generation and generator checks.
-- Python 3 for the entitlement checks and iPhone simulator selection.
+- Python 3 for the entitlement checks, and `uv` for the iPhone simulator-selection command.
 - An installed iPhone simulator runtime for iOS UI tests.
 
 The deployment targets are iOS/iPadOS 17.0+ and macOS 14.0+.
@@ -91,7 +91,7 @@ Finish implementation and all relevant non-interactive checks before running UI 
 
 UI-test orchestration belongs only in `Scripts/ui_tests.sh`. CI scripts and workflows must not invoke UI-test schemes or this local script.
 
-The Mac suite requires macOS Developer Mode. Local UI automation can also require system authentication. The suite stops existing Stow and UI-test runner processes and operates the desktop UI. The iOS suite boots the newest available iPhone simulator.
+The Mac suite requires macOS Developer Mode. Local UI automation can also require system authentication. The suite stops existing Stow and UI-test runner processes and operates the desktop UI. The iOS suite boots the newest available iPhone simulator. It temporarily enables simulated biometric enrollment for App Lock tests and restores the previous enrollment state when the batch ends. The tests send simulated biometric matches from the XCTest runner; the app contains no test authentication bypass. Debug simulator tests use a separate preferences domain, with a per-test UUID for relaunch checks, and do not reset real device settings.
 
 Run the full local suite:
 

@@ -105,8 +105,12 @@ struct LinkMetadataEnricher {
         self.loadResponse = loadResponse
     }
 
-    func enrich(item: StowItem, repository: StowRepository) async {
-        guard item.type == .link,
+    func enrich(
+        item: StowItem,
+        repository: StowRepository,
+        isAllowed: @escaping @MainActor @Sendable () -> Bool = { true }
+    ) async {
+        guard !Task.isCancelled, isAllowed(), item.type == .link,
               let rawURL = item.urlString,
               let url = URL(string: rawURL),
               item.linkDescription == nil else { return }
@@ -119,13 +123,15 @@ struct LinkMetadataEnricher {
                 12,
                 .html
             )
+            guard !Task.isCancelled, isAllowed() else { return }
             guard let html = String(data: result.data, encoding: .utf8)
                     ?? String(data: result.data, encoding: .isoLatin1) else { return }
             let parsed = HTMLMetadataParser.parse(html, baseURL: result.response.url ?? url)
             async let favicon = fetchAsset(
-                parsed.faviconURL ?? URL(string: "/favicon.ico", relativeTo: url)?.absoluteURL
+                parsed.faviconURL ?? URL(string: "/favicon.ico", relativeTo: url)?.absoluteURL,
+                isAllowed: isAllowed
             )
-            async let preview = fetchAsset(parsed.previewImageURL)
+            async let preview = fetchAsset(parsed.previewImageURL, isAllowed: isAllowed)
             let metadata = await LinkMetadata(
                 title: parsed.title,
                 description: parsed.description,
@@ -133,14 +139,18 @@ struct LinkMetadataEnricher {
                 faviconData: favicon,
                 previewImageData: preview
             )
+            guard !Task.isCancelled, isAllowed() else { return }
             try repository.updateLinkMetadata(item.id, metadata: metadata)
         } catch {
             // Metadata is best effort; the URL remains saved and usable offline.
         }
     }
 
-    private func fetchAsset(_ url: URL?) async -> Data? {
-        guard let url else { return nil }
+    private func fetchAsset(
+        _ url: URL?,
+        isAllowed: @MainActor @Sendable () -> Bool
+    ) async -> Data? {
+        guard !Task.isCancelled, isAllowed(), let url else { return nil }
         do {
             let result = try await loadResponse(
                 URLRequest(url: url),
@@ -148,6 +158,7 @@ struct LinkMetadataEnricher {
                 12,
                 .image
             )
+            guard !Task.isCancelled, isAllowed() else { return nil }
             return result.data
         } catch {
             return nil

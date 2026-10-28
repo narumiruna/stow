@@ -8,11 +8,39 @@ Save content, retrieve it from the Mac quick panel, and manage your library.
 
 By default, the Stow Share Extension opens **Save to Stow**. You can edit the title, note, pin, code, or archive options before saving.
 
-Enable **Settings → Sharing → Save shared items immediately** to stage supported share-sheet content for Inbox and return to the source app without the confirmation form. If direct saving fails, Stow keeps the extension open with the confirmation form, error, and draft so you can retry.
+Enable **Settings → Saving & Sharing → Save shared items immediately** to stage supported share-sheet content for Inbox and return to the source app without the confirmation form. If direct saving fails, Stow keeps the extension open with the confirmation form, error, and draft so you can retry.
 
 Sharing saves one supported representation from the first shared item, not every attachment in a multi-item share. Attachments are limited to 100 MiB each.
 
 If a shared item has not appeared, open Stow once so it can import staged captures. See [Support](release/support.md#common-checks) for more checks.
+
+## iPhone and iPad settings
+
+Settings has four groups: **Security & Privacy**, **Saving & Sharing**, **Appearance & Browsing**, and **Sync & Data**.
+
+### App Lock
+
+**Security & Privacy → App Lock** is off by default. Enabling it requires system authentication. Use Face ID or Touch ID where available, or your device passcode. Stow does not store biometric data or provide a separate password.
+
+Choose **Immediately**, **1 minute**, or **5 minutes** under **Lock after backgrounding**. The default is Immediately. Returning before the interval expires restores the current session. A new launch always starts locked. Tap **Unlock Stow** to authenticate. Turning off App Lock or choosing a longer interval requires authentication again.
+
+The app hides its content when inactive, including editors and native previews. Locking does not discard an unsaved draft. Sharing from another app can still add incoming content while Stow is locked; the Share Extension cannot browse existing items.
+
+App Lock protects access to this iOS app. It does not add database encryption, stop private iCloud sync, or protect other devices. If authentication is interrupted, retry or use the system device-passcode fallback. Do not delete the app or its data to resolve an authentication failure.
+
+### Link previews
+
+**Security & Privacy → Automatic link previews** is off by default, including when upgrading without a previous choice. When enabled, Stow fetches saved pages and their icons and preview images. This can include existing links that have no preview. The page, redirect, and image hosts can receive network requests.
+
+Turning this off cancels pending preview work and prevents new automatic requests from this device. Requests already sent cannot be recalled. Existing metadata is kept, and previews can still arrive through iCloud from another device. Opening a link yourself is unchanged. The Mac continues its existing automatic preview behavior.
+
+### Browsing and appearance
+
+**Appearance & Browsing → Launch page** offers Inbox, Pinned, Recently Used, or Last Library Section. Inbox is the default. Last Library Section restores Inbox, Recent, Pinned, or Archive, but never Settings or Trash. Changing this setting does not move you away from the current page, and returning to an open app keeps its current navigation.
+
+**Appearance & Browsing → Appearance** offers System, Light, or Dark. System is the default. The choice applies to the app and lock screen. The separate Share Extension follows the system.
+
+These new settings stay on this device; they do not sync through iCloud. **Sync & Data** retains account/status guidance, attachment usage, and the fixed 30-day Trash policy. On-device metrics remain optional under **Security & Privacy**.
 
 ## Mac clipboard capture
 
