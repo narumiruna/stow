@@ -632,6 +632,8 @@ describe('headless application controller', () => {
       const app = await setup({ desktop_status: () => ({ storage_available: true, platform, message: 'Local', capabilities: { icloud: false } }) });
       expect(app.$('settings').textContent.includes('iCloud')).toBe(platform === 'macos');
       expect(app.$('capabilities').textContent.includes('iCloud')).toBe(platform === 'macos');
+      expect(app.$('settings').textContent).toContain('isolated local SwiftData storage');
+      expect(app.$('settings').textContent).not.toContain('bridge is not implemented');
     }
   });
   test('settings and lifecycle operations cannot silently discard edits', async () => {

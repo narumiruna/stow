@@ -4,8 +4,9 @@ use chrono::{DateTime, Utc};
 use rusqlite::{OptionalExtension, params};
 use sha2::{Digest, Sha256};
 use stow_core::{
-    Attachment, CaptureDraft, FingerprintRepresentation, Item, ItemType, Representation,
-    RepresentationDraft, RepresentationScope, clipboard_fingerprint, validate_representations,
+    Attachment, CaptureDraft, FingerprintRepresentation, Item, ItemCommand, ItemEdit, ItemType,
+    Representation, RepresentationDraft, RepresentationScope, clipboard_fingerprint,
+    validate_representations,
 };
 use uuid::Uuid;
 
@@ -42,25 +43,6 @@ pub enum CaptureKind {
 pub struct CaptureOutcome {
     pub item: Item,
     pub kind: CaptureKind,
-}
-
-/// Editable fields. Text bytes are preserved, not trimmed.
-#[derive(Clone, Debug)]
-pub struct ItemEdit {
-    pub title: String,
-    pub note: Option<String>,
-    pub text_content: Option<String>,
-    pub language: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum ItemCommand {
-    Archive,
-    RestoreFromArchive,
-    Trash,
-    RestoreFromTrash,
-    SetPinned(bool),
-    RecordSuccessfulUse,
 }
 
 fn fingerprint(

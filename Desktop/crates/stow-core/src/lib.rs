@@ -4,9 +4,11 @@
 mod capture;
 mod fingerprint;
 mod item;
+mod repository;
 mod representation;
 
 pub use capture::*;
 pub use fingerprint::*;
 pub use item::*;
+pub use repository::*;
 pub use representation::*;

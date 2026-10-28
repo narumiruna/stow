@@ -3,17 +3,17 @@
 
 mod blobs;
 mod capture;
+mod desktop;
 mod paths;
 mod repository;
 mod search;
 mod width;
 
 pub use blobs::{AttachmentInfo, MAX_ATTACHMENT_BYTES};
-pub use capture::{
-    AttachmentDescriptor, AttachmentDraft, CaptureKind, CaptureOutcome, ItemCommand, ItemEdit,
-};
+pub use capture::{AttachmentDescriptor, AttachmentDraft, CaptureKind, CaptureOutcome};
+pub use desktop::open_desktop;
 pub use repository::{DeleteOutcome, LocalRepository};
-pub use search::SearchQuery;
+pub use stow_core::{ItemCommand, ItemEdit, SearchQuery};
 
 pub type Result<T> = std::result::Result<T, Error>;
 

@@ -1,36 +1,46 @@
-//! UI-independent, single-writer desktop service. Call synchronous methods from
-//! a blocking task, never from the UI event loop.
+//! UI-independent, single-writer desktop service. Call synchronous methods,
+//! including shutdown, from a blocking task, never from the UI event loop.
 mod dto;
 pub use dto::*;
 
-use chrono::{DateTime, Utc};
 use std::{
-    path::PathBuf,
-    sync::{Arc, mpsc},
+    sync::{Arc, Condvar, Mutex, mpsc},
     thread::{self, JoinHandle},
 };
-use stow_core::{CaptureDraft, Item, ItemType};
-use stow_storage::{ItemCommand, ItemEdit, LocalRepository, SearchQuery};
+use stow_core::{
+    Repository, SERVICE_FIELD_LIMIT, SERVICE_TEXT_LIMIT, bounded_string as bounded,
+    optional_string as optional, revision_timestamp, service_error as error,
+};
 use uuid::Uuid;
 
 const QUEUE_CAPACITY: usize = 32;
-const TEXT_LIMIT: usize = 1024 * 1024;
-const FIELD_LIMIT: usize = 16 * 1024;
+const TEXT_LIMIT: usize = SERVICE_TEXT_LIMIT;
+const FIELD_LIMIT: usize = SERVICE_FIELD_LIMIT;
 type Job = Box<dyn FnOnce(&mut State) + Send>;
 struct State {
-    repository: std::result::Result<LocalRepository, ServiceError>,
+    repository: Result<Box<dyn Repository>>,
 }
-struct Worker {
+struct WorkerControl {
     sender: Option<mpsc::SyncSender<Job>>,
     join: Option<JoinHandle<()>>,
+    thread_id: Option<thread::ThreadId>,
+    joining: bool,
+    completion: Option<Result<()>>,
+}
+struct Worker {
+    control: Mutex<WorkerControl>,
+    completed: Condvar,
 }
 impl Drop for Worker {
     fn drop(&mut self) {
-        // Disconnect before joining. No shutdown message can block on a full queue.
-        self.sender.take();
-        if let Some(join) = self.join.take() {
-            let _ = join.join();
-        }
+        let control = self
+            .control
+            .get_mut()
+            .unwrap_or_else(|error| error.into_inner());
+        // Disconnect and detach only. A native backend may need the main actor
+        // to finish its accepted operations or destructor.
+        control.sender.take();
+        control.join.take();
     }
 }
 #[derive(Clone)]
@@ -38,15 +48,15 @@ pub struct DesktopService {
     worker: Arc<Worker>,
 }
 impl DesktopService {
-    /// The application selects the root once. Requests cannot change it.
-    /// Open failures remain available through `status` without a fallback store.
-    pub fn start(root: PathBuf) -> Self {
+    /// The host selects the backend once. The worker creates and owns it.
+    /// Open failures remain available through status without a fallback store.
+    pub fn start(factory: impl FnOnce() -> Result<Box<dyn Repository>> + Send + 'static) -> Self {
         let (sender, receiver) = mpsc::sync_channel::<Job>(QUEUE_CAPACITY);
         let join = thread::Builder::new()
             .name("stow-storage".into())
             .spawn(move || {
                 let mut state = State {
-                    repository: open_repository(root),
+                    repository: factory(),
                 };
                 while let Ok(job) = receiver.recv() {
                     job(&mut state);
@@ -55,20 +65,74 @@ impl DesktopService {
             .ok();
         Self {
             worker: Arc::new(Worker {
-                sender: join.as_ref().map(|_| sender),
-                join,
+                control: Mutex::new(WorkerControl {
+                    sender: join.as_ref().map(|_| sender),
+                    thread_id: join.as_ref().map(|join| join.thread().id()),
+                    join,
+                    joining: false,
+                    completion: None,
+                }),
+                completed: Condvar::new(),
             }),
         }
     }
-    fn request<T: Send + 'static>(
-        &self,
-        operation: impl FnOnce(&mut State) -> Result<T> + Send + 'static,
-    ) -> Result<T> {
-        let (sender, receiver) = mpsc::channel();
-        let job: Job = Box::new(move |state| {
-            let _ = sender.send(operation(state));
-        });
+
+    /// Stop admissions across all clones, drain accepted work, and join.
+    /// Call from a background thread other than this service's worker while
+    /// the native event loop runs. Self-join requests are rejected.
+    /// Concurrent callers all wait for the same completion, including panics.
+    pub fn shutdown(&self) -> Result<()> {
+        let mut control = self
+            .worker
+            .control
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if control.thread_id == Some(thread::current().id()) {
+            return Err(error(
+                "invalid_argument",
+                "The storage worker cannot join itself.",
+            ));
+        }
+        control.sender.take();
+        loop {
+            if let Some(result) = &control.completion {
+                return result.clone();
+            }
+            if !control.joining {
+                control.joining = true;
+                break;
+            }
+            control = self
+                .worker
+                .completed
+                .wait(control)
+                .unwrap_or_else(|error| error.into_inner());
+        }
+        let join = control.join.take();
+        drop(control);
+        let result = match join {
+            Some(join) => join
+                .join()
+                .map_err(|_| error("disconnected", "The storage worker panicked.")),
+            None => Err(disconnected()),
+        };
+        let mut control = self
+            .worker
+            .control
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        control.completion = Some(result.clone());
+        self.worker.completed.notify_all();
+        result
+    }
+
+    fn enqueue(&self, job: Job) -> Result<()> {
+        // Hold this lock through try_send. Shutdown cannot race an admission
+        // through a temporary sender clone.
         self.worker
+            .control
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
             .sender
             .as_ref()
             .ok_or_else(disconnected)?
@@ -76,11 +140,22 @@ impl DesktopService {
             .map_err(|failure| match failure {
                 mpsc::TrySendError::Full(_) => error("busy", "The storage request queue is full."),
                 mpsc::TrySendError::Disconnected(_) => disconnected(),
-            })?;
-        // No ambiguous mutation timeout: a request completes or the worker drops
-        // its response sender on panic/disconnect. Response delivery never blocks.
+            })
+    }
+
+    fn request<T: Send + 'static>(
+        &self,
+        operation: impl FnOnce(&mut State) -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        let (sender, receiver) = mpsc::channel();
+        self.enqueue(Box::new(move |state| {
+            let _ = sender.send(operation(state));
+        }))?;
+        // No ambiguous mutation timeout: complete, or drop the response sender
+        // on panic/disconnect. Response delivery never blocks the worker.
         receiver.recv().map_err(|_| disconnected())?
     }
+
     pub fn status(&self) -> Result<ServiceStatus> {
         self.request(|state| {
             let available = state.repository.is_ok();
@@ -98,245 +173,58 @@ impl DesktopService {
             })
         })
     }
-    pub fn search(&self, request: SearchRequest) -> Result<Vec<ItemSummary>> {
+    pub fn search(&self, mut request: SearchRequest) -> Result<Vec<ItemSummary>> {
         bounded(&request.text, 4096)?;
         optional(&request.source_app, FIELD_LIMIT)?;
-        self.request(move |state| {
-            let query = SearchQuery {
-                text: request.text,
-                item_type: request.item_type,
-                source_app: request.source_app,
-                added_after: request.added_after,
-                added_before: request.added_before,
-                status: request.status,
-                include_trashed: request.include_trashed,
-                pinned_only: request.pinned_only,
-                limit: request.limit.unwrap_or(200).clamp(1, 500),
-            };
-            Ok(repository(state)?
-                .search_items(&query)
-                .map_err(storage_error)?
-                .into_iter()
-                .map(ItemSummary::from)
-                .collect())
-        })
+        request.limit = Some(request.limit.unwrap_or(200).clamp(1, 500));
+        self.request(move |state| repository(state)?.search(request))
     }
     pub fn get(&self, id: Uuid) -> Result<ItemDetail> {
-        self.request(move |state| detail(repository(state)?, id))
+        self.request(move |state| repository(state)?.get(id))
     }
     pub fn create(&self, request: CreateRequest) -> Result<ItemDetail> {
-        if !matches!(
-            request.item_type,
-            ItemType::Text | ItemType::Code | ItemType::Link
-        ) {
-            return Err(error(
-                "unsupported",
-                "Only text, code, and link capture is supported.",
-            ));
-        }
+        // Reject unsupported types and invalid portable content before dispatch.
+        // Backends retain their own normalization and atomic replay handling.
+        request.validate_type()?;
         bounded(&request.title, FIELD_LIMIT)?;
         optional(&request.text_content, TEXT_LIMIT)?;
-        optional(&request.url_string, 16 * 1024)?;
+        optional(&request.url_string, FIELD_LIMIT)?;
         optional(&request.note, TEXT_LIMIT)?;
         optional(&request.source_app, FIELD_LIMIT)?;
         optional(&request.language, FIELD_LIMIT)?;
-        self.request(move |state| {
-            let repo = repository(state)?;
-            let mut draft = CaptureDraft::new(request.item_type, request.title);
-            draft.id = request.capture_id;
-            draft.text_content = request.text_content;
-            draft.url_string = request.url_string;
-            draft.note = request.note;
-            draft.source_app = request.source_app;
-            draft.language = request.language;
-            draft.is_pinned = request.is_pinned;
-            draft.directly_archive = request.directly_archive;
-            let outcome = repo
-                .create(&draft, None, &[], Utc::now())
-                .map_err(storage_error)?;
-            let mut response = detail(repo, outcome.item.id)?;
-            response.capture_replayed = outcome.kind == stow_storage::CaptureKind::Replayed;
-            Ok(response)
-        })
+        request.normalized_draft()?;
+        self.request(move |state| repository(state)?.create(request))
     }
-    pub fn update(&self, request: UpdateRequest) -> Result<ItemDetail> {
+    pub fn update(&self, mut request: UpdateRequest) -> Result<ItemDetail> {
         bounded(&request.edit.title, FIELD_LIMIT)?;
         optional(&request.edit.text_content, TEXT_LIMIT)?;
         optional(&request.edit.note, TEXT_LIMIT)?;
         optional(&request.edit.language, FIELD_LIMIT)?;
-        let expected = timestamp(&request.expected_updated_at)?;
-        self.request(move |state| {
-            let repo = repository(state)?;
-            let item = checked_item(repo, request.id, expected)?;
-            let edit = ItemEdit {
-                title: request.edit.title,
-                note: request.edit.note,
-                text_content: request.edit.text_content,
-                language: request.edit.language,
-            };
-            repo.update(request.id, &edit, next_time(&item)?)
-                .map_err(storage_error)?;
-            detail(repo, request.id)
-        })
+        request.expected_updated_at = canonical_revision(&request.expected_updated_at)?;
+        self.request(move |state| repository(state)?.update(request))
     }
-    pub fn apply(&self, request: ApplyRequest) -> Result<ItemDetail> {
-        let expected = timestamp(&request.expected_updated_at)?;
-        self.request(move |state| {
-            let repo = repository(state)?;
-            let item = checked_item(repo, request.id, expected)?;
-            let command = match request.command {
-                LifecycleAction::Archive => ItemCommand::Archive,
-                LifecycleAction::RestoreArchive => ItemCommand::RestoreFromArchive,
-                LifecycleAction::Trash => ItemCommand::Trash,
-                LifecycleAction::RestoreTrash => ItemCommand::RestoreFromTrash,
-                LifecycleAction::Pin => ItemCommand::SetPinned(true),
-                LifecycleAction::Unpin => ItemCommand::SetPinned(false),
-            };
-            repo.apply(&[request.id], command, next_time(&item)?)
-                .map_err(storage_error)?;
-            detail(repo, request.id)
-        })
+    pub fn apply(&self, mut request: ApplyRequest) -> Result<ItemDetail> {
+        request.expected_updated_at = canonical_revision(&request.expected_updated_at)?;
+        self.request(move |state| repository(state)?.apply(request))
     }
     pub fn rebuild(&self) -> Result<()> {
-        self.request(|state| repository(state)?.rebuild_index().map_err(storage_error))
+        self.request(|state| repository(state)?.rebuild())
     }
 }
-fn open_repository(root: PathBuf) -> Result<LocalRepository> {
-    // Never create paths on platforms whose canonical store is disabled.
-    #[cfg(target_os = "linux")]
-    prepare_parents(&root).map_err(storage_error)?;
-    LocalRepository::open(root).map_err(storage_error)
-}
-
-#[cfg(target_os = "linux")]
-fn prepare_parents(root: &std::path::Path) -> stow_storage::Result<()> {
-    use std::{fs, os::unix::fs::DirBuilderExt, path::Component};
-    if !root.is_absolute()
-        || root
-            .components()
-            .any(|part| matches!(part, Component::ParentDir | Component::CurDir))
-    {
-        return Err(stow_storage::Error::UnsafePath);
-    }
-    let parent = root.parent().ok_or(stow_storage::Error::UnsafePath)?;
-    let mut current = PathBuf::new();
-    for component in parent.components() {
-        current.push(component);
-        match fs::symlink_metadata(&current) {
-            Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => (),
-            Ok(_) => return Err(stow_storage::Error::UnsafePath),
-            Err(failure) if failure.kind() == std::io::ErrorKind::NotFound => {
-                fs::DirBuilder::new().mode(0o700).create(&current)?;
-                fs::File::open(&current)?.sync_all()?;
-                fs::File::open(current.parent().ok_or(stow_storage::Error::UnsafePath)?)?
-                    .sync_all()?;
-            }
-            Err(failure) => return Err(failure.into()),
-        }
-    }
-    Ok(())
-}
-
-fn error(code: &str, message: &str) -> ServiceError {
-    ServiceError {
-        code: code.into(),
-        message: message.into(),
-        retryable: matches!(code, "busy" | "storage"),
-    }
+fn canonical_revision(value: &str) -> Result<String> {
+    Ok(revision_timestamp(value)?.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true))
 }
 fn disconnected() -> ServiceError {
     error("disconnected", "The storage worker is unavailable.")
 }
-fn storage_error(value: stow_storage::Error) -> ServiceError {
-    let code = match value {
-        stow_storage::Error::UnsupportedPlatform | stow_storage::Error::Locked => "unavailable",
-        stow_storage::Error::ItemNotFound => "not_found",
-        stow_storage::Error::InvalidCapture | stow_storage::Error::InvalidQuery => {
-            "invalid_argument"
-        }
-        _ => "storage",
-    };
-    error(code, &value.to_string())
-}
-fn repository(state: &mut State) -> Result<&mut LocalRepository> {
-    state.repository.as_mut().map_err(|error| error.clone())
-}
-fn bounded(value: &str, maximum: usize) -> Result<()> {
-    if value.len() > maximum {
-        Err(error(
-            "invalid_argument",
-            "A string exceeds its byte limit.",
-        ))
-    } else {
-        Ok(())
+fn repository(state: &mut State) -> Result<&mut (dyn Repository + 'static)> {
+    match &mut state.repository {
+        Ok(repository) => Ok(repository.as_mut()),
+        Err(error) => Err(error.clone()),
     }
-}
-fn optional(value: &Option<String>, maximum: usize) -> Result<()> {
-    if let Some(value) = value {
-        bounded(value, maximum)?;
-    }
-    Ok(())
-}
-fn timestamp(value: &str) -> Result<DateTime<Utc>> {
-    bounded(value, 64)?;
-    DateTime::parse_from_rfc3339(value)
-        .map(|date| date.with_timezone(&Utc))
-        .map_err(|_| {
-            error(
-                "invalid_argument",
-                "expected_updated_at must be an RFC3339 timestamp.",
-            )
-        })
-}
-fn checked_item(repo: &LocalRepository, id: Uuid, expected: DateTime<Utc>) -> Result<Item> {
-    let item = repo
-        .get(id)
-        .map_err(storage_error)?
-        .ok_or_else(|| error("not_found", "Item not found."))?;
-    if item.updated_at != expected {
-        return Err(error(
-            "conflict",
-            "The item changed. Reload it before saving.",
-        ));
-    }
-    Ok(item)
-}
-fn next_time(item: &Item) -> Result<DateTime<Utc>> {
-    let now = Utc::now();
-    if now > item.updated_at {
-        Ok(now)
-    } else {
-        item.updated_at
-            .checked_add_signed(chrono::TimeDelta::nanoseconds(1))
-            .ok_or_else(|| error("storage", "The item timestamp cannot advance."))
-    }
-}
-fn detail(repo: &LocalRepository, id: Uuid) -> Result<ItemDetail> {
-    let mut item = repo
-        .get(id)
-        .map_err(storage_error)?
-        .ok_or_else(|| error("not_found", "Item not found."))?;
-    optional(&item.text_content, TEXT_LIMIT)?;
-    item.favicon_data = None;
-    item.link_preview_image_data = None;
-    let attachments = repo
-        .attachment_descriptors(id)
-        .map_err(storage_error)?
-        .into_iter()
-        .map(|a| AttachmentMetadata {
-            id: a.id,
-            file_name: a.file_name,
-            content_type: a.content_type,
-            byte_count: a.byte_count,
-        })
-        .collect();
-    Ok(ItemDetail {
-        capture_replayed: false,
-        item,
-        attachments,
-        representations_count: repo.representation_count(id).map_err(storage_error)?,
-    })
 }
 
+#[cfg(test)]
+mod memory_tests;
 #[cfg(test)]
 mod tests;

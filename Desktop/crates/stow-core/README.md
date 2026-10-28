@@ -18,10 +18,15 @@ Portable domain foundation for the desktop rewrite. This crate does not access a
 - `validate_representations` applies the Swift auxiliary or captured allowlist, per-format byte limits, the 110 MiB total limit, and distinct nonnegative ordinals. It does not sort. Native format mapping belongs to platform code.
 - `clipboard_fingerprint` and `item_fingerprint` use the Swift v1 length-prefixed SHA-256 stream. Text uses NFC and LF line endings. Auxiliary representation order remains significant.
 - `sort_by_activity` uses descending capture/use/creation activity and ascending UUID for ties.
+- `Repository` defines the shared desktop search, get, create, update, lifecycle, and rebuild operations. Each method uses a mutable backend owner. Revision comparison and mutation must be one owner operation. The service factory creates the backend on its worker, so the trait does not require `Send`.
+- Service DTOs, `ServiceError`, and `ServiceResult` define the portable result contract. `SearchQuery`, `ItemEdit`, and `ItemCommand` are also portable; `stow-storage` retains public reexports.
+- `CreateRequest::normalized_draft` validates the explicit text/code/link slice, including nonempty text and the existing ASCII URL restriction. Service request byte limits remain enforced before dispatch.
 
 DTO serialization uses lowercase enum strings, snake_case fields, RFC 3339 UTC timestamps, JSON byte arrays, and explicit null values. This is not the Swift Codable format or an approved bridge wire protocol.
 
 ## Verification limits
+
+`tests/backend_fixture.rs` consumes version 1 of `Desktop/fixtures/backend.json`. It checks complete scalar/null snapshots, declared Rust normalization results, exact nanosecond revisions, error fields, and lifecycle actions. Explicit-create replay is checked by the service backend tests, not claimed from this fixture.
 
 `tests/domain.rs` ports fixtures from Swift `CaptureDraftTests`, `ItemLifecycleTests`, `StowRepresentationTests`, and `ClipboardContentFingerprintTests`, including the fixed text hash. Tests execute in Rust only. They do not establish cross-language runtime compatibility.
 
