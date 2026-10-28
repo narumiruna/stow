@@ -2989,9 +2989,15 @@ dependencies = [
 name = "stow-desktop"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "stow-core",
  "stow-desktop-service",
+ "stow-storage",
  "tauri",
  "tauri-build",
+ "tempfile",
  "uuid",
 ]
 

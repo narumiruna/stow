@@ -1,0 +1,330 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "capture_id": "10000000-0000-4000-8000-000000000001",
+      "item_type": "text",
+      "title": "Fixture text",
+      "text_content": "  Café é\n日本語  ",
+      "url_string": null,
+      "file_name": null,
+      "source_app": "Example",
+      "source_domain": null,
+      "note": null,
+      "language": null,
+      "link_description": null,
+      "favicon_data": null,
+      "link_preview_image_data": null,
+      "created_at": "2026-01-01T00:00:00.125000000Z",
+      "updated_at": "2026-01-01T00:00:00.125000000Z",
+      "last_used_at": "2026-01-01T00:00:00.125000000Z",
+      "last_captured_at": "2026-01-01T00:00:00.125000000Z",
+      "use_count": 2,
+      "content_fingerprint": "v1:retained-native-fixture",
+      "status": "trashed",
+      "is_pinned": true,
+      "trashed_at": "2026-01-01T00:00:00.125000000Z",
+      "status_before_trash": "archived"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "capture_id": "10000000-0000-4000-8000-000000000002",
+      "item_type": "code",
+      "title": "Fixture code",
+      "text_content": "  Café é\n日本語  ",
+      "url_string": null,
+      "file_name": null,
+      "source_app": "Example",
+      "source_domain": null,
+      "note": null,
+      "language": "rust",
+      "link_description": null,
+      "favicon_data": null,
+      "link_preview_image_data": null,
+      "created_at": "2026-01-01T00:00:00.125000000Z",
+      "updated_at": "2026-01-01T00:00:00.125000000Z",
+      "last_used_at": "2026-01-01T00:00:00.125000000Z",
+      "last_captured_at": "2026-01-01T00:00:00.125000000Z",
+      "use_count": 2,
+      "content_fingerprint": "v1:retained-native-fixture",
+      "status": "trashed",
+      "is_pinned": true,
+      "trashed_at": "2026-01-01T00:00:00.125000000Z",
+      "status_before_trash": "archived"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "capture_id": "10000000-0000-4000-8000-000000000003",
+      "item_type": "link",
+      "title": "Fixture link",
+      "text_content": null,
+      "url_string": "https://example.com/path",
+      "file_name": null,
+      "source_app": "Example",
+      "source_domain": "example.com",
+      "note": null,
+      "language": null,
+      "link_description": "Description",
+      "favicon_data": null,
+      "link_preview_image_data": null,
+      "created_at": "2026-01-01T00:00:00.125000000Z",
+      "updated_at": "2026-01-01T00:00:00.125000000Z",
+      "last_used_at": "2026-01-01T00:00:00.125000000Z",
+      "last_captured_at": "2026-01-01T00:00:00.125000000Z",
+      "use_count": 2,
+      "content_fingerprint": "v1:retained-native-fixture",
+      "status": "trashed",
+      "is_pinned": true,
+      "trashed_at": "2026-01-01T00:00:00.125000000Z",
+      "status_before_trash": "archived"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "capture_id": "10000000-0000-4000-8000-000000000004",
+      "item_type": "image",
+      "title": "Fixture image",
+      "text_content": null,
+      "url_string": null,
+      "file_name": "fixture.png",
+      "source_app": "Example",
+      "source_domain": null,
+      "note": null,
+      "language": null,
+      "link_description": null,
+      "favicon_data": null,
+      "link_preview_image_data": null,
+      "created_at": "2026-01-01T00:00:00.125000000Z",
+      "updated_at": "2026-01-01T00:00:00.125000000Z",
+      "last_used_at": "2026-01-01T00:00:00.125000000Z",
+      "last_captured_at": "2026-01-01T00:00:00.125000000Z",
+      "use_count": 2,
+      "content_fingerprint": "v1:retained-native-fixture",
+      "status": "trashed",
+      "is_pinned": true,
+      "trashed_at": "2026-01-01T00:00:00.125000000Z",
+      "status_before_trash": "archived"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "capture_id": "10000000-0000-4000-8000-000000000005",
+      "item_type": "file",
+      "title": "Fixture file",
+      "text_content": null,
+      "url_string": null,
+      "file_name": "fixture.bin",
+      "source_app": "Example",
+      "source_domain": null,
+      "note": null,
+      "language": null,
+      "link_description": null,
+      "favicon_data": null,
+      "link_preview_image_data": null,
+      "created_at": "2026-01-01T00:00:00.125000000Z",
+      "updated_at": "2026-01-01T00:00:00.125000000Z",
+      "last_used_at": "2026-01-01T00:00:00.125000000Z",
+      "last_captured_at": "2026-01-01T00:00:00.125000000Z",
+      "use_count": 2,
+      "content_fingerprint": "v1:retained-native-fixture",
+      "status": "trashed",
+      "is_pinned": true,
+      "trashed_at": "2026-01-01T00:00:00.125000000Z",
+      "status_before_trash": "archived"
+    }
+  ],
+  "normalization": [
+    {
+      "name": "text-whitespace-and-unicode",
+      "draft": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "item_type": "text",
+        "title": "",
+        "text_content": " \n  Café é　日本語\n ",
+        "url_string": null,
+        "staged_attachment_name": null,
+        "attachment_byte_count": null,
+        "content_type": null,
+        "file_name": null,
+        "source_app": " Example ",
+        "source_domain": null,
+        "note": "  ",
+        "language": " RuSt ",
+        "is_pinned": false,
+        "directly_archive": false
+      },
+      "rust_ok": true,
+      "swift_ok": true,
+      "expected": {
+        "title": "Café é　日本語",
+        "text_content": " \n  Café é　日本語\n ",
+        "note": null,
+        "language": "rust",
+        "source_app": "Example",
+        "source_domain": null,
+        "url_string": null
+      }
+    },
+    {
+      "name": "code-title-and-language",
+      "draft": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "item_type": "code",
+        "title": "",
+        "text_content": "  let x = 1\n\n",
+        "url_string": null,
+        "staged_attachment_name": null,
+        "attachment_byte_count": null,
+        "content_type": null,
+        "file_name": null,
+        "source_app": " Example ",
+        "source_domain": null,
+        "note": "  ",
+        "language": " SWIFT ",
+        "is_pinned": false,
+        "directly_archive": false
+      },
+      "rust_ok": true,
+      "swift_ok": true,
+      "expected": {
+        "title": "let x = 1",
+        "text_content": "  let x = 1\n\n",
+        "note": null,
+        "language": "swift",
+        "source_app": "Example",
+        "source_domain": null,
+        "url_string": null
+      }
+    },
+    {
+      "name": "ascii-link",
+      "draft": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "item_type": "link",
+        "title": "",
+        "text_content": null,
+        "url_string": " https://example.com/path?q=1 ",
+        "staged_attachment_name": null,
+        "attachment_byte_count": null,
+        "content_type": null,
+        "file_name": null,
+        "source_app": " Example ",
+        "source_domain": null,
+        "note": "  ",
+        "language": null,
+        "is_pinned": false,
+        "directly_archive": false
+      },
+      "rust_ok": true,
+      "swift_ok": true,
+      "expected": {
+        "title": "example.com",
+        "text_content": null,
+        "note": null,
+        "language": null,
+        "source_app": "Example",
+        "source_domain": "example.com",
+        "url_string": "https://example.com/path?q=1"
+      }
+    },
+    {
+      "name": "empty-text-rejected",
+      "draft": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "item_type": "text",
+        "title": "",
+        "text_content": " \n\t ",
+        "url_string": null,
+        "staged_attachment_name": null,
+        "attachment_byte_count": null,
+        "content_type": null,
+        "file_name": null,
+        "source_app": " Example ",
+        "source_domain": null,
+        "note": "  ",
+        "language": " RuSt ",
+        "is_pinned": false,
+        "directly_archive": false
+      },
+      "rust_ok": false,
+      "swift_ok": false,
+      "expected": null
+    },
+    {
+      "name": "unicode-url-parser-difference",
+      "draft": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "item_type": "link",
+        "title": "",
+        "text_content": null,
+        "url_string": "https://example.com/日本語",
+        "staged_attachment_name": null,
+        "attachment_byte_count": null,
+        "content_type": null,
+        "file_name": null,
+        "source_app": " Example ",
+        "source_domain": null,
+        "note": "  ",
+        "language": null,
+        "is_pinned": false,
+        "directly_archive": false
+      },
+      "rust_ok": false,
+      "swift_ok": true,
+      "expected": null
+    }
+  ],
+  "revision_pairs": [
+    {
+      "first": "2026-01-01T00:00:00.125000000Z",
+      "second": "2026-01-01T00:00:00.125000000Z",
+      "equal": true
+    },
+    {
+      "first": "2026-01-01T00:00:00.125000000Z",
+      "second": "2026-01-01T00:00:00.125000001Z",
+      "equal": false
+    },
+    {
+      "first": "1969-12-31T23:59:59.875000000Z",
+      "second": "1969-12-31T23:59:59.875000001Z",
+      "equal": false
+    }
+  ],
+  "errors": [
+    {
+      "code": "invalid_argument",
+      "message": "The request is invalid.",
+      "retryable": false
+    },
+    {
+      "code": "storage",
+      "message": "The storage operation failed.",
+      "retryable": true
+    },
+    {
+      "code": "not_found",
+      "message": "Item not found.",
+      "retryable": false
+    }
+  ],
+  "lifecycle": [
+    {
+      "initial": "archived",
+      "actions": [
+        "trash",
+        "restore_trash"
+      ],
+      "expected": "archived"
+    },
+    {
+      "initial": "inbox",
+      "actions": [
+        "archive",
+        "trash",
+        "restore_trash",
+        "restore_archive"
+      ],
+      "expected": "inbox"
+    }
+  ]
+}

@@ -2,15 +2,78 @@
 
 ## Status
 
-The rewrite is incomplete. The workspace now includes a Tauri 2 desktop preview, a semantic web Library UI, a dedicated Rust storage worker, and the local repository. It is not an installable replacement release. The existing Swift application, Share Extensions, CLI, and iCloud store are unchanged.
+The rewrite is incomplete. The workspace includes a Tauri 2 desktop preview, a shared Rust command service, a Linux SQLite adapter, and a macOS local SwiftData preview bridge. It is not an installable replacement release. The existing Swift application, Share Extensions, CLI, and iCloud store are unchanged.
 
 The user explicitly approved Tauri 2 with a Rust backend and web UI. [ADR 0006](../docs/decisions/0006-rust-desktop-feasibility-gates.md) records the decision. The stopped `iced` sample is removed. Framework approval does not establish native accessibility, IME, focus, or signed Apple compatibility.
 
 Windows storage remains disabled. Its private ACL and durable publication protocol are not implemented. The [storage README](crates/stow-storage/README.md#windows-durability-blocker) records the Win32 API blocker. macOS local SQLite opening remains disabled to protect the canonical SwiftData store.
 
-No desktop UI test or desktop launch has occurred during implementation. The WSL2 development host cannot perform signed Apple integration or two-device CloudKit checks.
+No desktop UI test or desktop launch has occurred during this implementation. The current execution host is macOS ARM64. Signed Apple integration and two-device CloudKit checks remain unverified; earlier WSL2 evidence below describes previous implementation stages.
 
-## Tauri Continuation
+## Shared Backend Execution — 2026-10-28
+
+The shared-backend implementation and local non-interactive checks are complete on `narumi/feat/shared-rust-backend`, based on `11ed28a`. This establishes the isolated preview command slice, not production-data cutover, Windows storage support, signed Apple compatibility, or native UI acceptance.
+
+### Contract decisions
+
+- `stow-core` owns the portable repository contract and value types. The service accepts a native-selected backend factory and owns it on one bounded worker. SQLite and Swift adapters implement the same command slice; no new Rust crate is required.
+- Keep existing IPC command names and `expected_updated_at`. Normalize incoming revisions to fixed-nine-digit UTC RFC3339 before adapter dispatch. Swift emits integer seconds/nanoseconds from the integer and fractional parts of `Date.timeIntervalSinceReferenceDate`, without first adding the epoch offset as a floating-point value. Compare the exact wire instant before mutation; do not round an incoming nanosecond difference through `Date`. Advance same-tick Swift revisions to the next representable native value.
+- Keep compare, mutation, and canonical save in one synchronous storage-owner operation. Rust worker serialization does not replace Swift actor isolation. This is a local-owner conflict check, not distributed CloudKit compare-and-swap.
+- The macOS adapter applies Rust-normalized create fields before native validation. This preserves portable generated titles for uppercase ASCII hosts without rewriting original URL spelling or Apple fingerprints. Complete Foundation/Rust URL equivalence is not claimed.
+- Explicit-create retries return the existing capture item while it exists. Clipboard coalescing and replay after purge are outside this slice. Keep Apple schema and fingerprint namespace unchanged.
+- Canonical mutations mark the disposable index dirty. Search/rebuild reports index failures; a committed canonical save is not reported as an uncommitted mutation when indexing fails.
+- The version-1 C ABI copies bounded input before return, uses numeric registry handles and owned response bytes, and reports content-free errors. Per-handle admission and completion are ordered; close drains accepted work before releasing the owner. The main actor must never join a worker that is waiting on that actor.
+- The Swift bridge opens only a private, host-selected `dev.narumi.stow.desktop-preview` root, with a fixed local SwiftData store and an exclusive writer lock. It does not initialize `AppModel`, CloudKit, maintenance, or capture consumers. Windows remains unavailable without filesystem mutation.
+
+### Execution baseline
+
+- Xcode 26.6 (`17F113`), Swift 6.3.3: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ci.sh` passed. Package/app/share tests passed: 134/135/6. Both platform builds, project/version checks, and entitlement/privacy checks passed. Existing unmutated-weak-variable and AppIntents metadata warnings remain.
+- Rust/Cargo 1.99.1 was installed and verified. The install completed its toolchain components but its optional rustup self-update reported a missing `rustup-init` permissions target; this did not change the pinned toolchain or prevent `cargo --version`/`rustc --version`.
+- Bun 1.4.4 is run with `bunx bun@1.4.4`, without replacing the user's Bun 1.4.0. Frozen install, all 62 headless tests (370 assertions), and dependency audit passed.
+- Rust 1.99.1 formatting, full-workspace/all-target Clippy with warnings denied, workspace tests (24 active macOS tests), and the complete release build passed on the original `11ed28a` sources. The macOS ARM64 host compiled; Linux-only persistence suites did not run locally.
+- `cargo-audit` 0.22.2 and `cargo-deny` 0.20.2 were installed with pinned Cargo. Audit and license checks passed against an archived baseline manifest/lock snapshot. Audit reported the existing `proc-macro-error` unmaintained warning (`RUSTSEC-2024-0370`) and `glib` unsound warning (`RUSTSEC-2024-0429`), with no blocking vulnerability. No advisory is ignored. Initial tool installs exceeded a 300-second command window; warm-cache retries passed.
+- Baseline logs are under `/tmp/stow-shared-backend-baseline-{swift,rust,web}/`; temporary logs are not release evidence by themselves.
+
+### Implementation evidence
+
+Final checks used Rust/Cargo 1.99.1, Bun 1.4.4, Xcode 26.6, and Swift 6.3.3 on macOS ARM64. All commands below passed; no advisory ignore or acceptance exception was added.
+
+| Check | Verified result |
+| --- | --- |
+| `cargo fmt --all -- --check` | Workspace formatting passes. |
+| `cargo clippy --workspace --all-targets --locked -- -D warnings` | Complete workspace and host pass with warnings denied. |
+| `cargo test --workspace --locked` | 41 active native tests pass: 15 core, 14 service, 8 storage/guard, and 4 host tests. Linux-only suites are not counted as executed. |
+| `cargo test --workspace --all-targets --locked` | The same tests plus the benchmark-helper test pass: 42 total. |
+| `cargo build --workspace --release --locked` | Complete ARM64 macOS host and headless probe build, with the release Swift static library linked. |
+| `Scripts/verify_desktop_bridge.sh` | 11 Swift tests pass, then separate seed, Rust mutation, Rust reopen, real failed-save, and native inspection processes pass on a new disposable disk store. |
+| `swift test --package-path Desktop/native/macos --configuration release` | The same 11 bridge tests pass in release configuration. |
+| `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ci.sh` | 134 package, 135 app, and 6 share tests pass; macOS/iOS builds and project/version/entitlement/privacy checks pass. |
+| Bun frozen install, test, and audit | 62 tests and 376 assertions pass; no dependency vulnerability reported. |
+| `cargo audit`; `cargo deny --locked check licenses` | Both pass. The two baseline Rust advisory warnings remain visible and unchanged. |
+| Normal `cargo tree` for core and service | Neither has a Tauri, Swift, SQLite, or `stow-storage` dependency. |
+| Shell syntax and `git diff --check` | Verification/UI scripts parse and the diff has no whitespace errors. |
+
+The bridge tests cover version/shape/size rejection, response ownership, exact native revisions, nanosecond search boundaries, pre-limit date/pin filtering, replay, lifecycle transitions, index failure, private paths, unsafe files, lock contention, queued close, and immediate reopen from close completion. Native seed/inspection covers all five item types, nonempty Trash restore state, complete scalar metadata, icon/preview bytes, attachments, representations, and preserved native fingerprints after metadata-only edits.
+
+The failed-save fixture sets a process-local file-size limit only in a disposable subprocess. It forces an actual SQLite/CoreData write failure during canonical text/language mutation, including representation invalidation and fingerprint changes. The bridge discards the failed context while retaining the lock, then reopens the same existing store without retrying the mutation. Complete same-handle and reopened snapshots match the original; the final native byte check passes. Expected native I/O diagnostics from this fault are not hidden or described as a successful save.
+
+Full-diff review covered correctness, security, lifecycle, compatibility, regressions, and scope, including new files. Review fixes prevent self-join during overlapping shutdown, bypass late frontend confirmation after shutdown starts, release native storage before close completion, and retain Swift build stdout/status in failure diagnostics. Exact date-window filtering avoids a rounded upper bound including the next UTC day. A Rust-to-Swift regression verifies portable title/source defaults for an uppercase host while retaining its explicit default port and URL spelling. Final serialized checks pass after these fixes. No production Swift package/app source, schema, cloud identifier, capture/CLI ownership, or SQLite publication/recovery rule changed.
+
+Final local logs are under `/tmp/stow-shared-backend-checks/`. These paths are local diagnostics, not permanent CI artifacts. Current native matrix evidence belongs to this change's pull-request checks; local macOS results do not replace those jobs.
+
+### External handoff and release restrictions
+
+- **Native CI matrix — repository maintainer.** Prerequisite: the implementation PR and native Linux/Windows/macOS runners. Action: record the full workflow results at the PR commit. Expected result: complete host builds, headless tests, and macOS bridge verification pass; Linux executes its persistence suites. Local macOS evidence does not verify the other OS jobs. Required merge checks remain mandatory.
+- **Windows persistence — Windows platform maintainer.** Prerequisite: a supported durability protocol and disposable native Windows filesystem test host; an alternative design requires explicit approval. Action: establish private ACL/reparse-point checks, locking, publication, restart, and persistent crash-state evidence. Expected result: secure durable local storage under the declared filesystem/API contract. This behavior is still unverified and storage remains disabled. A successful native build does not permit removing the guard.
+- **Signed Apple integration — release maintainer.** Prerequisite: provisioned signed host/bridge/extensions and two devices with the test iCloud account. Action: verify App Group access, CLI/share ownership, and online/offline/conflict/attachment round trips against the existing store. Expected result: unchanged canonical data and iCloud behavior. Signed integration and cross-device sync remain unverified. Keep the Swift production app; do not point the preview at production, deploy a schema, or treat local saves as cloud evidence. Existing release actions remain in `docs/release/v0.1-external-unblock.md`.
+- **Native runtime acceptance — platform QA maintainer.** Prerequisite: completed implementation, passing relevant non-interactive checks, and local native UI access. Action: collect the scenarios documented in `Scripts/ui_tests.sh` into one final native batch: Library edits/search/restart, save/discard/cancel, close/quit during work or before handshake, keyboard focus, IME, and screen-reader access. Expected result: no lost drafts or blocked shutdown and accessible native behavior. These runtime checks, minimum-OS compatibility, and distribution remain unverified. Existing script suites target Swift, not Tauri; any future automation orchestration belongs only in that script, never CI. No native UI batch was run for this backend implementation.
+- **Dependency security review — release maintainer.** Prerequisite: production-distribution preparation. Action: assess framework reachability and upstream disposition of `RUSTSEC-2024-0370` and `RUSTSEC-2024-0429`. Expected result: a documented production security disposition. The shared-backend change neither fixes nor ignores these baseline advisories. Passing the audit command is not a warning-free dependency claim.
+
+These retained restrictions survive deletion of the completed shared-backend coding plan. Agent-plan completion is not product acceptance or release readiness.
+
+## Earlier Tauri Continuation
+
+This section records the earlier preview stage, before the shared backend and local Swift bridge. Its unavailable-backend statements are historical.
 
 - Rust service tests cover one bounded worker, queue saturation, panic/disconnect, shutdown, restart, optimistic revisions, capture replay, failed saves, argument bounds, and private Linux parent creation.
 - Sixty-two headless Bun/DOM tests cover frontend state and rendering. Coverage includes hostile content, dialogs, async races, replay conflicts, explicit new captures, native form validation, filters, close protection, and unavailable backends.
@@ -97,7 +160,7 @@ The existing Swift CI gate includes package/app/share tests, macOS/iOS builds, v
 
 - Complete native keyboard, screen-reader, IME, scaling, contrast, reduced-motion, multiple-monitor, and panel-focus verification for the approved Tauri framework.
 - Establish a supported Windows persistence protocol and implement private ACL/reparse-point checks.
-- Implement production UI, platform adapters, local CLI transport, and Swift storage bridge.
+- Complete production UI, platform adapters, local CLI transport, and signed SwiftData/CloudKit bridge integration.
 - Verify signed App Group, Share Extension, unchanged iOS interoperability, and two-device iCloud behavior.
 - Record search latency and memory baselines on fixed 10,000-item and 100,000-item datasets.
 - Complete native installers, upgrade, uninstall, backup, and rollback verification.

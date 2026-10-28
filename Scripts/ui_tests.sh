@@ -6,6 +6,15 @@ if [[ -n "${CI:-}" ]]; then
   exit 1
 fi
 
+# Rust preview native acceptance handoff:
+# - Finish implementation and all required headless checks before one final batch.
+# - Verify isolated Library create/edit/search/restart and unavailable capabilities.
+# - Verify save/discard/cancel, close/quit during storage work, and early quit before
+#   the frontend handshake. Check that shutdown finishes without a blocked window.
+# - Verify keyboard focus, IME, and screen-reader access on each native platform.
+# Existing suites below target the Swift app, not Tauri. They do not establish
+# Rust preview runtime acceptance. Keep any future automated UI orchestration here.
+
 usage() {
   printf '%s\n' 'Usage: Scripts/ui_tests.sh [all|macos|ios|ios-share]' >&2
 }

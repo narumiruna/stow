@@ -1,40 +1,9 @@
 use chrono::{DateTime, Utc};
 use rusqlite::{Transaction, params, params_from_iter, types::Value};
-use stow_core::{Item, ItemStatus, ItemType};
+use stow_core::{Item, ItemStatus, SearchQuery};
 use uuid::Uuid;
 
 use crate::{Error, LocalRepository, Result};
-
-/// Portable counterpart of the current Swift search options. An empty text query
-/// lists matching items by creation date; Trash is excluded unless requested.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SearchQuery {
-    pub text: String,
-    pub item_type: Option<ItemType>,
-    pub source_app: Option<String>,
-    pub added_after: Option<DateTime<Utc>>,
-    pub added_before: Option<DateTime<Utc>>,
-    pub status: Option<ItemStatus>,
-    pub include_trashed: bool,
-    pub pinned_only: bool,
-    pub limit: usize,
-}
-
-impl Default for SearchQuery {
-    fn default() -> Self {
-        Self {
-            text: String::new(),
-            item_type: None,
-            source_app: None,
-            added_after: None,
-            added_before: None,
-            status: None,
-            include_trashed: false,
-            pinned_only: false,
-            limit: 200,
-        }
-    }
-}
 
 impl LocalRepository {
     /// Search all token prefixes, with bound metadata filters and a bounded result

@@ -17,11 +17,19 @@ type Result<T> = std::result::Result<T, ServiceError>;
 struct ClosePolicy {
     frontend_ready: AtomicBool,
     exit_authorized: AtomicBool,
+    shutdown_started: AtomicBool,
+    shutdown_finished: AtomicBool,
 }
 
 impl ClosePolicy {
+    fn begin_shutdown(&self) -> bool {
+        !self.shutdown_started.swap(true, Ordering::AcqRel)
+    }
+
     fn must_confirm(&self) -> bool {
-        self.frontend_ready.load(Ordering::Acquire) && !self.exit_authorized.load(Ordering::Acquire)
+        self.frontend_ready.load(Ordering::Acquire)
+            && !self.exit_authorized.load(Ordering::Acquire)
+            && !self.shutdown_started.load(Ordering::Acquire)
     }
 }
 
@@ -161,10 +169,12 @@ fn close_preview(window: WebviewWindow, policy: State<'_, Arc<ClosePolicy>>) -> 
 fn main() {
     let app = tauri::Builder::default()
         .setup(|app| {
-            // Preview identity avoids a production data cutover. Disabled
-            // macOS/Windows backends do not open a substitute canonical store.
+            // Only native startup selects the preview root. macOS uses its
+            // isolated SwiftData store; Windows never opens a substitute store.
             let root = app.path().app_local_data_dir()?;
-            app.manage(DesktopService::start(root));
+            app.manage(DesktopService::start(move || {
+                stow_desktop::open_backend(root)
+            }));
             let policy = Arc::new(ClosePolicy::default());
             app.manage(policy.clone());
             let navigation_policy = policy.clone();
@@ -205,12 +215,31 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("Stow Desktop Preview could not start");
     app.run(|app, event| {
-        if let tauri::RunEvent::ExitRequested { api, .. } = event
-            && app.state::<Arc<ClosePolicy>>().must_confirm()
-            && let Some(window) = app.get_webview_window("main")
-        {
-            api.prevent_exit();
-            let _ = window.emit("close_requested", ());
+        if let tauri::RunEvent::ExitRequested { api, .. } = event {
+            let policy = app.state::<Arc<ClosePolicy>>().inner().clone();
+            if policy.must_confirm()
+                && let Some(window) = app.get_webview_window("main")
+            {
+                api.prevent_exit();
+                let _ = window.emit("close_requested", ());
+                return;
+            }
+            if !policy.shutdown_finished.load(Ordering::Acquire) {
+                // Keep the main actor running while the worker drains Swift
+                // callbacks. Never join that worker from this event handler.
+                api.prevent_exit();
+                if policy.begin_shutdown() {
+                    let service = app.state::<DesktopService>().inner().clone();
+                    let app = app.clone();
+                    tauri::async_runtime::spawn_blocking(move || {
+                        if service.shutdown().is_err() {
+                            eprintln!("The preview storage worker stopped during shutdown.");
+                        }
+                        policy.shutdown_finished.store(true, Ordering::Release);
+                        app.exit(0);
+                    });
+                }
+            }
         }
     });
 }
@@ -227,6 +256,21 @@ mod tests {
         assert!(policy.must_confirm());
         policy.exit_authorized.store(true, Ordering::Release);
         assert!(!policy.must_confirm());
+    }
+
+    #[test]
+    fn repeated_exit_requests_start_only_one_background_drain() {
+        let policy = ClosePolicy::default();
+        assert!(!policy.shutdown_finished.load(Ordering::Acquire));
+        assert!(policy.begin_shutdown());
+        assert!(!policy.begin_shutdown());
+        // A late frontend handshake cannot reopen confirmation after the
+        // irreversible stop-admissions cutoff.
+        policy.frontend_ready.store(true, Ordering::Release);
+        assert!(!policy.must_confirm());
+        policy.shutdown_finished.store(true, Ordering::Release);
+        assert!(policy.shutdown_finished.load(Ordering::Acquire));
+        assert!(!policy.begin_shutdown());
     }
 
     #[test]

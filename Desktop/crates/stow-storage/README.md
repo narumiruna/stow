@@ -23,7 +23,8 @@ To unblock Windows, establish and test a supported durability protocol for direc
 
 ## API and consistency
 
-- The caller supplies an absolute application-data library path. Its parent must exist. The crate never selects a temporary or production default path.
+- The caller supplies an absolute application-data library path. `LocalRepository::open` requires its parent to exist. `open_desktop(root)` creates missing Linux preview parents with mode 0700 and rejects symlink ancestors. Both entry points preserve disabled-platform rejection before filesystem mutation. The crate never selects a temporary or production default path.
+- `LocalRepository` implements `stow_core::Repository`. `open_desktop(root)` returns a boxed portable repository for the service factory. The adapter checks exact revisions under the exclusive writer owner before writes, preserves the existing SQLite clock behavior, removes embedded preview bytes from details, and returns attachment metadata without blob reads. It does not change schema, publication, recovery, or fingerprint namespaces.
 - Item snapshots use the `stow-core` serde format. `upsert`, `get`, `list`, `delete`, and `rebuild_index` retain the original foundation API. Application capture and lifecycle commands are described below.
 - Item snapshots and derived FTS5 documents change in one SQLite transaction. SQLite uses the rollback journal with `synchronous=EXTRA`.
 - Numbered additive migrations commit the schema and `user_version` together. Newer schemas are rejected. There are no destructive migrations; any future destructive migration must first implement a durable backup.
