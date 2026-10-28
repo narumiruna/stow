@@ -31,15 +31,6 @@ struct StowRootView: View {
         .task(id: searchToken) { await appModel.updateSearch(items: allItems) }
         .onChange(of: scenePhase) { _, phase in if phase == .active { appModel.runMaintenance() } }
         .privacySensitive()
-        .overlay {
-            if scenePhase != .active {
-                ZStack {
-                    Rectangle().fill(.regularMaterial).ignoresSafeArea()
-                    Label("Stow is private", systemImage: "lock.fill").font(.title2.bold())
-                }
-                .accessibilityHidden(true)
-            }
-        }
     }
 
     private var compactNavigation: some View {

@@ -15,6 +15,7 @@
 <key>UILaunchScreen</key><dict/>
 <key>UISupportsDocumentBrowser</key><false/>
 <key>UIApplicationSupportsIndirectInputEvents</key><true/>
+<key>NSFaceIDUsageDescription</key><string>Use Face ID to unlock your Stow library and confirm App Lock changes. Your device passcode is also supported.</string>
 <key>NSPhotoLibraryAddUsageDescription</key><string>Save images from Stow to your photo library.</string>
 <key>UISupportedInterfaceOrientations</key><array>
 <string>UIInterfaceOrientationPortrait</string>

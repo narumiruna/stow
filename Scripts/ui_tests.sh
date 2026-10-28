@@ -93,23 +93,43 @@ run_macos_tests() {
   xcodebuild "${build_arguments[@]}" test-without-building
 }
 
-run_ios_tests() {
-  local device_id
+# Enrollment notifications are Simulator-wide. Keep setup and restoration in this
+# subshell, and serialize XCTest so native authentication requests cannot overlap.
+run_ios_tests() (
+  local device_id enrollment_state old_enrollment
   device_id="$(
     xcrun simctl list devices available -j |
-      python3 -c 'import json,re,sys; devices=json.load(sys.stdin)["devices"]; runtimes=sorted(devices, key=lambda runtime: tuple(map(int, re.findall(r"\d+", runtime)))); print(next(device["udid"] for runtime in reversed(runtimes) for device in devices[runtime] if device["name"].startswith("iPhone") and device["isAvailable"]))'
+      uv run python -c 'import json,re,sys; devices=json.load(sys.stdin)["devices"]; runtimes=sorted(devices, key=lambda runtime: tuple(map(int, re.findall(r"\d+", runtime)))); print(next(device["udid"] for runtime in reversed(runtimes) for device in devices[runtime] if device["name"].startswith("iPhone") and device["isAvailable"]))'
   )" || return $?
   xcrun simctl boot "$device_id" 2>/dev/null || true
   xcrun simctl bootstatus "$device_id" -b || return $?
+
+  enrollment_state="$(xcrun simctl spawn "$device_id" notifyutil -g com.apple.BiometricKit.enrollmentChanged)" || return $?
+  if [[ "$enrollment_state" =~ ([0-9]+)[[:space:]]*$ ]]; then
+    old_enrollment="${BASH_REMATCH[1]}"
+  else
+    printf 'Cannot read Simulator biometric enrollment state: %s\n' "$enrollment_state" >&2
+    return 1
+  fi
+  trap 'status=$?; trap - EXIT
+    if ! xcrun simctl spawn "$device_id" notifyutil -s com.apple.BiometricKit.enrollmentChanged "$old_enrollment" -p com.apple.BiometricKit.enrollmentChanged; then
+      printf "%s\n" "Failed to restore Simulator biometric enrollment state." >&2
+      if (( status == 0 )); then status=1; fi
+    fi
+    exit "$status"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  xcrun simctl spawn "$device_id" notifyutil -s com.apple.BiometricKit.enrollmentChanged 1 -p com.apple.BiometricKit.enrollmentChanged || return $?
+
   if [[ "$suite" == "ios-share" ]]; then
-    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" CODE_SIGNING_ALLOWED=NO \
+    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
       -only-testing:StowUITests/StowUITests/testSafariShareExtensionCapturesURLInOneSave \
       -only-testing:StowUITests/StowUITests/testSafariShareExtensionCanSaveImmediately \
       test
   else
-    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" CODE_SIGNING_ALLOWED=NO test
+    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
   fi
-}
+)
 
 if [[ "$suite" == "all" || "$suite" == "macos" ]]; then
   if run_macos_tests; then
