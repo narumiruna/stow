@@ -20,6 +20,21 @@ ruby "$GENERATOR" --output "$PROJECT" >/dev/null
 ruby "$GENERATOR" --check "$PROJECT" >"$TEMP_ROOT/check.out"
 grep -Fq "Xcode project is up to date" "$TEMP_ROOT/check.out"
 
+ruby - "$PROJECT" <<'RUBY'
+require "xcodeproj"
+
+project = Xcodeproj::Project.open(ARGV.fetch(0))
+abort "Expected generated targets" if project.targets.empty?
+project.targets.each do |target|
+  target.build_configurations.each do |configuration|
+    settings = configuration.build_settings
+    unless settings["DEVELOPMENT_TEAM"] == "A4YQL6FFTK" && settings["CODE_SIGN_STYLE"] == "Automatic"
+      abort "Expected automatic signing with team A4YQL6FFTK for #{target.name} #{configuration.name}"
+    end
+  end
+end
+RUBY
+
 printf '\n// drift\n' >> "$PROJECT/project.pbxproj"
 if ruby "$GENERATOR" --check "$PROJECT" >"$TEMP_ROOT/drift.out" 2>"$TEMP_ROOT/drift.err"; then
   echo "Expected project drift to fail" >&2

@@ -41,9 +41,9 @@ This recipe builds a Debug app under `.build/XcodeDerivedData` with ad hoc signi
 
 Simulator builds use local storage without CloudKit. Builds without CloudKit entitlement, or whose cloud-container initialization fails, also use local storage. Do not treat a successful local build as proof of cross-device sync.
 
-For iPhone or iPad, open `Stow.xcodeproj` in Xcode, select the `Stow-iOS` scheme and an iOS simulator, then build and run. Device builds require local signing configuration.
+For iPhone or iPad, open `Stow.xcodeproj` in Xcode, select the `Stow-iOS` scheme and an iOS simulator, then build and run. Device builds use automatic signing with Apple Developer Team `A4YQL6FFTK`.
 
-Keep signing team selection and CloudKit credentials in local Xcode settings; never commit them. See the [release checklist](release/v0.1-external-unblock.md) for signed-device and distribution requirements.
+The project generator sets this Team ID for every target in Debug and Release. Sign in to an Apple Developer account with access to this team under **Xcode → Settings → Accounts**. Keep signing certificates, private keys, and account credentials out of the repository. See the [release checklist](release/v0.1-external-unblock.md) for signed-device and distribution requirements.
 
 The [CLI guide](cli.md) covers installation of the Mac command-line helper.
 

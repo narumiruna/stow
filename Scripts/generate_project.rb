@@ -107,7 +107,7 @@ def configure_target(target, platform:, deployment:, bundle_id:, info_plist:, en
     settings["SWIFT_VERSION"] = "6.0"
     settings["SWIFT_STRICT_CONCURRENCY"] = "complete"
     settings["CODE_SIGN_STYLE"] = "Automatic"
-    settings["DEVELOPMENT_TEAM"] = ""
+    settings["DEVELOPMENT_TEAM"] = "A4YQL6FFTK"
     settings["CURRENT_PROJECT_VERSION"] = "1"
     settings["MARKETING_VERSION"] = MARKETING_VERSION
     settings["ENABLE_USER_SCRIPT_SANDBOXING"] = "YES"
