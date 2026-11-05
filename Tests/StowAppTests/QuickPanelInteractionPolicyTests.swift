@@ -27,6 +27,15 @@ final class QuickPanelInteractionPolicyTests: XCTestCase {
         XCTAssertEqual(QuickPanelInputPolicy.decision(characters: "\r", modifiers: []), .ignored)
     }
 
+    func testArrowAndFunctionKeysDoNotBeginSearch() {
+        // NSUpArrowFunctionKey...NSRightArrowFunctionKey, NSF1FunctionKey, NSHomeFunctionKey
+        for scalar: UInt32 in [0xF700, 0xF701, 0xF702, 0xF703, 0xF704, 0xF729] {
+            let characters = String(Character(Unicode.Scalar(scalar)!))
+            XCTAssertEqual(QuickPanelInputPolicy.decision(characters: characters, modifiers: []), .ignored)
+            XCTAssertEqual(QuickPanelInputPolicy.decision(characters: characters, modifiers: [.shift]), .ignored)
+        }
+    }
+
     func testRepairSelectsFirstVisibleItemWhenPreviousSelectionIsStale() {
         let stale = UUID()
         let first = UUID()

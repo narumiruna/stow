@@ -22,10 +22,19 @@ enum QuickPanelInputPolicy {
         guard modifiers.intersection([.command, .control, .option]).isEmpty,
               characters.count == 1,
               characters != " ",
-              characters.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
+              characters.unicodeScalars.allSatisfy({ isTypedTextScalar($0) }) else {
             return .ignored
         }
         return .beginSearch(initialText: characters)
+    }
+
+    /// AppKit reports arrow, function, and navigation keys as scalars in
+    /// U+F700–U+F8FF (for example, NSLeftArrowFunctionKey is U+F702).
+    private static let functionKeyScalars: ClosedRange<UInt32> = 0xF700...0xF8FF
+
+    private static func isTypedTextScalar(_ scalar: Unicode.Scalar) -> Bool {
+        !CharacterSet.controlCharacters.contains(scalar)
+            && !functionKeyScalars.contains(scalar.value)
     }
 }
 
