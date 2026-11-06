@@ -48,3 +48,7 @@ For Mac clipboard-access settings and other common problems, see [Support](docs/
 - [macOS CLI](docs/cli.md): local commands for coding agents.
 - [Clipboard details](docs/clipboard.md): capture rules, supported formats, and limits.
 - [Releases](docs/release/README.md): release status, verification, and maintainer workflow.
+
+## License
+
+Stow is licensed under the [MIT License](LICENSE). Third-party components retain their respective licenses and notices.
