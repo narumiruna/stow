@@ -1,0 +1,33 @@
+name: PR Review
+
+on:
+  pull_request_target:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      pull-request:
+        description: Pull request number to review
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pi-review-${{ github.event.pull_request.number || inputs.pull-request }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: narumiruna/pi-action/review@986bbbb43d30f5d1bc52d434039a3f5161a13600 # main
+        with:
+          pull-request: ${{ inputs.pull-request }}
+          auth-json: ${{ secrets.PI_AUTH_JSON }}
+          provider: openai-codex
+          model: gpt-6.1-sol
+          thinking: medium
