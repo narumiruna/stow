@@ -1,0 +1,24 @@
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write
+
+concurrency:
+  group: pi-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: narumiruna/pi-action/triage@986bbbb43d30f5d1bc52d434039a3f5161a13600 # main
+        with:
+          auth-json: ${{ secrets.PI_AUTH_JSON }}
+          provider: openai-codex
+          model: gpt-6.1-sol
+          thinking: medium
