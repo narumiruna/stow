@@ -102,14 +102,32 @@ run_macos_tests() {
   xcodebuild "${build_arguments[@]}" test-without-building
 }
 
-# Enrollment notifications are Simulator-wide. Keep setup and restoration in this
-# subshell, and serialize XCTest so native authentication requests cannot overlap.
+# Keep captures and Simulator-wide authentication notifications away from the
+# development device. Serialize XCTest inside a temporary Simulator clone.
 run_ios_tests() (
-  local device_id enrollment_state old_enrollment
-  device_id="$(
+  local template_id device_id enrollment_state old_enrollment=""
+  template_id="$(
     xcrun simctl list devices available -j |
       uv run python -c 'import json,re,sys; devices=json.load(sys.stdin)["devices"]; runtimes=sorted(devices, key=lambda runtime: tuple(map(int, re.findall(r"\d+", runtime)))); print(next(device["udid"] for runtime in reversed(runtimes) for device in devices[runtime] if device["name"].startswith("iPhone") and device["isAvailable"]))'
   )" || return $?
+  device_id="$(xcrun simctl clone "$template_id" "Stow UI Tests-$(uuidgen)")" || return $?
+  printf 'Using isolated iOS test simulator %s (template %s).\n' "$device_id" "$template_id"
+  trap 'status=$?; trap - EXIT
+    if [[ -n "$old_enrollment" ]] && ! xcrun simctl spawn "$device_id" notifyutil -s com.apple.BiometricKit.enrollmentChanged "$old_enrollment" -p com.apple.BiometricKit.enrollmentChanged; then
+      printf "%s\n" "Failed to restore Simulator biometric enrollment state." >&2
+      if (( status == 0 )); then status=1; fi
+    fi
+    xcrun simctl shutdown "$device_id" 2>/dev/null || true
+    if ! xcrun simctl delete "$device_id"; then
+      printf "%s\n" "Failed to delete the temporary UI-test Simulator." >&2
+      if (( status == 0 )); then status=1; fi
+    fi
+    if [[ "$device_id" =~ ^[0-9A-Fa-f-]{36}$ ]]; then
+      rm -rf "/tmp/StowSimulatorAppGroup/$device_id"
+    fi
+    exit "$status"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
   xcrun simctl boot "$device_id" 2>/dev/null || true
   xcrun simctl bootstatus "$device_id" -b || return $?
 
@@ -120,14 +138,6 @@ run_ios_tests() (
     printf 'Cannot read Simulator biometric enrollment state: %s\n' "$enrollment_state" >&2
     return 1
   fi
-  trap 'status=$?; trap - EXIT
-    if ! xcrun simctl spawn "$device_id" notifyutil -s com.apple.BiometricKit.enrollmentChanged "$old_enrollment" -p com.apple.BiometricKit.enrollmentChanged; then
-      printf "%s\n" "Failed to restore Simulator biometric enrollment state." >&2
-      if (( status == 0 )); then status=1; fi
-    fi
-    exit "$status"' EXIT
-  trap 'exit 130' INT
-  trap 'exit 143' TERM
   xcrun simctl spawn "$device_id" notifyutil -s com.apple.BiometricKit.enrollmentChanged 1 -p com.apple.BiometricKit.enrollmentChanged || return $?
 
   if [[ "$suite" == "ios-share" ]]; then

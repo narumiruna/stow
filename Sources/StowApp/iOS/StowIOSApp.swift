@@ -10,7 +10,10 @@ struct StowIOSApp: App {
     init() {
         let preferences = Self.makePreferences()
         _preferences = State(initialValue: preferences)
-        _model = State(initialValue: AppModel(automaticLinkPreviewsEnabled: preferences.automaticLinkPreviewsEnabled))
+        _model = State(initialValue: AppModel(
+            runtimePaths: Self.galleryTestRuntimePaths(),
+            automaticLinkPreviewsEnabled: preferences.automaticLinkPreviewsEnabled
+        ))
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             StowShareSettings().savesSharedItemsImmediately = false
@@ -23,6 +26,20 @@ struct StowIOSApp: App {
             StowSceneView(model: model, preferences: preferences)
                 .modelContainer(container)
         }
+    }
+
+    private static func galleryTestRuntimePaths() -> StowRuntimePaths? {
+        #if DEBUG && targetEnvironment(simulator)
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-testing"), arguments.contains("--ui-testing-seed-gallery") {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("StowGalleryUITests-\(UUID().uuidString)", isDirectory: true)
+            return StowRuntimePaths(
+                sharedContainer: root.appendingPathComponent("Shared", isDirectory: true),
+                temporaryDirectory: root.appendingPathComponent("Temporary", isDirectory: true)
+            )
+        }
+        #endif
+        return nil
     }
 
     private static func makePreferences() -> IOSPreferences {

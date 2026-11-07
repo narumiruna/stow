@@ -1,3 +1,4 @@
+import Foundation
 import notify
 import XCTest
 
@@ -5,6 +6,14 @@ import XCTest
 final class StowUITests: XCTestCase {
     // Reuse only this test's dedicated Simulator preferences domain on relaunch.
     private var preferencesID = UUID()
+    private let galleryTitles = [
+        "A quiet morning in Kyoto",
+        "A simpler way to organize ideas",
+        "Designing for a calmer digital life",
+        "A weekend in the mountains",
+        "Three ideas for a slower week",
+        "Places to revisit"
+    ]
 
     override func setUp() async throws {
         try await super.setUp()
@@ -43,7 +52,18 @@ final class StowUITests: XCTestCase {
     }
 
     func testDarkModeAndReducedMotionAccessibility() throws {
-        let app = launchApp(extraArguments: ["-AppleInterfaceStyle", "Dark", "-UIAccessibilityReduceMotionEnabled", "YES"])
+        let arguments = ["-UIAccessibilityReduceMotionEnabled", "YES"]
+        var app = launchApp(extraArguments: arguments)
+        selectSection("Settings", in: app)
+        choose("Dark", for: "appearance", in: app)
+        selectSection("Inbox", in: app)
+        try audit(app)
+        app.terminate()
+        app = launchApp(extraArguments: ["--ui-testing-seed-gallery"] + arguments)
+        let firstCard = items(titled: galleryTitles[0], in: app).firstMatch
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 3))
+        XCTAssertTrue(preview(for: firstCard, in: app).waitForExistence(timeout: 3))
+        attachScreenshot("ios-gallery-3a-2-dark", from: app)
         try audit(app)
     }
 
@@ -53,6 +73,168 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(addItem.waitForExistence(timeout: 3))
         for _ in 0..<5 where !addItem.isHittable { app.swipeUp() }
         XCTAssertTrue(addItem.isHittable)
+    }
+
+    func testCompactGalleryShowsTwoColumnsAndMixedPreviews() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-gallery", "-AppleInterfaceStyle", "Light"])
+        try XCTSkipUnless(app.frame.width < 700, "This screenshot checks the compact two-column gallery")
+        let navigationBar = app.navigationBars["Inbox"]
+        XCTAssertTrue(navigationBar.waitForExistence(timeout: 3))
+        let cards = galleryTitles.prefix(4).map { items(titled: $0, in: app).firstMatch }
+        for (title, card) in zip(galleryTitles.prefix(4), cards) {
+            XCTAssertTrue(card.waitForExistence(timeout: 3), "Missing \(title)")
+            XCTAssertTrue(card.isHittable, "The first four cards must be visible: \(title)")
+        }
+
+        let firstFrame = cards[0].frame
+        let secondFrame = cards[1].frame
+        XCTAssertEqual(firstFrame.minY, secondFrame.minY, accuracy: 1)
+        XCTAssertLessThan(firstFrame.maxX, secondFrame.minX)
+        XCTAssertEqual(firstFrame.width, secondFrame.width, accuracy: 1)
+        XCTAssertLessThan(firstFrame.width, app.frame.width / 2)
+        XCTAssertLessThanOrEqual(navigationBar.frame.height, 64, "The library title must remain inline")
+        XCTAssertGreaterThanOrEqual(firstFrame.minY, navigationBar.frame.maxY - 1)
+        XCTAssertLessThanOrEqual(firstFrame.minY - navigationBar.frame.maxY, 16, "Cards must start directly below the toolbar")
+        for card in [cards[0], cards[2], cards[3]] {
+            let image = preview(for: card, in: app)
+            XCTAssertTrue(image.waitForExistence(timeout: 3))
+            XCTAssertGreaterThan(image.frame.height, 0)
+        }
+        XCTAssertFalse(preview(for: cards[1], in: app).exists, "Text-only links must not have empty media placeholders")
+        for identifier in ["show-sections", "show-filters", "collection-layout", "add-item"] {
+            XCTAssertTrue(app.buttons[identifier].isHittable, "Missing toolbar control: \(identifier)")
+        }
+        for identifier in ["filter-type", "filter-source", "filter-date"] {
+            XCTAssertFalse(app.buttons[identifier].exists, "Filters belong in the sheet, not above the gallery")
+        }
+        let search = app.searchFields["Search saved content"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        XCTAssertTrue(search.isHittable)
+        XCTAssertGreaterThan(search.frame.midY, app.frame.minY + app.frame.height * 0.75, "Native search must remain at the bottom")
+        attachScreenshot("ios-gallery-3a-2", from: app)
+        let sectionTitle = navigationBar.descendants(matching: .any)["library-section-title"].firstMatch
+        XCTAssertTrue(sectionTitle.waitForExistence(timeout: 3), "The inline section title must be visible")
+        XCTAssertEqual(sectionTitle.label, "Inbox")
+        XCTAssertGreaterThan(sectionTitle.frame.width, 30)
+        XCTAssertTrue(navigationBar.frame.contains(sectionTitle.frame))
+        XCTAssertLessThan(sectionTitle.frame.midX, app.frame.midX, "The title belongs beside the section button, not in the center")
+        try audit(app)
+
+        for title in galleryTitles.suffix(2) {
+            scrollTo(items(titled: title, in: app).firstMatch, in: app)
+        }
+        let firstCard = items(titled: galleryTitles[0], in: app).firstMatch
+        scrollTo(firstCard, in: app)
+        XCTAssertTrue(preview(for: firstCard, in: app).waitForExistence(timeout: 3), "Scrolling back must reload the local preview")
+        openFixture(galleryTitles[0], in: app)
+        app.navigationBars.buttons["Inbox"].tap()
+        XCTAssertTrue(preview(for: items(titled: galleryTitles[0], in: app).firstMatch, in: app).waitForExistence(timeout: 3), "Returning from details must restore the preview")
+    }
+
+    func testLargestDynamicTypeKeepsPopulatedGalleryAndControlsReachable() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-gallery", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let firstCard = items(titled: galleryTitles[0], in: app).firstMatch
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 3))
+        XCTAssertTrue(preview(for: firstCard, in: app).waitForExistence(timeout: 3))
+        let firstFrame = firstCard.frame
+        if app.frame.width < 700 {
+            XCTAssertGreaterThan(firstFrame.width, app.frame.width * 0.75, "Accessibility text sizes must use one column")
+        }
+        XCTAssertTrue(app.buttons["library-actions"].isHittable)
+        for (identifier, label) in [("show-filters", "Filters"), ("collection-layout", "View"), ("add-item", "Add")] {
+            XCTAssertTrue(libraryControl(identifier, label: label, in: app).isHittable, "Unreachable library action: \(label)")
+        }
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.93)).tap()
+        XCTAssertTrue(app.buttons["show-filters"].waitForNonExistence(timeout: 3), "Dismiss the actions menu before auditing the gallery")
+        XCTAssertFalse(app.buttons["filter-type"].exists)
+        attachScreenshot("ios-gallery-3a-2-largest", from: app)
+        try audit(app)
+
+        let secondCard = items(titled: galleryTitles[1], in: app).firstMatch
+        scrollTo(secondCard, in: app)
+        XCTAssertEqual(secondCard.frame.minX, firstFrame.minX, accuracy: 1)
+        XCTAssertEqual(secondCard.frame.width, firstFrame.width, accuracy: 1)
+        scrollTo(items(titled: galleryTitles[5], in: app).firstMatch, in: app)
+        openFilters(in: app)
+        for identifier in ["filter-type", "filter-source", "filter-date", "reset-filters"] {
+            scrollTo(app.buttons[identifier], in: app)
+        }
+        dismissFilters(in: app)
+        openQuickAdd(in: app)
+        XCTAssertTrue(app.textViews["Content"].waitForExistence(timeout: 3))
+        app.buttons["Cancel"].tap()
+    }
+
+    func testFilterSheetCombinesTypeSourceAndDateAndResetsImmediately() {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-panel"])
+        let titles = ["Panel Link", "Panel Text", "Panel Code", "Panel Image", "Panel File"]
+        XCTAssertTrue(items(titled: "Panel File", in: app).firstMatch.waitForExistence(timeout: 3))
+        openFilters(in: app)
+        assertPicker("filter-type", hasValue: "All types", in: app)
+        assertPicker("filter-source", hasValue: "All sources", in: app)
+        assertPicker("filter-date", hasValue: "Any time", in: app)
+        choose("Links", for: "filter-type", in: app)
+        choose("Safari", for: "filter-source", in: app)
+        choose("Past week", for: "filter-date", in: app)
+        dismissFilters(in: app)
+        XCTAssertTrue(items(titled: "Panel Link", in: app).firstMatch.waitForExistence(timeout: 3))
+        for title in titles.dropFirst() {
+            XCTAssertTrue(items(titled: title, in: app).firstMatch.waitForNonExistence(timeout: 3), "Unexpected result: \(title)")
+        }
+
+        openFilters(in: app)
+        assertPicker("filter-type", hasValue: "Links", in: app)
+        assertPicker("filter-source", hasValue: "Safari", in: app)
+        assertPicker("filter-date", hasValue: "Past week", in: app)
+        choose("Notes", for: "filter-source", in: app)
+        dismissFilters(in: app)
+        for title in titles {
+            XCTAssertTrue(items(titled: title, in: app).firstMatch.waitForNonExistence(timeout: 3), "Type and source must intersect: \(title)")
+        }
+
+        openFilters(in: app)
+        choose("Text", for: "filter-type", in: app)
+        dismissFilters(in: app)
+        XCTAssertTrue(items(titled: "Panel Text", in: app).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(items(titled: "Panel Link", in: app).firstMatch.waitForNonExistence(timeout: 3))
+        openFilters(in: app)
+        app.buttons["reset-filters"].tap()
+        assertPicker("filter-type", hasValue: "All types", in: app)
+        assertPicker("filter-source", hasValue: "All sources", in: app)
+        assertPicker("filter-date", hasValue: "Any time", in: app)
+        dismissFilters(in: app)
+        XCTAssertTrue(items(titled: "Panel File", in: app).firstMatch.waitForExistence(timeout: 3))
+        for title in titles {
+            scrollTo(items(titled: title, in: app).firstMatch, in: app)
+        }
+        XCTAssertTrue(app.navigationBars["Inbox"].exists)
+    }
+
+    func testCollectionLayoutMenuSwitchesBetweenListAndGallery() {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-panel"])
+        let galleryItem = items(titled: "Panel Text", in: app).firstMatch
+        scrollTo(galleryItem, in: app)
+        let galleryWidth = galleryItem.frame.width
+        assertPicker("collection-layout", hasValue: "Gallery", in: app)
+        choose("List", for: "collection-layout", in: app)
+        assertPicker("collection-layout", hasValue: "List", in: app)
+        let listItem = items(titled: "Panel Text", in: app).firstMatch
+        scrollTo(listItem, in: app)
+        if app.frame.width < 700 {
+            XCTAssertGreaterThan(listItem.frame.width, galleryWidth * 1.5)
+        }
+        XCTAssertTrue(app.navigationBars["Inbox"].exists)
+        openFixture("Panel Text", in: app)
+        app.navigationBars.buttons["Inbox"].tap()
+        XCTAssertTrue(app.navigationBars["Inbox"].waitForExistence(timeout: 3))
+        choose("Gallery", for: "collection-layout", in: app)
+        assertPicker("collection-layout", hasValue: "Gallery", in: app)
+        let restoredGalleryItem = items(titled: "Panel Text", in: app).firstMatch
+        scrollTo(restoredGalleryItem, in: app)
+        XCTAssertEqual(restoredGalleryItem.frame.width, galleryWidth, accuracy: 1)
+        XCTAssertTrue(app.buttons["show-filters"].isHittable)
+        XCTAssertTrue(app.buttons["add-item"].isHittable)
+        XCTAssertTrue(app.searchFields["Search saved content"].exists)
     }
 
     func testSettingsGroupsDefaultsAndPreviewPersistence() {
@@ -370,10 +552,7 @@ final class StowUITests: XCTestCase {
         ]
 
         for (title, controls) in expectations {
-            let row = app.cells.containing(.staticText, identifier: title).firstMatch
-            XCTAssertTrue(row.waitForExistence(timeout: 3), "Missing \(title)")
-            row.staticTexts[title].firstMatch.tap()
-            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 3))
+            openFixture(title, in: app)
             if title == "Panel Code" { XCTAssertTrue(app.descendants(matching: .any)["syntax-highlighted-code"].exists) }
             if title == "Panel Image" { XCTAssertTrue(app.descendants(matching: .any)["zoomable-image"].exists) }
             for _ in 0..<3 { app.swipeUp() }
@@ -389,9 +568,7 @@ final class StowUITests: XCTestCase {
 
     func testDetailEditingPersistsNote() {
         let app = launchApp(extraArguments: ["--ui-testing-seed-panel"])
-        let row = app.cells.containing(.staticText, identifier: "Panel Text").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 3))
-        row.staticTexts["Panel Text"].firstMatch.tap()
+        openFixture("Panel Text", in: app)
         app.buttons["Edit"].tap()
         let note = app.textFields["Note"].exists ? app.textFields["Note"] : app.textViews["Note"]
         XCTAssertTrue(note.waitForExistence(timeout: 3))
@@ -403,9 +580,7 @@ final class StowUITests: XCTestCase {
 
     func testDetailSaveFailureRetainsDraftAndAllowsRetry() {
         let app = launchApp(extraArguments: ["--ui-testing-seed-panel"])
-        let row = app.cells.containing(.staticText, identifier: "Panel Code").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 3))
-        row.staticTexts["Panel Code"].firstMatch.tap()
+        openFixture("Panel Code", in: app)
         app.buttons["Edit"].tap()
 
         func replace(_ element: XCUIElement, with value: String) {
@@ -453,9 +628,7 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.navigationBars["Retained draft title"].exists)
         app.navigationBars.buttons["Inbox"].tap()
-        let savedRow = app.cells.containing(.staticText, identifier: "Retained draft title").firstMatch
-        XCTAssertTrue(savedRow.waitForExistence(timeout: 3))
-        savedRow.staticTexts["Retained draft title"].firstMatch.tap()
+        openFixture("Retained draft title", in: app)
         app.buttons["Edit"].tap()
         XCTAssertEqual(title.value as? String, "Retained draft title")
         XCTAssertEqual(note.value as? String, "Retained draft note")
@@ -463,23 +636,24 @@ final class StowUITests: XCTestCase {
         XCTAssertEqual(language.value as? String, "retained language", "Saved language retains existing lowercase normalization")
     }
 
-    func testInboxSwipePinsAndArchivesItem() {
+    func testGalleryContextMenuPinsArchivesAndRestoresItem() {
         let app = launchApp()
-        addText("Swipe me", in: app)
-        var rowTitle = app.cells.containing(.staticText, identifier: "Swipe me").firstMatch
-        XCTAssertTrue(rowTitle.waitForExistence(timeout: 3))
-
-        rowTitle.swipeRight()
-        app.buttons["Pin"].tap()
-        XCTAssertTrue(app.images["Pinned"].waitForExistence(timeout: 2))
-
-        rowTitle = app.cells.containing(.staticText, identifier: "Swipe me").firstMatch
-        rowTitle.swipeLeft()
-        app.buttons["Archive"].tap()
-        revealSections(in: app)
-        let archive = app.buttons["Archive"].exists ? app.buttons["Archive"] : app.staticTexts["Archive"]
-        archive.tap()
-        XCTAssertTrue(app.staticTexts["Swipe me"].waitForExistence(timeout: 3))
+        let title = "Process this thought"
+        addText(title, in: app)
+        performContextAction("Pin", on: title, in: app)
+        selectSection("Pinned", in: app)
+        XCTAssertTrue(items(titled: title, in: app).firstMatch.waitForExistence(timeout: 3))
+        performContextAction("Archive", on: title, in: app)
+        selectSection("Inbox", in: app)
+        XCTAssertTrue(items(titled: title, in: app).firstMatch.waitForNonExistence(timeout: 3))
+        selectSection("Archive", in: app)
+        XCTAssertTrue(items(titled: title, in: app).firstMatch.waitForExistence(timeout: 3))
+        performContextAction("Restore to Inbox", on: title, in: app)
+        XCTAssertTrue(items(titled: title, in: app).firstMatch.waitForNonExistence(timeout: 3))
+        selectSection("Inbox", in: app)
+        XCTAssertTrue(items(titled: title, in: app).firstMatch.waitForExistence(timeout: 3))
+        selectSection("Pinned", in: app)
+        XCTAssertTrue(items(titled: title, in: app).firstMatch.waitForExistence(timeout: 3), "Archive and restore must retain the pin")
     }
 
     func testSafariShareExtensionCapturesURLInOneSave() throws {
@@ -506,7 +680,7 @@ final class StowUITests: XCTestCase {
         assertLocked(app, hiding: [app.staticTexts["example.com"], app.buttons["add-item"]])
         unlock(app)
         XCTAssertTrue(app.staticTexts["example.com"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.cells.containing(.staticText, identifier: "example.com").count, 1)
+        XCTAssertEqual(items(titled: "example.com", in: app).count, 1)
 
         safari.activate()
         let secondMore = safari.buttons["More"]
@@ -527,7 +701,7 @@ final class StowUITests: XCTestCase {
         assertLocked(app, hiding: [app.staticTexts["example.com"], app.buttons["add-item"]])
         unlock(app)
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'CANCELLED'")).firstMatch.exists)
-        XCTAssertEqual(app.cells.containing(.staticText, identifier: "example.com").count, 1)
+        XCTAssertEqual(items(titled: "example.com", in: app).count, 1)
     }
 
     func testSafariShareExtensionCanSaveImmediately() {
@@ -552,7 +726,7 @@ final class StowUITests: XCTestCase {
         assertLocked(app, hiding: [app.staticTexts["example.com"], app.buttons["add-item"]])
         unlock(app)
         XCTAssertTrue(app.staticTexts["example.com"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.cells.containing(.staticText, identifier: "example.com").count, 1)
+        XCTAssertEqual(items(titled: "example.com", in: app).count, 1)
     }
 
     func testSearchFindsMatchingContentAndHidesNonmatchingContent() {
@@ -565,8 +739,8 @@ final class StowUITests: XCTestCase {
         search.tap()
         search.typeText("banana")
 
-        XCTAssertTrue(app.staticTexts["Alpha banana"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.staticTexts["Beta orange"].exists)
+        XCTAssertTrue(items(titled: "Beta orange", in: app).firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(items(titled: "Alpha banana", in: app).firstMatch.waitForExistence(timeout: 3))
     }
 
     func testQuickAddSupportsCodePinAndDirectArchiveOptions() {
@@ -593,6 +767,28 @@ final class StowUITests: XCTestCase {
         archive.tap()
         XCTAssertTrue(app.staticTexts["let answer = 42"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.images["Pinned"].exists || app.staticTexts["Pinned"].exists)
+    }
+
+    private func items(titled title: String, in app: XCUIApplication) -> XCUIElementQuery {
+        // Match item UUIDs, not the item-gallery/item-list containers or media previews.
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier MATCHES %@", "item-[0-9A-Fa-f-]{36}"))
+            .containing(.staticText, identifier: title)
+    }
+
+    private func preview(for item: XCUIElement, in app: XCUIApplication) -> XCUIElement {
+        let itemID = item.identifier.dropFirst("item-".count)
+        return app.descendants(matching: .any)["item-preview-\(itemID)"].firstMatch
+    }
+
+    private func performContextAction(_ action: String, on title: String, in app: XCUIApplication) {
+        let item = items(titled: title, in: app).firstMatch
+        scrollTo(item, in: app)
+        item.press(forDuration: 1)
+        let button = app.buttons[action].firstMatch
+        XCTAssertTrue(button.waitForExistence(timeout: 3), "Missing context action: \(action)")
+        button.tap()
+        XCTAssertTrue(button.waitForNonExistence(timeout: 3))
     }
 
     private func selectSection(_ section: String, in app: XCUIApplication) {
@@ -642,6 +838,30 @@ final class StowUITests: XCTestCase {
         let button = app.buttons[option].firstMatch
         XCTAssertTrue(button.waitForExistence(timeout: 3), "Missing \(option) in \(identifier)")
         button.tap()
+    }
+
+    private func libraryControl(_ identifier: String, label: String, in app: XCUIApplication) -> XCUIElement {
+        let control = app.buttons[identifier].firstMatch
+        if control.exists && control.isHittable { return control }
+        let namedControl = app.buttons[label].firstMatch
+        if namedControl.exists && namedControl.isHittable { return namedControl }
+        let actions = app.buttons["library-actions"]
+        if actions.exists && actions.isHittable { actions.tap() }
+        return control.exists ? control : app.buttons[label].firstMatch
+    }
+
+    private func openFilters(in app: XCUIApplication) {
+        let button = libraryControl("show-filters", label: "Filters", in: app)
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+        button.tap()
+        XCTAssertTrue(app.buttons["filter-type"].waitForExistence(timeout: 3))
+    }
+
+    private func dismissFilters(in app: XCUIApplication) {
+        let button = app.buttons["dismiss-filters"]
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+        button.tap()
+        XCTAssertTrue(app.buttons["filter-type"].waitForNonExistence(timeout: 3))
     }
 
     private func assertPicker(_ identifier: String, hasValue expected: String, in app: XCUIApplication) {
@@ -739,9 +959,9 @@ final class StowUITests: XCTestCase {
     }
 
     private func openFixture(_ title: String, in app: XCUIApplication) {
-        let row = app.cells.containing(.staticText, identifier: title).firstMatch
-        scrollTo(row, in: app)
-        row.staticTexts[title].firstMatch.tap()
+        let item = items(titled: title, in: app).firstMatch
+        scrollTo(item, in: app)
+        item.staticTexts[title].firstMatch.tap()
         XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 3))
     }
 
@@ -758,7 +978,11 @@ final class StowUITests: XCTestCase {
     }
 
     private func audit(_ app: XCUIApplication) throws {
+        let previous = continueAfterFailure
+        continueAfterFailure = true
+        defer { continueAfterFailure = previous }
         try app.performAccessibilityAudit { issue in
+            if self.isOffscreenGalleryContrast(issue, in: app) { return true }
             let label = issue.element?.label ?? ""
             let knownSystemRenderedLabels = ["Inbox", "Archive", "Search saved content", "Its contents and actions will appear here."]
             let isKnownSystemElement = knownSystemRenderedLabels.contains(label) || knownSystemRenderedLabels.contains {
@@ -770,9 +994,44 @@ final class StowUITests: XCTestCase {
         }
     }
 
+    private func isOffscreenGalleryContrast(_ issue: XCUIAccessibilityAuditIssue, in app: XCUIApplication) -> Bool {
+        guard issue.auditType == .contrast, let element = issue.element else { return false }
+        print("Contrast element: id=\(element.identifier), label=\(element.label), frame=\(element.frame)")
+        let prefix = "card-title-"
+        guard element.identifier.hasPrefix(prefix) else { return false }
+        let itemID = String(element.identifier.dropFirst(prefix.count))
+        guard UUID(uuidString: itemID) != nil, app.buttons["item-\(itemID)"].exists else { return false }
+        let navigation = app.navigationBars.firstMatch
+        let search = app.searchFields["Search saved content"].firstMatch
+        guard navigation.exists, search.exists else { return false }
+        let viewport = CGRect(
+            x: app.frame.minX, y: navigation.frame.maxY,
+            width: app.frame.width, height: max(0, search.frame.minY - navigation.frame.maxY)
+        )
+        let frame = element.frame
+        print("Gallery contrast geometry: \(element.label), frame=\(frame), viewport=\(viewport)")
+        guard !viewport.isEmpty, !frame.isEmpty, !viewport.intersects(frame) else { return false }
+        print("Offscreen gallery title contrast: \(element.label), frame=\(frame), viewport=\(viewport)")
+        return true
+    }
+
     private func launchApp(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "--ui-testing-preferences-id=\(preferencesID.uuidString)"] + extraArguments
+        if extraArguments.contains("--ui-testing-seed-gallery") {
+            do {
+                let bundle = Bundle(for: StowUITests.self)
+                var images: [String: String] = [:]
+                for name in ["cafe", "workspace", "mountains"] {
+                    let url = try XCTUnwrap(bundle.url(forResource: "gallery-\(name)", withExtension: "jpg"), "Missing gallery-\(name).jpg fixture")
+                    images[name] = try Data(contentsOf: url).base64EncodedString()
+                }
+                let payload = try JSONSerialization.data(withJSONObject: images, options: [.sortedKeys])
+                app.launchEnvironment["STOW_UI_TEST_GALLERY_IMAGES"] = String(decoding: payload, as: UTF8.self)
+            } catch {
+                XCTFail("Could not load gallery fixture images: \(error)")
+            }
+        }
         app.launch()
         return app
     }
@@ -794,7 +1053,7 @@ final class StowUITests: XCTestCase {
 
     private func openQuickAdd(in app: XCUIApplication) {
         for _ in 0..<2 {
-            let toolbarAdd = app.buttons.matching(identifier: "add-item").firstMatch
+            let toolbarAdd = libraryControl("add-item", label: "Add", in: app)
             let addButton = toolbarAdd.exists ? toolbarAdd : app.buttons["Add Item"]
             XCTAssertTrue(addButton.waitForExistence(timeout: 3))
             addButton.tap()
@@ -805,7 +1064,10 @@ final class StowUITests: XCTestCase {
 
     private func openExampleDomainShareSheet(in safari: XCUIApplication) {
         safari.launch()
-        let address = safari.buttons["Address"].exists ? safari.buttons["Address"] : safari.textFields["Address"]
+        let address = safari.descendants(matching: .any).matching(NSPredicate(
+            format: "(identifier == 'Address' OR label == 'Address') AND (elementType == %d OR elementType == %d)",
+            XCUIElement.ElementType.button.rawValue, XCUIElement.ElementType.textField.rawValue
+        )).firstMatch
         XCTAssertTrue(address.waitForExistence(timeout: 5))
         address.tap()
         let editor = safari.textFields["Address"]

@@ -98,6 +98,13 @@ final class AppModel {
         if ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-panel"), let repository {
             seedPanelFixtures(repository, context: context)
         }
+        #if os(iOS) && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
+           ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-gallery"), let repository {
+            do { try IOSGalleryTestFixtures.seed(repository) }
+            catch { presentedError = error.localizedDescription }
+        }
+        #endif
         #endif
         do {
             let sharedURL = runtimePaths.sharedContainer
