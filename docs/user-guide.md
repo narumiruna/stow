@@ -16,7 +16,7 @@ If a shared item has not appeared, open Stow once so it can import staged captur
 
 ## iPhone and iPad library
 
-The library opens in **Gallery** view. Two columns show saved images, link previews, and text cards at different heights. Narrow windows and accessibility text sizes use one column. Cards without a preview image show their available text instead of an empty image area. Excerpts use up to 160 characters and four source lines, with an ellipsis when more content is available. Open the item to read its full content.
+The library opens in **Gallery** view. Two columns show saved images, link previews, and text cards at different heights. Narrow windows and accessibility text sizes use one column. Cards without a preview image show their available text instead of an empty image area. Stored image dimensions reserve preview space before the picture loads, so loading does not move later cards. Excerpts use up to 160 characters and four source lines, with an ellipsis when more content is available. Open the item to read its full content.
 
 Use the compact toolbar to change sections, open **Filters**, select **Gallery** or **List** under **View**, or add an item. At accessibility text sizes, **Library actions** contains Filters, View, and Add so the section title does not hide these controls. Filters combine content type, source app, and date added. **Reset** clears all three filters. Search works with the active filters.
 

@@ -9,7 +9,7 @@ struct StowItemCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query private var attachments: [StowAttachment]
     @State private var previewImage: UIImage?
-    @State private var mediaAspectRatio: CGFloat?
+    @State private var previewUnavailable = false
     @State private var isVisible = false
     let item: StowItem
     let viewport: CGRect
@@ -23,6 +23,7 @@ struct StowItemCard: View {
 
     var body: some View {
         let presentation = ItemCardPresentation(item: item)
+        let mediaAspectRatio = previewData.flatMap(ItemCardMediaMetadata.aspectRatio(in:))
         VStack(alignment: .leading, spacing: 0) {
             if let mediaAspectRatio {
                 Color(uiColor: .secondarySystemBackground)
@@ -32,12 +33,16 @@ struct StowItemCard: View {
                             Image(uiImage: previewImage)
                                 .resizable()
                                 .scaledToFill()
+                        } else if previewUnavailable {
+                            Image(systemName: "photo")
+                                .font(.title2)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .clipped()
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Preview for \(presentation.title)")
-                    .accessibilityIdentifier(previewImage == nil ? "item-preview-loading-\(item.id.uuidString)" : "item-preview-\(item.id.uuidString)")
+                    .accessibilityLabel(previewUnavailable ? "Preview unavailable for \(presentation.title)" : "Preview for \(presentation.title)")
+                    .accessibilityIdentifier(previewIdentifier)
             }
             VStack(alignment: .leading, spacing: 6) {
                 if mediaAspectRatio == nil {
@@ -93,15 +98,15 @@ struct StowItemCard: View {
                 previewImage = nil
                 return
             }
+            previewUnavailable = false
             guard let data = previewData else {
                 previewImage = nil
-                mediaAspectRatio = nil
                 return
             }
             let image = await Task.detached(priority: .utility) { Self.decodePreview(data) }.value
             guard !Task.isCancelled else { return }
             previewImage = image.map { UIImage(cgImage: $0) }
-            mediaAspectRatio = previewImage.map(previewAspectRatio)
+            previewUnavailable = image == nil
         }
         .onDisappear {
             isVisible = false
@@ -133,9 +138,9 @@ struct StowItemCard: View {
             ? "Link" : presentation.source
     }
 
-    private func previewAspectRatio(_ image: UIImage) -> CGFloat {
-        guard image.size.height > 0 else { return 1 }
-        return min(1.8, max(0.75, image.size.width / image.size.height))
+    private var previewIdentifier: String {
+        let prefix = previewImage != nil ? "item-preview" : previewUnavailable ? "item-preview-unavailable" : "item-preview-loading"
+        return "\(prefix)-\(item.id.uuidString)"
     }
 
     nonisolated private static func decodePreview(_ data: Data) -> CGImage? {

@@ -132,6 +132,33 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(preview(for: items(titled: galleryTitles[0], in: app).firstMatch, in: app).waitForExistence(timeout: 3), "Returning from details must restore the preview")
     }
 
+    func testOffscreenGalleryMediaKeepsItsHeightAfterLoading() {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-gallery", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let first = items(titled: galleryTitles[0], in: app).firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 3))
+        XCTAssertTrue(preview(for: first, in: app).waitForExistence(timeout: 3))
+        let card = items(titled: galleryTitles[3], in: app).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 3))
+        XCTAssertGreaterThan(card.frame.minY, app.frame.maxY + 200, "The fixture must start beyond the preview loading margin")
+        XCTAssertFalse(preview(for: card, in: app).exists, "Offscreen image pixels must remain unloaded")
+        let itemID = card.identifier.dropFirst("item-".count)
+        let reserved = app.descendants(matching: .any)["item-preview-loading-\(itemID)"].firstMatch
+        XCTAssertTrue(reserved.waitForExistence(timeout: 3), "Image space must exist before pixel decoding")
+        let cardHeight = card.frame.height
+        let mediaHeight = reserved.frame.height
+        XCTAssertGreaterThan(mediaHeight, 100)
+        scrollTo(card, in: app)
+        let image = preview(for: card, in: app)
+        XCTAssertTrue(image.waitForExistence(timeout: 3))
+        XCTAssertEqual(card.frame.height, cardHeight, accuracy: 1)
+        XCTAssertEqual(image.frame.height, mediaHeight, accuracy: 1)
+        for _ in 0..<10 where !first.isHittable { app.swipeDown() }
+        XCTAssertTrue(first.isHittable)
+        XCTAssertTrue(reserved.waitForExistence(timeout: 3), "Leaving the viewport must release pixels, not reserved space")
+        XCTAssertEqual(card.frame.height, cardHeight, accuracy: 1)
+        XCTAssertEqual(reserved.frame.height, mediaHeight, accuracy: 1)
+    }
+
     func testLargestDynamicTypeKeepsPopulatedGalleryAndControlsReachable() throws {
         let app = launchApp(extraArguments: ["--ui-testing-seed-gallery", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         let firstCard = items(titled: galleryTitles[0], in: app).firstMatch
