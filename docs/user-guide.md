@@ -82,9 +82,9 @@ Successful paste, open, and drag actions close the panel automatically. Command-
 
 The toolbar shows whether Return will use **Direct paste** or the **Copy only** fallback. It also reports when clipboard monitoring is paused.
 
-Stow requests Accessibility access only for direct paste back into the app you were using. The primary workflow never prompts for this permission. Configure direct paste under **Stow → Settings → Paste & Shortcuts**.
+Stow uses Accessibility access only for direct paste back into the app you were using. On first launch without access, Stow asks macOS for it once and never asks again automatically. If you declined, request it under **Stow → Settings → Paste & Shortcuts**.
 
-Without access, or when the originating app is missing or has quit, Return copies the same item and shows **Copied — paste with Command-V**. The panel closes and returns focus when the originating app is still available.
+Without access, or when the originating app is missing or has quit, Return copies the same item and closes the panel immediately. Focus returns to the originating app when it is still available, so you can paste with Command-V right away.
 
 Direct paste sends Command-V to the originating app after activation. It does not verify that the destination accepted the paste.
 

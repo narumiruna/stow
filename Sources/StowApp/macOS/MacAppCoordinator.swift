@@ -49,6 +49,7 @@ final class MacAppCoordinator: NSObject, NSApplicationDelegate {
         registerHotKeys()
         configureClipboardMonitoring()
         configureAutomationIfNeeded()
+        DirectPasteService.requestAccessOnFirstLaunchIfNeeded()
         #if DEBUG
         let hidesLibraryOnLaunch = ProcessInfo.processInfo.arguments.contains("--ui-testing-utility-mode")
         #else

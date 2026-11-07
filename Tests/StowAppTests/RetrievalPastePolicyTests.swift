@@ -43,7 +43,7 @@ final class RetrievalPastePolicyTests: XCTestCase {
         )
     }
 
-    func testStatusLabelsAndFallbackGuidanceRemainConciseAndAccessible() {
+    func testStatusLabelsRemainConciseAndAccessible() {
         XCTAssertEqual(
             RetrievalPastePresentation.statusLabel(directAvailable: true, compact: false),
             "Paste: Direct"
@@ -60,10 +60,24 @@ final class RetrievalPastePolicyTests: XCTestCase {
             RetrievalPastePresentation.statusAccessibilityLabel(directAvailable: false),
             "Paste mode: Copy only"
         )
-        XCTAssertEqual(
-            RetrievalPastePresentation.copyFallbackMessage,
-            "Copied — paste with Command-V"
-        )
+    }
+}
+
+final class DirectPasteLaunchPromptPolicyTests: XCTestCase {
+    func testPromptsOnceOnFirstLaunchWithoutAccess() {
+        XCTAssertTrue(DirectPasteLaunchPromptPolicy.shouldPrompt(alreadyPrompted: false, accessGranted: false, isAutomatedLaunch: false))
+    }
+
+    func testDoesNotPromptAgainAfterTheFirstLaunch() {
+        XCTAssertFalse(DirectPasteLaunchPromptPolicy.shouldPrompt(alreadyPrompted: true, accessGranted: false, isAutomatedLaunch: false))
+    }
+
+    func testDoesNotPromptWhenAccessIsAlreadyGranted() {
+        XCTAssertFalse(DirectPasteLaunchPromptPolicy.shouldPrompt(alreadyPrompted: false, accessGranted: true, isAutomatedLaunch: false))
+    }
+
+    func testDoesNotPromptDuringAutomatedLaunches() {
+        XCTAssertFalse(DirectPasteLaunchPromptPolicy.shouldPrompt(alreadyPrompted: false, accessGranted: false, isAutomatedLaunch: true))
     }
 }
 

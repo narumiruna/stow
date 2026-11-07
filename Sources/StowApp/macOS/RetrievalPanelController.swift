@@ -343,7 +343,8 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
                     self?.directPasteService.paste(into: target)
                 }
             case .copyFallback:
-                showFeedback(RetrievalPastePresentation.copyFallbackMessage, thenDismiss: true)
+                // Close at once so focus returns to the target app and Command-V works immediately.
+                requestClose(.completedUse)
             }
         case .copy:
             let copied = model.copy(item, attachment: attachment)
@@ -429,14 +430,13 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         return window.level == .popUpMenu || className.contains("Menu") || className.contains("Popover")
     }
 
-    private func showFeedback(_ message: String, thenDismiss: Bool = false) {
+    private func showFeedback(_ message: String) {
         let generation = UUID()
         feedbackGeneration = generation
         session.feedback = message
-        DispatchQueue.main.asyncAfter(deadline: .now() + (thenDismiss ? 1.6 : 1.4)) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in
             guard let self, self.feedbackGeneration == generation else { return }
             self.session.feedback = nil
-            if thenDismiss { self.requestClose(.completedUse) }
         }
     }
 
