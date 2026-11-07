@@ -796,14 +796,7 @@ final class StowUITests: XCTestCase {
         XCTAssertEqual(items(titled: "example.com", in: app).count, 1)
 
         safari.activate()
-        let secondMore = safari.buttons["More"]
-        XCTAssertTrue(secondMore.waitForExistence(timeout: 5))
-        for _ in 0..<3 where !secondMore.isHittable { safari.swipeDown() }
-        XCTAssertTrue(secondMore.isHittable)
-        secondMore.tap()
-        let secondShare = safari.buttons["Share"]
-        XCTAssertTrue(secondShare.waitForExistence(timeout: 3))
-        secondShare.tap()
+        openSafariShareSheet(in: safari)
         XCTAssertTrue(openStowShareExtension(from: safari, extensionApp: shareExtension))
         XCTAssertTrue(shareExtension.buttons["Cancel"].waitForExistence(timeout: 5))
         let cancelledTitle = shareExtension.textFields["Title"]
@@ -1093,7 +1086,7 @@ final class StowUITests: XCTestCase {
     }
 
     private func nativeShareCloseButton(in app: XCUIApplication) -> XCUIElement {
-        let buttons = app.buttons.matching(NSPredicate(format: "label IN {'Close', 'Cancel'}"))
+        let buttons = app.buttons.matching(NSPredicate(format: "identifier == 'header.closeButton' OR label ==[c] 'Close' OR label ==[c] 'Cancel'"))
         return buttons.firstMatch
     }
 
@@ -1204,13 +1197,18 @@ final class StowUITests: XCTestCase {
         safari.typeText("https://example.com")
         safari.typeText(XCUIKeyboardKey.return.rawValue)
         XCTAssertTrue(safari.webViews.otherElements["Example Domain"].waitForExistence(timeout: 8))
+        openSafariShareSheet(in: safari)
+    }
+
+    private func openSafariShareSheet(in safari: XCUIApplication) {
         let more = safari.buttons["More"]
         XCTAssertTrue(more.waitForExistence(timeout: 5))
         for _ in 0..<3 where !more.isHittable { safari.swipeDown() }
         XCTAssertTrue(more.isHittable)
-        more.tap()
+        // Safari can report an invalid native hit point for this visible control.
+        more.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let share = safari.buttons["Share"]
-        XCTAssertTrue(share.waitForExistence(timeout: 3))
+        XCTAssertTrue(share.waitForExistence(timeout: 5))
         share.tap()
     }
 

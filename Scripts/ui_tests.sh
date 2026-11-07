@@ -102,16 +102,17 @@ run_macos_tests() {
   xcodebuild "${build_arguments[@]}" test-without-building
 }
 
-# Keep captures and Simulator-wide authentication notifications away from the
-# development device. Serialize XCTest inside a temporary Simulator clone.
+# Use a fresh Simulator for captures and authentication notifications.
+# Do not clone or stop the development device.
 run_ios_tests() (
-  local template_id device_id enrollment_state old_enrollment=""
-  template_id="$(
+  local device_spec device_type runtime_id device_id result_bundle enrollment_state old_enrollment=""
+  device_spec="$(
     xcrun simctl list devices available -j |
-      uv run python -c 'import json,re,sys; devices=json.load(sys.stdin)["devices"]; runtimes=sorted(devices, key=lambda runtime: tuple(map(int, re.findall(r"\d+", runtime)))); print(next(device["udid"] for runtime in reversed(runtimes) for device in devices[runtime] if device["name"].startswith("iPhone") and device["isAvailable"]))'
+      uv run python -c 'import json,re,sys; devices=json.load(sys.stdin)["devices"]; runtimes=sorted(devices, key=lambda runtime: tuple(map(int, re.findall(r"\d+", runtime)))); print(next(device["deviceTypeIdentifier"] + " " + runtime for runtime in reversed(runtimes) for device in devices[runtime] if device["name"].startswith("iPhone") and device["isAvailable"]))'
   )" || return $?
-  device_id="$(xcrun simctl clone "$template_id" "Stow UI Tests-$(uuidgen)")" || return $?
-  printf 'Using isolated iOS test simulator %s (template %s).\n' "$device_id" "$template_id"
+  read -r device_type runtime_id <<<"$device_spec"
+  device_id="$(xcrun simctl create "Stow UI Tests-$(uuidgen)" "$device_type" "$runtime_id")" || return $?
+  printf 'Using fresh iOS test simulator %s (%s, %s).\n' "$device_id" "$device_type" "$runtime_id"
   trap 'status=$?; trap - EXIT
     if [[ -n "$old_enrollment" ]] && ! xcrun simctl spawn "$device_id" notifyutil -s com.apple.BiometricKit.enrollmentChanged "$old_enrollment" -p com.apple.BiometricKit.enrollmentChanged; then
       printf "%s\n" "Failed to restore Simulator biometric enrollment state." >&2
@@ -140,13 +141,16 @@ run_ios_tests() (
   fi
   xcrun simctl spawn "$device_id" notifyutil -s com.apple.BiometricKit.enrollmentChanged 1 -p com.apple.BiometricKit.enrollmentChanged || return $?
 
+  mkdir -p "$PWD/.build/ui-test-results" || return $?
+  result_bundle="$PWD/.build/ui-test-results/StowUITests-$device_id.xcresult"
+  printf 'Saving iOS UI test results to %s.\n' "$result_bundle"
   if [[ "$suite" == "ios-share" ]]; then
-    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
+    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" -resultBundlePath "$result_bundle" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
       -only-testing:StowUITests/StowUITests/testSafariShareExtensionCapturesURLInOneSave \
       -only-testing:StowUITests/StowUITests/testSafariShareExtensionCanSaveImmediately \
       test
   else
-    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
+    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" -resultBundlePath "$result_bundle" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
   fi
 )
 
