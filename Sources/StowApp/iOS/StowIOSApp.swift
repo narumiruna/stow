@@ -30,8 +30,7 @@ struct StowIOSApp: App {
 
     private static func galleryTestRuntimePaths() -> StowRuntimePaths? {
         #if DEBUG && targetEnvironment(simulator)
-        let arguments = ProcessInfo.processInfo.arguments
-        if arguments.contains("--ui-testing"), arguments.contains("--ui-testing-seed-gallery") {
+        if IOSGalleryTestFixtures.isRequested {
             let root = FileManager.default.temporaryDirectory.appendingPathComponent("StowGalleryUITests-\(UUID().uuidString)", isDirectory: true)
             return StowRuntimePaths(
                 sharedContainer: root.appendingPathComponent("Shared", isDirectory: true),

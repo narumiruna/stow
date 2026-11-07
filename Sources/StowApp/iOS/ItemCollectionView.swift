@@ -16,6 +16,8 @@ struct ItemCollectionView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var galleryPageIndex = 0
+    @AccessibilityFocusState private var pageStatusFocused: Bool
     let items: [StowItem]
     let layout: ItemCollectionLayout
 
@@ -30,6 +32,28 @@ struct ItemCollectionView: View {
             }
         }
         .background(Color(uiColor: .systemGroupedBackground))
+        .onChange(of: galleryScope) { _, _ in galleryPageIndex = 0 }
+        .onChange(of: layout) { _, _ in galleryPageIndex = 0 }
+        .onChange(of: items.count) { _, _ in galleryPageIndex = galleryPage.index }
+    }
+
+    private var galleryPage: GalleryPage {
+        GalleryPage(itemCount: items.count, index: galleryPageIndex)
+    }
+
+    private var galleryScope: GalleryScope {
+        GalleryScope(
+            section: appModel.selection, text: appModel.searchText,
+            type: appModel.typeFilter, source: appModel.sourceFilter, date: appModel.dateFilter
+        )
+    }
+
+    private struct GalleryScope: Equatable {
+        let section: StowSection
+        let text: String
+        let type: ItemType?
+        let source: String?
+        let date: DateAddedFilter
     }
 
     private var gallery: some View {
@@ -38,38 +62,95 @@ struct ItemCollectionView: View {
                 origin: geometry.frame(in: .global).origin,
                 size: CGSize(width: geometry.size.width, height: max(0, geometry.size.height - searchClearance))
             )
-            ScrollView {
-                MasonryLayout(
-                    columnCount: dynamicTypeSize.isAccessibilitySize || geometry.size.width < 340 ? 1 : 2,
-                    spacing: 8,
-                    layoutDirection: layoutDirection
-                ) {
-                    ForEach(items) { item in
-                        NavigationLink {
-                            StowItemDetailView(item: item)
-                        } label: {
-                            StowItemCard(item: item, viewport: viewport)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("item-\(item.id.uuidString)")
-                        .contextMenu { ItemContextMenu(item: item) }
-                        .accessibilityActions {
-                            Button(item.isPinned ? "Unpin" : "Pin") { appModel.togglePin(item) }
-                            if item.status != .trashed {
-                                Button(item.status == .archived ? "Restore to Inbox" : "Archive") { appModel.archiveOrRestore(item) }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    MasonryLayout(
+                        columnCount: dynamicTypeSize.isAccessibilitySize || geometry.size.width < 340 ? 1 : 2,
+                        spacing: 8,
+                        layoutDirection: layoutDirection
+                    ) {
+                        ForEach(items[galleryPage.range]) { item in
+                            NavigationLink {
+                                StowItemDetailView(item: item)
+                            } label: {
+                                StowItemCard(item: item, viewport: viewport)
                             }
-                            Button(item.status == .trashed ? "Restore" : "Move to Trash") { appModel.trashOrRestore(item) }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("item-\(item.id.uuidString)")
+                            .contextMenu { ItemContextMenu(item: item) }
+                            .accessibilityActions {
+                                Button(item.isPinned ? "Unpin" : "Pin") { appModel.togglePin(item) }
+                                if item.status != .trashed {
+                                    Button(item.status == .archived ? "Restore to Inbox" : "Archive") { appModel.archiveOrRestore(item) }
+                                }
+                                Button(item.status == .trashed ? "Restore" : "Move to Trash") { appModel.trashOrRestore(item) }
+                            }
                         }
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
+                    .id("gallery-page-top")
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
+                .scrollDismissesKeyboard(.interactively)
+                .galleryScrollEdges()
+                .padding(.bottom, searchClearance)
+                .accessibilityIdentifier("item-gallery")
+                .onChange(of: galleryPage.index) { _, _ in proxy.scrollTo("gallery-page-top", anchor: .top) }
+                .onChange(of: galleryScope) { _, _ in proxy.scrollTo("gallery-page-top", anchor: .top) }
             }
-            .scrollDismissesKeyboard(.interactively)
-            .galleryScrollEdges()
-            .padding(.bottom, searchClearance)
         }
-        .accessibilityIdentifier("item-gallery")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if galleryPage.count > 1 { galleryPagination }
+        }
+    }
+
+    private var galleryPagination: some View {
+        VStack(spacing: 0) {
+            Divider()
+            VStack(spacing: 0) {
+                if dynamicTypeSize.isAccessibilitySize { pageStatus }
+                HStack(spacing: 8) {
+                    Button {
+                        galleryPageIndex = galleryPage.index - 1
+                        pageStatusFocused = true
+                    } label: {
+                        Text("Previous")
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(GalleryPageButtonStyle())
+                    .disabled(!galleryPage.hasPrevious)
+                    .accessibilityIdentifier("gallery-previous-page")
+                    Spacer(minLength: 0)
+                    if !dynamicTypeSize.isAccessibilitySize { pageStatus }
+                    Spacer(minLength: 0)
+                    Button {
+                        galleryPageIndex = galleryPage.index + 1
+                        pageStatusFocused = true
+                    } label: {
+                        Text("Next")
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(GalleryPageButtonStyle())
+                    .disabled(!galleryPage.hasNext)
+                    .accessibilityIdentifier("gallery-next-page")
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+        }
+        .padding(.bottom, searchClearance)
+        .background(Color(uiColor: .systemBackground))
+    }
+
+    private var pageStatus: some View {
+        Text("Page \(galleryPage.index + 1) of \(galleryPage.count)")
+            .font(.subheadline)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("gallery-page-status")
+            .accessibilityFocused($pageStatusFocused)
     }
 
     private var searchClearance: CGFloat {
@@ -144,6 +225,17 @@ struct ItemCollectionView: View {
     private var emptyDescription: String {
         if hasSearchOrFilters { return "Try another search or remove a filter." }
         return appModel.selection == .inbox ? "Items you save appear here until you process them." : "Nothing is here yet."
+    }
+}
+
+private struct GalleryPageButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        // Keep disabled page labels readable without enabling their actions.
+        configuration.label
+            .foregroundStyle(Color(uiColor: .label).opacity(isEnabled ? 1 : 0.7))
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 

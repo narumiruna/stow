@@ -4,8 +4,19 @@ import StowCore
 
 /// Isolated screenshot content. Photographs are supplied by the UI-test bundle, not the app.
 enum IOSGalleryTestFixtures {
+    static var isRequested: Bool {
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains("--ui-testing") && (
+            arguments.contains("--ui-testing-seed-gallery") || arguments.contains("--ui-testing-seed-gallery-pages")
+        )
+    }
+
     @MainActor
     static func seed(_ repository: StowRepository) throws {
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-gallery-pages") {
+            try seedPages(repository)
+            return
+        }
         guard let payload = ProcessInfo.processInfo.environment["STOW_UI_TEST_GALLERY_IMAGES"]?.data(using: .utf8) else {
             throw CocoaError(.fileReadNoSuchFile)
         }
@@ -56,6 +67,20 @@ enum IOSGalleryTestFixtures {
             textContent: "More reading, a longer walk, and one screen-free evening."
         ), at: now.addingTimeInterval(-172_920))
         try addLink("instagram.com", domain: "instagram.com", description: nil, image: nil, age: 172_980)
+    }
+
+    @MainActor
+    private static func seedPages(_ repository: StowRepository) throws {
+        let now = Date()
+        for number in 1...81 {
+            _ = try repository.create(from: CaptureDraft(
+                type: number.isMultiple(of: 2) ? .text : .code,
+                title: String(format: "Gallery item %03d", number),
+                textContent: "Saved content \(number).",
+                sourceApp: number.isMultiple(of: 2) ? "Notes" : "Safari",
+                isPinned: true
+            ), at: now.addingTimeInterval(-Double(number) * 60))
+        }
     }
 }
 #endif

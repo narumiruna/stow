@@ -99,8 +99,7 @@ final class AppModel {
             seedPanelFixtures(repository, context: context)
         }
         #if os(iOS) && targetEnvironment(simulator)
-        if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
-           ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-gallery"), let repository {
+        if IOSGalleryTestFixtures.isRequested, let repository {
             do { try IOSGalleryTestFixtures.seed(repository) }
             catch { presentedError = error.localizedDescription }
         }

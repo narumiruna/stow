@@ -5,6 +5,7 @@ These JPEG images are cropped from the selected 3A-2 design proposal. They provi
 - Bundle these images only in `StowUITests`, not in the production app.
 - The `--ui-testing-seed-gallery` fixture passes the image data to an isolated, in-memory Debug simulator library. Its capture spool, search index, metrics, and temporary files use a separate temporary root.
 - Fixture loading does not make network requests or enable automatic link previews.
+- The `--ui-testing-seed-gallery-pages` fixture uses the same isolated Debug simulator paths. It creates 81 pinned text/code items with unique dates and two source apps. It does not load photographs. Pagination tests check replacement pages, off-page search, filter and section changes, last-page removal, detail return, and large-text controls.
 
 ## Accessibility audit viewport
 

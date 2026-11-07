@@ -20,6 +20,8 @@ The library opens in **Gallery** view. Two columns show saved images, link previ
 
 Use the compact toolbar to change sections, open **Filters**, select **Gallery** or **List** under **View**, or add an item. At accessibility text sizes, **Library actions** contains Filters, View, and Add so the section title does not hide these controls. Filters combine content type, source app, and date added. **Reset** clears all three filters. Search works with the active filters.
 
+When results contain more than 40 items, Gallery shows one page at a time. Use **Previous** and **Next** below the cards to change pages. Search and filters apply before pagination, not only to the visible page. Changing the section, search, filters, or view returns Gallery to the first page. Opening an item and returning keeps the current page.
+
 Tap a card to open its details. Touch and hold a card for Copy, Pin, Archive, and Trash actions. Archived items offer **Restore to Inbox**. List view also retains swipe actions.
 
 Gallery view uses images and metadata already stored in your library. It does not enable automatic link previews or make additional network requests.

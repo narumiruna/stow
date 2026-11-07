@@ -111,6 +111,7 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         XCTAssertTrue(search.isHittable)
         XCTAssertGreaterThan(search.frame.midY, app.frame.minY + app.frame.height * 0.75, "Native search must remain at the bottom")
+        XCTAssertFalse(app.staticTexts["gallery-page-status"].exists, "Small libraries must keep the selected 3A-2 layout")
         attachScreenshot("ios-gallery-3a-2", from: app)
         let sectionTitle = navigationBar.descendants(matching: .any)["library-section-title"].firstMatch
         XCTAssertTrue(sectionTitle.waitForExistence(timeout: 3), "The inline section title must be visible")
@@ -235,6 +236,118 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["show-filters"].isHittable)
         XCTAssertTrue(app.buttons["add-item"].isHittable)
         XCTAssertTrue(app.searchFields["Search saved content"].exists)
+    }
+
+    func testGalleryPagesBoundCardsAndClampAfterArchivingTheLastItem() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-gallery-pages"])
+        assertGalleryPage(1, of: 3, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+        XCTAssertFalse(items(titled: "Gallery item 041", in: app).firstMatch.exists)
+        XCTAssertFalse(app.buttons["gallery-previous-page"].isEnabled)
+        for identifier in ["gallery-previous-page", "gallery-next-page"] {
+            let button = app.buttons[identifier]
+            XCTAssertGreaterThanOrEqual(button.frame.height, 44)
+            XCTAssertGreaterThanOrEqual(button.frame.width, 44)
+            XCTAssertLessThanOrEqual(button.frame.maxY, app.searchFields["Search saved content"].frame.minY)
+        }
+        attachScreenshot("ios-gallery-pagination", from: app)
+        app.swipeUp()
+        app.buttons["gallery-next-page"].tap()
+        assertGalleryPage(2, of: 3, cardCount: 40, firstTitle: "Gallery item 041", in: app)
+        XCTAssertFalse(items(titled: "Gallery item 001", in: app).firstMatch.exists)
+        XCTAssertFalse(items(titled: "Gallery item 081", in: app).firstMatch.exists)
+        app.buttons["gallery-previous-page"].tap()
+        assertGalleryPage(1, of: 3, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+        app.buttons["gallery-next-page"].tap()
+        app.buttons["gallery-next-page"].tap()
+        assertGalleryPage(3, of: 3, cardCount: 1, firstTitle: "Gallery item 081", in: app)
+        XCTAssertFalse(app.buttons["gallery-next-page"].isEnabled)
+        try audit(app)
+
+        openFixture("Gallery item 081", in: app)
+        app.navigationBars.buttons["Inbox"].tap()
+        assertGalleryPage(3, of: 3, cardCount: 1, firstTitle: "Gallery item 081", in: app)
+        performContextAction("Archive", on: "Gallery item 081", in: app)
+        assertGalleryPage(2, of: 2, cardCount: 40, firstTitle: "Gallery item 041", in: app)
+        XCTAssertFalse(items(titled: "Gallery item 081", in: app).firstMatch.exists)
+        selectSection("Archive", in: app)
+        XCTAssertTrue(items(titled: "Gallery item 081", in: app).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["gallery-page-status"].exists)
+    }
+
+    func testGalleryPaginationResetsForSearchSectionsFiltersAndLayout() {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-gallery-pages"])
+        assertGalleryPage(1, of: 3, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+        app.buttons["gallery-next-page"].tap()
+        let search = app.searchFields["Search saved content"]
+        search.tap()
+        let query = "Gallery item 081"
+        search.typeText(query)
+        XCTAssertTrue(app.staticTexts["gallery-page-status"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(items(titled: query, in: app).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertEqual(galleryCards(in: app).count, 1, "Search must include items outside the active page")
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: query.count))
+        assertGalleryPage(1, of: 3, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+        let closeSearch = app.buttons.matching(NSPredicate(format: "label == 'close' OR label == 'Cancel'")).firstMatch
+        XCTAssertTrue(closeSearch.waitForExistence(timeout: 3))
+        closeSearch.tap()
+        XCTAssertTrue(app.buttons["show-sections"].waitForExistence(timeout: 3))
+        app.buttons["gallery-next-page"].tap()
+        selectSection("Pinned", in: app)
+        assertGalleryPage(1, of: 3, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+        selectSection("Inbox", in: app)
+
+        app.buttons["gallery-next-page"].tap()
+        openFilters(in: app)
+        choose("Safari", for: "filter-source", in: app)
+        dismissFilters(in: app)
+        assertGalleryPage(1, of: 2, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+        app.buttons["gallery-next-page"].tap()
+        assertGalleryPage(2, of: 2, cardCount: 1, firstTitle: "Gallery item 081", in: app)
+        openFilters(in: app)
+        choose("Code", for: "filter-type", in: app)
+        dismissFilters(in: app)
+        assertGalleryPage(1, of: 2, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+        app.buttons["gallery-next-page"].tap()
+        openFilters(in: app)
+        choose("Text", for: "filter-type", in: app)
+        dismissFilters(in: app)
+        XCTAssertTrue(app.staticTexts["No Results"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["gallery-page-status"].exists)
+        openFilters(in: app)
+        app.buttons["reset-filters"].tap()
+        dismissFilters(in: app)
+        assertGalleryPage(1, of: 3, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+
+        app.buttons["gallery-next-page"].tap()
+        openFilters(in: app)
+        choose("Past week", for: "filter-date", in: app)
+        dismissFilters(in: app)
+        assertGalleryPage(1, of: 3, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+        app.buttons["gallery-next-page"].tap()
+        choose("List", for: "collection-layout", in: app)
+        choose("Gallery", for: "collection-layout", in: app)
+        assertGalleryPage(1, of: 3, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+    }
+
+    func testLargestDynamicTypeKeepsGalleryPageControlsReachable() throws {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-gallery-pages", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        assertGalleryPage(1, of: 3, cardCount: 40, firstTitle: "Gallery item 001", in: app)
+        let next = app.buttons["gallery-next-page"]
+        let previous = app.buttons["gallery-previous-page"]
+        let status = app.staticTexts["gallery-page-status"]
+        let search = app.searchFields["Search saved content"]
+        XCTAssertTrue(next.isHittable)
+        XCTAssertGreaterThanOrEqual(next.frame.height, 44)
+        XCTAssertGreaterThanOrEqual(previous.frame.height, 44)
+        XCTAssertTrue(app.frame.contains(status.frame))
+        XCTAssertLessThanOrEqual(next.frame.maxY, search.frame.minY)
+        next.tap()
+        assertGalleryPage(2, of: 3, cardCount: 40, firstTitle: "Gallery item 041", in: app)
+        XCTAssertTrue(previous.isHittable)
+        next.tap()
+        assertGalleryPage(3, of: 3, cardCount: 1, firstTitle: "Gallery item 081", in: app)
+        attachScreenshot("ios-gallery-pagination-largest", from: app)
+        try audit(app)
     }
 
     func testSettingsGroupsDefaultsAndPreviewPersistence() {
@@ -769,11 +882,25 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(app.images["Pinned"].exists || app.staticTexts["Pinned"].exists)
     }
 
-    private func items(titled title: String, in app: XCUIApplication) -> XCUIElementQuery {
+    private func galleryCards(in app: XCUIApplication) -> XCUIElementQuery {
         // Match item UUIDs, not the item-gallery/item-list containers or media previews.
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier MATCHES %@", "item-[0-9A-Fa-f-]{36}"))
-            .containing(.staticText, identifier: title)
+    }
+
+    private func items(titled title: String, in app: XCUIApplication) -> XCUIElementQuery {
+        galleryCards(in: app).containing(.staticText, identifier: title)
+    }
+
+    private func assertGalleryPage(_ number: Int, of total: Int, cardCount: Int, firstTitle: String, in app: XCUIApplication) {
+        let status = app.staticTexts.matching(NSPredicate(
+            format: "identifier == %@ AND label == %@", "gallery-page-status", "Page \(number) of \(total)"
+        )).firstMatch
+        XCTAssertTrue(status.waitForExistence(timeout: 5))
+        XCTAssertEqual(galleryCards(in: app).count, cardCount, "Only the current page must create cards")
+        let first = items(titled: firstTitle, in: app).firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 3))
+        XCTAssertTrue(first.isHittable, "Page navigation must scroll to the first card")
     }
 
     private func preview(for item: XCUIElement, in app: XCUIApplication) -> XCUIElement {
@@ -1064,9 +1191,10 @@ final class StowUITests: XCTestCase {
 
     private func openExampleDomainShareSheet(in safari: XCUIApplication) {
         safari.launch()
+        // The address label can change to "Translation Available" during launch.
         let address = safari.descendants(matching: .any).matching(NSPredicate(
-            format: "(identifier == 'Address' OR label == 'Address') AND (elementType == %d OR elementType == %d)",
-            XCUIElement.ElementType.button.rawValue, XCUIElement.ElementType.textField.rawValue
+            format: "identifier BEGINSWITH %@ OR ((identifier == 'Address' OR label == 'Address') AND (elementType == %d OR elementType == %d))",
+            "CapsuleNavigationBar?", XCUIElement.ElementType.button.rawValue, XCUIElement.ElementType.textField.rawValue
         )).firstMatch
         XCTAssertTrue(address.waitForExistence(timeout: 5))
         address.tap()
