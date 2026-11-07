@@ -14,6 +14,18 @@ Sharing saves one supported representation from the first shared item, not every
 
 If a shared item has not appeared, open Stow once so it can import staged captures. See [Support](release/support.md#common-checks) for more checks.
 
+## iPhone and iPad library
+
+The library opens in **Gallery** view. Two columns show saved images, link previews, and text cards at different heights. Narrow windows and accessibility text sizes use one column. Cards without a preview image show their available text instead of an empty image area. Excerpts use up to 160 characters and four source lines, with an ellipsis when more content is available. Open the item to read its full content.
+
+Use the compact toolbar to change sections, open **Filters**, select **Gallery** or **List** under **View**, or add an item. At accessibility text sizes, **Library actions** contains Filters, View, and Add so the section title does not hide these controls. Filters combine content type, source app, and date added. **Reset** clears all three filters. Search works with the active filters.
+
+When results contain more than 40 items, Gallery shows one page at a time. Use **Previous** and **Next** below the cards to change pages. Search and filters apply before pagination, not only to the visible page. Changing the section, search, filters, or view returns Gallery to the first page. Opening an item and returning keeps the current page.
+
+Tap a card to open its details. Touch and hold a card for Copy, Pin, Archive, and Trash actions. Archived items offer **Restore to Inbox**. List view also retains swipe actions.
+
+Gallery view uses images and metadata already stored in your library. It does not enable automatic link previews or make additional network requests.
+
 ## iPhone and iPad settings
 
 Settings has four groups: **Security & Privacy**, **Saving & Sharing**, **Appearance & Browsing**, and **Sync & Data**.

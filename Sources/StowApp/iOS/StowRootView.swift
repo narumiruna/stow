@@ -6,8 +6,11 @@ struct StowRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(AppModel.self) private var appModel
     @Query(sort: \StowItem.createdAt, order: .reverse) private var allItems: [StowItem]
+    @State private var collectionLayout = ItemCollectionLayout.gallery
+    @State private var showsFilters = false
 
     var body: some View {
         @Bindable var appModel = appModel
@@ -20,6 +23,7 @@ struct StowRootView: View {
         }
         .searchable(text: $appModel.searchText, prompt: "Search saved content")
         .sheet(isPresented: $appModel.isAdding) { QuickAddView() }
+        .sheet(isPresented: $showsFilters) { ItemFiltersView(availableSources: availableSources) }
         .alert("Stow couldn't complete that action", isPresented: Binding(
             get: { appModel.presentedError != nil },
             set: { if !$0 { appModel.presentedError = nil } }
@@ -37,23 +41,30 @@ struct StowRootView: View {
         NavigationStack {
             sectionContent
                 .navigationTitle(appModel.selection.rawValue)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(Color(uiColor: .systemBackground), for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
                 .toolbar {
-                    ToolbarItem(placement: .navigation) {
-                        Menu {
-                            ForEach(StowSection.allCases) { section in
-                                Button { appModel.selection = section } label: {
-                                    Label(section.rawValue, systemImage: section.icon)
-                                }
-                            }
-                        } label: {
-                            Label("Sections", systemImage: "sidebar.left")
-                        }
-                        .accessibilityIdentifier("show-sections")
+                    ToolbarItem(placement: .topBarLeading) {
+                        sectionsMenu
                     }
-                    ToolbarItem(placement: .primaryAction) {
-                        Button { showQuickAdd() } label: { Label("Add", systemImage: "plus") }
-                            .accessibilityIdentifier("add-item")
+                    .compactLibraryBackground()
+                    ToolbarItem(placement: .topBarLeading) {
+                        Text(appModel.selection.rawValue)
+                            .font(.title3.weight(.semibold))
+                            .dynamicTypeSize(dynamicTypeSize)
+                            .foregroundStyle(Color(uiColor: .label))
+                            .fixedSize()
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityShowsLargeContentViewer { Text(appModel.selection.rawValue) }
+                            .accessibilityIdentifier("library-section-title")
                     }
+                    .compactLibraryBackground()
+                    ToolbarItem(placement: .principal) {
+                        Color.clear.frame(width: 1, height: 1).accessibilityHidden(true)
+                    }
+                    .compactLibraryBackground()
+                    libraryActions
                 }
         }
     }
@@ -74,12 +85,8 @@ struct StowRootView: View {
         } content: {
             sectionContent
                 .navigationTitle(appModel.selection.rawValue)
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button { showQuickAdd() } label: { Label("Add", systemImage: "plus") }
-                            .accessibilityIdentifier("add-item")
-                    }
-                }
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { libraryActions }
         } detail: {
             ContentUnavailableView("Choose an item", systemImage: "shippingbox", description: Text("Its contents and actions will appear here."))
         }
@@ -90,8 +97,90 @@ struct StowRootView: View {
         if appModel.selection == .settings {
             StowSettingsView()
         } else {
-            ItemCollectionView(items: visibleItems, availableSources: availableSources)
+            ItemCollectionView(items: visibleItems, layout: collectionLayout)
         }
+    }
+
+    private var sectionsMenu: some View {
+        Menu {
+            ForEach(StowSection.allCases) { section in
+                Button { appModel.selection = section } label: {
+                    Label(section.rawValue, systemImage: section.icon)
+                }
+            }
+        } label: {
+            Label("Sections", systemImage: "line.3.horizontal")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(.blue)
+                .frame(minWidth: 44, minHeight: 44)
+        }
+        .tint(.blue)
+        .accessibilityLabel("Sections")
+        .accessibilityIdentifier("show-sections")
+    }
+
+    @ToolbarContentBuilder
+    private var libraryActions: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            if dynamicTypeSize.isAccessibilitySize && appModel.selection != .settings {
+                Menu {
+                    filterButton
+                    layoutMenu
+                    addButton
+                } label: {
+                    Label("Library actions", systemImage: "ellipsis")
+                        .foregroundStyle(.blue)
+                }
+                .tint(.blue)
+                .accessibilityIdentifier("library-actions")
+            } else {
+                if appModel.selection != .settings {
+                    filterButton
+                    layoutMenu
+                }
+                addButton
+            }
+        }
+        .compactLibraryBackground()
+    }
+
+    private var filterButton: some View {
+        Button { showsFilters = true } label: {
+            Label("Filters", systemImage: activeFilterCount == 0 ? "slider.horizontal.3" : "line.3.horizontal.decrease.circle.fill")
+                .foregroundStyle(.blue)
+        }
+        .tint(.blue)
+        .accessibilityIdentifier("show-filters")
+        .accessibilityValue(activeFilterCount == 0 ? "No active filters" : "\(activeFilterCount) active filters")
+    }
+
+    private var layoutMenu: some View {
+        Menu {
+            Picker("View", selection: $collectionLayout) {
+                ForEach(ItemCollectionLayout.allCases) { layout in
+                    Label(layout.rawValue, systemImage: layout.icon).tag(layout)
+                }
+            }
+        } label: {
+            Label("View", systemImage: collectionLayout.icon).foregroundStyle(.blue)
+        }
+        .tint(.blue)
+        .accessibilityIdentifier("collection-layout")
+        .accessibilityValue(collectionLayout.rawValue)
+    }
+
+    private var addButton: some View {
+        Button { showQuickAdd() } label: {
+            Label("Add", systemImage: "plus").foregroundStyle(.blue)
+        }
+        .tint(.blue)
+        .accessibilityIdentifier("add-item")
+    }
+
+    private var activeFilterCount: Int {
+        (appModel.typeFilter == nil ? 0 : 1)
+            + (appModel.sourceFilter == nil ? 0 : 1)
+            + (appModel.dateFilter == .anytime ? 0 : 1)
     }
 
     private var visibleItems: [StowItem] {
@@ -119,5 +208,16 @@ struct StowRootView: View {
             .foregroundStyle(.secondary)
             .padding()
             .accessibilityLabel(appModel.privacyStorageText)
+    }
+}
+
+private extension ToolbarContent {
+    @ToolbarContentBuilder
+    func compactLibraryBackground() -> some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            sharedBackgroundVisibility(.hidden)
+        } else {
+            self
+        }
     }
 }

@@ -3,67 +3,185 @@ import SwiftUI
 import StowCore
 import UIKit
 
+enum ItemCollectionLayout: String, CaseIterable, Identifiable {
+    case gallery = "Gallery"
+    case list = "List"
+
+    var id: String { rawValue }
+    var icon: String { self == .gallery ? "square.grid.2x2" : "list.bullet" }
+}
+
 struct ItemCollectionView: View {
     @Environment(AppModel.self) private var appModel
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.layoutDirection) private var layoutDirection
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var galleryPageIndex = 0
+    @AccessibilityFocusState private var pageStatusFocused: Bool
     let items: [StowItem]
-    let availableSources: [String]
+    let layout: ItemCollectionLayout
 
     var body: some View {
-        @Bindable var appModel = appModel
-        VStack(spacing: 0) {
-            filterBar(appModel: appModel)
+        Group {
             if items.isEmpty {
                 emptyState
+            } else if layout == .gallery {
+                gallery
             } else {
-                List(items) { item in
-                    NavigationLink {
-                        StowItemDetailView(item: item)
-                    } label: {
-                        StowItemRow(item: item)
-                    }
-                    .accessibilityIdentifier("item-\(item.id.uuidString)")
-                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        Button { appModel.togglePin(item) } label: { Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.slash" : "pin") }
-                            .tint(.orange)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        if item.status != .trashed {
-                            Button { appModel.archiveOrRestore(item) } label: { Label(item.status == .archived ? "Restore" : "Archive", systemImage: "archivebox") }
-                                .tint(.blue)
+                itemList
+            }
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .onChange(of: galleryScope) { _, _ in galleryPageIndex = 0 }
+        .onChange(of: layout) { _, _ in galleryPageIndex = 0 }
+        .onChange(of: items.count) { _, _ in galleryPageIndex = galleryPage.index }
+    }
+
+    private var galleryPage: GalleryPage {
+        GalleryPage(itemCount: items.count, index: galleryPageIndex)
+    }
+
+    private var galleryScope: GalleryScope {
+        GalleryScope(
+            section: appModel.selection, text: appModel.searchText,
+            type: appModel.typeFilter, source: appModel.sourceFilter, date: appModel.dateFilter
+        )
+    }
+
+    private struct GalleryScope: Equatable {
+        let section: StowSection
+        let text: String
+        let type: ItemType?
+        let source: String?
+        let date: DateAddedFilter
+    }
+
+    private var gallery: some View {
+        GeometryReader { geometry in
+            let viewport = CGRect(
+                origin: geometry.frame(in: .global).origin,
+                size: CGSize(width: geometry.size.width, height: max(0, geometry.size.height - searchClearance))
+            )
+            ScrollViewReader { proxy in
+                ScrollView {
+                    MasonryLayout(
+                        columnCount: dynamicTypeSize.isAccessibilitySize || geometry.size.width < 340 ? 1 : 2,
+                        spacing: 8,
+                        layoutDirection: layoutDirection
+                    ) {
+                        ForEach(items[galleryPage.range]) { item in
+                            NavigationLink {
+                                StowItemDetailView(item: item)
+                            } label: {
+                                StowItemCard(item: item, viewport: viewport)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("item-\(item.id.uuidString)")
+                            .contextMenu { ItemContextMenu(item: item) }
+                            .accessibilityActions {
+                                Button(item.isPinned ? "Unpin" : "Pin") { appModel.togglePin(item) }
+                                if item.status != .trashed {
+                                    Button(item.status == .archived ? "Restore to Inbox" : "Archive") { appModel.archiveOrRestore(item) }
+                                }
+                                Button(item.status == .trashed ? "Restore" : "Move to Trash") { appModel.trashOrRestore(item) }
+                            }
                         }
                     }
-                    .contextMenu { ItemContextMenu(item: item) }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
+                    .id("gallery-page-top")
                 }
-                .listStyle(.inset)
+                .scrollDismissesKeyboard(.interactively)
+                .galleryScrollEdges()
+                .padding(.bottom, searchClearance)
+                .accessibilityIdentifier("item-gallery")
+                .onChange(of: galleryPage.index) { _, _ in proxy.scrollTo("gallery-page-top", anchor: .top) }
+                .onChange(of: galleryScope) { _, _ in proxy.scrollTo("gallery-page-top", anchor: .top) }
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if galleryPage.count > 1 { galleryPagination }
         }
     }
 
-    @ViewBuilder
-    private func filterBar(appModel: AppModel) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack {
-                Picker("Type", selection: Binding<ItemType?>(get: { appModel.typeFilter }, set: { appModel.typeFilter = $0 })) {
-                Text("All types").tag(ItemType?.none)
-                ForEach(ItemType.allCases) { type in Text(type.displayName).tag(Optional(type)) }
+    private var galleryPagination: some View {
+        VStack(spacing: 0) {
+            Divider()
+            VStack(spacing: 0) {
+                if dynamicTypeSize.isAccessibilitySize { pageStatus }
+                HStack(spacing: 8) {
+                    Button {
+                        galleryPageIndex = galleryPage.index - 1
+                        pageStatusFocused = true
+                    } label: {
+                        Text("Previous")
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(GalleryPageButtonStyle())
+                    .disabled(!galleryPage.hasPrevious)
+                    .accessibilityIdentifier("gallery-previous-page")
+                    Spacer(minLength: 0)
+                    if !dynamicTypeSize.isAccessibilitySize { pageStatus }
+                    Spacer(minLength: 0)
+                    Button {
+                        galleryPageIndex = galleryPage.index + 1
+                        pageStatusFocused = true
+                    } label: {
+                        Text("Next")
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(GalleryPageButtonStyle())
+                    .disabled(!galleryPage.hasNext)
+                    .accessibilityIdentifier("gallery-next-page")
+                }
             }
-            .labelsHidden()
-            Picker("Source", selection: Binding<String?>(get: { appModel.sourceFilter }, set: { appModel.sourceFilter = $0 })) {
-                Text("All sources").tag(String?.none)
-                ForEach(availableSources, id: \.self) { Text($0).tag(Optional($0)) }
-            }
-            .labelsHidden()
-            Picker("Date added", selection: Binding(get: { appModel.dateFilter }, set: { appModel.dateFilter = $0 })) {
-                ForEach(DateAddedFilter.allCases) { Text($0.rawValue).tag($0) }
-            }
-                .labelsHidden()
-            }
-            .pickerStyle(.menu)
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
         }
-        .accessibilityLabel("Filters")
-        .padding(.vertical, 8)
-        .background(.bar)
+        .padding(.bottom, searchClearance)
+        .background(Color(uiColor: .systemBackground))
+    }
+
+    private var pageStatus: some View {
+        Text("Page \(galleryPage.index + 1) of \(galleryPage.count)")
+            .font(.subheadline)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("gallery-page-status")
+            .accessibilityFocused($pageStatusFocused)
+    }
+
+    private var searchClearance: CGFloat {
+        if #available(iOS 26.0, *), horizontalSizeClass == .compact, dynamicTypeSize.isAccessibilitySize {
+            return 24
+        }
+        return 0
+    }
+
+    private var itemList: some View {
+        List(items) { item in
+            NavigationLink {
+                StowItemDetailView(item: item)
+            } label: {
+                StowItemRow(item: item)
+            }
+            .accessibilityIdentifier("item-\(item.id.uuidString)")
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                Button { appModel.togglePin(item) } label: { Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.slash" : "pin") }
+                    .tint(.orange)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                if item.status != .trashed {
+                    Button { appModel.archiveOrRestore(item) } label: { Label(item.status == .archived ? "Restore" : "Archive", systemImage: "archivebox") }
+                        .tint(.blue)
+                }
+            }
+            .contextMenu { ItemContextMenu(item: item) }
+        }
+        .listStyle(.inset)
+        .accessibilityIdentifier("item-list")
     }
 
     private var emptyState: some View {
@@ -81,7 +199,7 @@ struct ItemCollectionView: View {
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                if appModel.selection == .inbox && appModel.searchText.isEmpty {
+                if appModel.selection == .inbox && !hasSearchOrFilters {
                     Button("Add Item") { showQuickAdd() }
                         .buttonStyle(.bordered)
                         .tint(.primary)
@@ -99,11 +217,36 @@ struct ItemCollectionView: View {
         appModel.isAdding = true
     }
 
-    private var emptyTitle: String { appModel.searchText.isEmpty ? "No \(appModel.selection.rawValue) Items" : "No Results" }
-    private var emptyIcon: String { appModel.searchText.isEmpty ? appModel.selection.icon : "magnifyingglass" }
+    private var hasSearchOrFilters: Bool {
+        !appModel.searchText.isEmpty || appModel.typeFilter != nil || appModel.sourceFilter != nil || appModel.dateFilter != .anytime
+    }
+    private var emptyTitle: String { hasSearchOrFilters ? "No Results" : "No \(appModel.selection.rawValue) Items" }
+    private var emptyIcon: String { hasSearchOrFilters ? "magnifyingglass" : appModel.selection.icon }
     private var emptyDescription: String {
-        if !appModel.searchText.isEmpty { return "Try another search or remove a filter." }
+        if hasSearchOrFilters { return "Try another search or remove a filter." }
         return appModel.selection == .inbox ? "Items you save appear here until you process them." : "Nothing is here yet."
+    }
+}
+
+private struct GalleryPageButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        // Keep disabled page labels readable without enabling their actions.
+        configuration.label
+            .foregroundStyle(Color(uiColor: .label).opacity(isEnabled ? 1 : 0.7))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func galleryScrollEdges() -> some View {
+        if #available(iOS 26.0, *) {
+            scrollEdgeEffectHidden(for: .bottom)
+        } else {
+            self
+        }
     }
 }
 
@@ -153,6 +296,12 @@ private struct ItemContextMenu: View {
     @Environment(AppModel.self) private var appModel
     @Query private var allAttachments: [StowAttachment]
     let item: StowItem
+
+    init(item: StowItem) {
+        self.item = item
+        let itemID = item.id
+        _allAttachments = Query(filter: #Predicate<StowAttachment> { $0.itemID == itemID })
+    }
 
     var body: some View {
         Button {
