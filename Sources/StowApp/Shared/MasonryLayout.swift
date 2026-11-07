@@ -3,7 +3,6 @@ import SwiftUI
 struct MasonryLayout: Layout {
     var columnCount = 2
     var spacing: CGFloat = 12
-    var layoutDirection: LayoutDirection = .leftToRight
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         arrangement(width: proposal.width ?? 320, subviews: subviews).size
@@ -12,9 +11,8 @@ struct MasonryLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let arrangement = arrangement(width: bounds.width, subviews: subviews)
         for (subview, frame) in zip(subviews, arrangement.frames) {
-            let x = layoutDirection == .rightToLeft ? bounds.width - frame.maxX : frame.minX
             subview.place(
-                at: CGPoint(x: bounds.minX + x, y: bounds.minY + frame.minY),
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
                 anchor: .topLeading,
                 proposal: ProposedViewSize(width: frame.width, height: frame.height)
             )

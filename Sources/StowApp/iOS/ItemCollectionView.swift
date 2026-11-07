@@ -14,7 +14,6 @@ enum ItemCollectionLayout: String, CaseIterable, Identifiable {
 struct ItemCollectionView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var galleryPageIndex = 0
     @AccessibilityFocusState private var pageStatusFocused: Bool
@@ -66,8 +65,7 @@ struct ItemCollectionView: View {
                 ScrollView {
                     MasonryLayout(
                         columnCount: dynamicTypeSize.isAccessibilitySize || geometry.size.width < 340 ? 1 : 2,
-                        spacing: 8,
-                        layoutDirection: layoutDirection
+                        spacing: 8
                     ) {
                         ForEach(items[galleryPage.range]) { item in
                             NavigationLink {

@@ -1,7 +1,9 @@
+import CoreGraphics
 import SwiftUI
 import XCTest
 @testable import StowApp
 
+@MainActor
 final class MasonryLayoutTests: XCTestCase {
     func testEmptyGalleryHasNoExtraVerticalSpace() {
         let arrangement = MasonryArrangement(width: 360, columns: 2, spacing: 12, heights: [])
@@ -51,6 +53,43 @@ final class MasonryLayoutTests: XCTestCase {
                 }
             }
         }
+    }
+
+    func testRenderedLeftToRightPlacesTheFirstCardOnTheLeft() throws {
+        let colors = try renderedColumnColors(direction: .leftToRight)
+        XCTAssertGreaterThan(colors.left[0], colors.left[2], "The first red card must be on the left")
+        XCTAssertGreaterThan(colors.right[2], colors.right[0], "The second blue card must be on the right")
+    }
+
+    func testRenderedRightToLeftPlacesTheFirstCardOnTheRight() throws {
+        let colors = try renderedColumnColors(direction: .rightToLeft)
+        XCTAssertGreaterThan(colors.right[0], colors.right[2], "SwiftUI must mirror the first red card to the right")
+        XCTAssertGreaterThan(colors.left[2], colors.left[0], "The second blue card must be on the left")
+    }
+
+    private func renderedColumnColors(direction: LayoutDirection) throws -> (left: [UInt8], right: [UInt8]) {
+        let content = MasonryLayout(columnCount: 2, spacing: 12) {
+            Color.red.frame(height: 40)
+            Color.blue.frame(height: 40)
+        }
+        .frame(width: 200, height: 40)
+        .environment(\.layoutDirection, direction)
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 1
+        let image = try XCTUnwrap(renderer.cgImage)
+        var pixels = [UInt8](repeating: 0, count: 200 * 40 * 4)
+        try pixels.withUnsafeMutableBytes { buffer in
+            let context = try XCTUnwrap(CGContext(
+                data: buffer.baseAddress, width: 200, height: 40, bitsPerComponent: 8, bytesPerRow: 200 * 4,
+                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ))
+            context.draw(image, in: CGRect(x: 0, y: 0, width: 200, height: 40))
+        }
+        func sample(_ x: Int) -> [UInt8] {
+            let start = (20 * 200 + x) * 4
+            return Array(pixels[start..<(start + 4)])
+        }
+        return (sample(47), sample(153))
     }
 
     func testInvalidColumnCountFallsBackToOneColumn() {

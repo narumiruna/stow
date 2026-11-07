@@ -132,6 +132,24 @@ final class StowUITests: XCTestCase {
         XCTAssertTrue(preview(for: items(titled: galleryTitles[0], in: app).firstMatch, in: app).waitForExistence(timeout: 3), "Returning from details must restore the preview")
     }
 
+    func testGalleryUsesRightToLeftReadingOrder() {
+        let app = launchApp(extraArguments: [
+            "--ui-testing-seed-gallery", "-AppleLanguages", "(ar)", "-AppleLocale", "ar_SA",
+            "-AppleTextDirection", "YES", "-NSForceRightToLeftWritingDirection", "YES"
+        ])
+        let first = items(titled: galleryTitles[0], in: app).firstMatch
+        let second = items(titled: galleryTitles[1], in: app).firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 3))
+        XCTAssertTrue(second.waitForExistence(timeout: 3))
+        XCTAssertTrue(preview(for: first, in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(first.isHittable)
+        XCTAssertTrue(second.isHittable)
+        XCTAssertGreaterThan(first.frame.minX, second.frame.maxX, "The first card must use the right leading column")
+        XCTAssertEqual(first.frame.minY, second.frame.minY, accuracy: 1)
+        XCTAssertEqual(first.frame.width, second.frame.width, accuracy: 1)
+        attachScreenshot("ios-gallery-rtl", from: app)
+    }
+
     func testOffscreenGalleryMediaKeepsItsHeightAfterLoading() {
         let app = launchApp(extraArguments: ["--ui-testing-seed-gallery", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         let first = items(titled: galleryTitles[0], in: app).firstMatch
