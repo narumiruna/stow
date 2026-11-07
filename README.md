@@ -33,7 +33,7 @@ Your library is stored on your devices and can sync through your private iCloud 
 
 On iPhone and iPad, optional App Lock uses Face ID, Touch ID, or your device passcode. Automatic link previews are off by default and can be enabled in Settings. Launch-page and appearance preferences stay on this device. See the [iOS settings guide](docs/user-guide.md#iphone-and-ipad-settings) for behavior and limits.
 
-Mac direct paste is optional and requires Accessibility access. Without it, Return copies the item so you can paste with Command-V. Configure this under **Stow → Settings → Paste & Shortcuts**.
+Mac direct paste requires Accessibility access. Stow asks for it once, on first launch. Without it, Return copies the item and closes the panel so you can paste with Command-V. Configure this under **Stow → Settings → Paste & Shortcuts**.
 
 Clipboard capture supports selected content and formats, not everything an app can copy. Stow skips content marked as protected by cooperating apps, but does not identify all passwords or other sensitive-looking text. Disable monitoring before copying content you do not want saved.
 

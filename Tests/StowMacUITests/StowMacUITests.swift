@@ -74,8 +74,7 @@ final class StowMacUITests: XCTestCase {
         XCTAssertTrue(panel.buttons["Close Quick Panel"].exists, "Clear Search and Close must remain distinct")
         app.typeKey(.return, modifierFlags: [])
         XCTAssertEqual(NSPasteboard.general.string(forType: .string), "panel text payload")
-        XCTAssertTrue(panel.staticTexts["Copied — paste with Command-V"].waitForExistence(timeout: 2))
-        XCTAssertTrue(panel.waitForNonExistence(timeout: 3), "Return should close the panel after the copy fallback")
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 1), "Return should close the panel immediately after the copy fallback")
 
         showPanel(in: app)
         XCTAssertTrue(panel.waitForExistence(timeout: 3))

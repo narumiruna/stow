@@ -37,8 +37,6 @@ enum RetrievalPastePolicy {
 }
 
 enum RetrievalPastePresentation {
-    static let copyFallbackMessage = "Copied — paste with Command-V"
-
     static func statusLabel(directAvailable: Bool, compact: Bool) -> String {
         if directAvailable { return compact ? "Direct" : "Paste: Direct" }
         return compact ? "Copy only" : "Paste: Copy only"

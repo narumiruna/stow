@@ -83,7 +83,7 @@ struct MacSettingsView: View {
                 } else {
                     Button("Request Accessibility Access…") { requestAccessibilityAccess() }
                         .accessibilityIdentifier("settings-request-accessibility")
-                    guidance("Stow only asks macOS for this permission when you choose the button above.")
+                    guidance("Stow asks macOS for this permission once, on first launch. If you declined, choose the button above.")
                 }
             }
 
