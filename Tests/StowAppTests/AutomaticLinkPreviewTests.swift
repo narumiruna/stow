@@ -203,8 +203,8 @@ final class AutomaticLinkPreviewTests: XCTestCase {
         }
         XCTAssertEqual(direct.title, "Fetched title")
         XCTAssertEqual(direct.linkDescription, "Fetched description")
-        XCTAssertEqual(direct.faviconData, Data([1, 2]))
-        XCTAssertEqual(direct.linkPreviewImageData, Data([3, 4]))
+        XCTAssertEqual(direct.faviconData, PreviewLoader.faviconData)
+        XCTAssertEqual(direct.linkPreviewImageData, PreviewLoader.previewImageData)
         let clipboard = try XCTUnwrap(fixture.model.repository?.allItems().first { $0.captureID == clipboardDraft.id })
         XCTAssertEqual(clipboard.title, "Saved clipboard title")
     }
@@ -219,7 +219,7 @@ final class AutomaticLinkPreviewTests: XCTestCase {
             let originalUpdatedAt = item.updatedAt
             let permission = PreviewPermission()
             let enricher = LinkMetadataEnricher { request, limit, timeout, kind in
-                await loader.load(request, limit: limit, timeout: timeout, kind: kind)
+                try await loader.load(request, limit: limit, timeout: timeout, kind: kind)
             }
             let task = Task {
                 await enricher.enrich(item: item, repository: repository) { permission.generation == 0 }
@@ -245,7 +245,7 @@ final class AutomaticLinkPreviewTests: XCTestCase {
             runtimePaths: StowRuntimePaths(sharedContainer: root, temporaryDirectory: root.appendingPathComponent("Temporary")),
             automaticLinkPreviewsEnabled: true,
             linkMetadataEnricher: LinkMetadataEnricher { request, limit, timeout, kind in
-                await loader.load(request, limit: limit, timeout: timeout, kind: kind)
+                try await loader.load(request, limit: limit, timeout: timeout, kind: kind)
             }
         )
         weak var releasedModel = model
@@ -275,6 +275,248 @@ final class AutomaticLinkPreviewTests: XCTestCase {
         let calls = await loader.calls
         XCTAssertEqual(calls.count, 3)
         #endif
+    }
+
+    func testManualRefreshFetchesWhenAutomaticPreviewsAreDisabledAndBypassesEveryCache() async throws {
+        let loader = PreviewLoader()
+        let fixture = try PreviewFixture(enabled: false, loader: loader)
+        defer { fixture.removeFiles() }
+        fixture.connect()
+        let item = try fixture.model.createForAutomation(linkDraft("manual"))
+
+        await fixture.model.refreshLinkPreview(for: item)
+
+        let calls = await loader.calls
+        XCTAssertEqual(calls.count, 3)
+        XCTAssertEqual(calls.filter { $0.kind == .html }.count, 1)
+        XCTAssertTrue(calls.allSatisfy { $0.cachePolicy == .reloadIgnoringLocalCacheData })
+        XCTAssertEqual(calls.first?.userAgent, "Stow/0.1")
+        XCTAssertFalse(fixture.model.automaticLinkPreviewsEnabled)
+        XCTAssertEqual(item.title, "Fetched title")
+        XCTAssertEqual(item.linkDescription, "Fetched description")
+        XCTAssertEqual(item.faviconData, PreviewLoader.faviconData)
+        XCTAssertEqual(item.linkPreviewImageData, PreviewLoader.previewImageData)
+    }
+
+    func testManualRefreshReplacesExistingMetadataButPreservesCustomTitle() async throws {
+        let loader = PreviewLoader()
+        let fixture = try PreviewFixture(enabled: false, loader: loader)
+        defer { fixture.removeFiles() }
+        fixture.connect()
+        let item = try fixture.model.createForAutomation(CaptureDraft(
+            type: .link, title: "Custom title", urlString: "https://preview.test/enriched"
+        ))
+        let repository = try XCTUnwrap(fixture.model.repository)
+        try repository.updateLinkMetadata(item.id, metadata: LinkMetadata(
+            title: "Saved page title", description: "Saved description", domain: "preview.test",
+            faviconData: Data([8]), previewImageData: Data([9])
+        ))
+
+        await fixture.model.refreshLinkPreview(for: item)
+
+        let calls = await loader.calls
+        XCTAssertEqual(calls.count, 3)
+        XCTAssertEqual(item.title, "Custom title")
+        XCTAssertEqual(item.linkDescription, "Fetched description")
+        XCTAssertEqual(item.faviconData, PreviewLoader.faviconData)
+        XCTAssertEqual(item.linkPreviewImageData, PreviewLoader.previewImageData)
+    }
+
+    func testManualRefreshDeduplicatesCallersAndAwaitsAllAssetsAcrossAutomaticSettingChanges() async throws {
+        let loader = PreviewLoader(holding: .assets)
+        let fixture = try PreviewFixture(enabled: false, loader: loader)
+        defer { fixture.removeFiles() }
+        fixture.connect()
+        let item = try fixture.model.createForAutomation(linkDraft("manual-assets"))
+        let originalUpdatedAt = item.updatedAt
+        var completed = 0
+        let first = Task {
+            await fixture.model.refreshLinkPreview(for: item)
+            completed += 1
+        }
+        await waitUntil { await loader.calls.count >= 3 }
+        var secondStarted = false
+        let second = Task {
+            secondStarted = true
+            await fixture.model.refreshLinkPreview(for: item)
+            completed += 1
+        }
+        await waitUntil { secondStarted }
+
+        fixture.model.setAutomaticLinkPreviewsEnabled(true)
+        fixture.model.runMaintenance()
+        fixture.model.runMaintenance()
+        await settle()
+        let callsDuringMaintenance = await loader.calls
+        XCTAssertEqual(callsDuringMaintenance.count, 3, "Maintenance must not overlap manual work")
+        fixture.model.setAutomaticLinkPreviewsEnabled(false)
+        await settle()
+        XCTAssertEqual(completed, 0)
+        await loader.release(path: "/icon.png")
+        await settle()
+        XCTAssertEqual(completed, 0, "Both callers must await the remaining preview image")
+        assertUnenriched(item, updatedAt: originalUpdatedAt)
+
+        await loader.releaseAll()
+        await first.value
+        await second.value
+
+        let calls = await loader.calls
+        XCTAssertEqual(calls.count, 3)
+        XCTAssertEqual(completed, 2)
+        XCTAssertEqual(item.linkDescription, "Fetched description")
+        XCTAssertEqual(item.faviconData, PreviewLoader.faviconData)
+        XCTAssertEqual(item.linkPreviewImageData, PreviewLoader.previewImageData)
+    }
+
+    func testManualRefreshWaitsForAutomaticPageAndAssetsThenForcesAnotherRequest() async throws {
+        let loader = PreviewLoader(holding: .pages)
+        let fixture = try PreviewFixture(enabled: true, loader: loader)
+        defer { fixture.removeFiles() }
+        fixture.connect()
+        let item = try fixture.model.createForAutomation(linkDraft("serialized"))
+        await waitUntil { await loader.calls.count >= 1 }
+        var started = false
+        var completed = false
+        let manual = Task {
+            started = true
+            await fixture.model.refreshLinkPreview(for: item)
+            completed = true
+        }
+        await waitUntil { started }
+        fixture.model.runMaintenance()
+        await settle()
+        let callsWhilePageIsPending = await loader.calls
+        XCTAssertEqual(callsWhilePageIsPending.count, 1)
+        XCTAssertFalse(completed)
+
+        await loader.setHolding(.assets)
+        await loader.release(path: "/serialized")
+        await waitUntil { await loader.calls.count >= 3 }
+        await settle()
+        let callsWhileAssetsArePending = await loader.calls
+        XCTAssertEqual(callsWhileAssetsArePending.count, 3, "Manual work must also await automatic assets")
+        XCTAssertFalse(completed)
+
+        await loader.releaseAll()
+        await manual.value
+
+        let calls = await loader.calls
+        XCTAssertEqual(calls.count, 6, "Automatic enrichment must not satisfy an explicit refresh")
+        XCTAssertEqual(calls.first?.cachePolicy, .returnCacheDataElseLoad)
+        XCTAssertEqual(calls.dropFirst().prefix(2).map(\.cachePolicy), [.useProtocolCachePolicy, .useProtocolCachePolicy])
+        XCTAssertEqual(calls.dropFirst(3).first?.kind, .html)
+        XCTAssertTrue(calls.dropFirst(3).allSatisfy { $0.cachePolicy == .reloadIgnoringLocalCacheData })
+        XCTAssertTrue(completed)
+        XCTAssertEqual(item.linkDescription, "Fetched description")
+    }
+
+    func testManualRefreshPreservesFailedPageOrAssetMetadataAndCanRetry() async throws {
+        for pageFails in [true, false] {
+            let loader = PreviewLoader(failingPaths: pageFails ? ["/failure"] : ["/icon.png", "/preview.png"])
+            let fixture = try PreviewFixture(enabled: false, loader: loader)
+            defer { fixture.removeFiles() }
+            fixture.connect()
+            let item = try fixture.model.createForAutomation(linkDraft("failure"))
+            let repository = try XCTUnwrap(fixture.model.repository)
+            try repository.updateLinkMetadata(item.id, metadata: LinkMetadata(
+                title: "Saved title", description: "Saved description", domain: "preview.test",
+                faviconData: Data([8]), previewImageData: Data([9])
+            ))
+            let originalUpdatedAt = item.updatedAt
+
+            await fixture.model.refreshLinkPreview(for: item)
+
+            let failedCalls = await loader.calls
+            XCTAssertEqual(failedCalls.count, pageFails ? 1 : 3)
+            XCTAssertEqual(item.title, "Saved title")
+            XCTAssertEqual(item.linkDescription, pageFails ? "Saved description" : "Fetched description")
+            XCTAssertEqual(item.sourceDomain, "preview.test")
+            XCTAssertEqual(item.faviconData, Data([8]))
+            XCTAssertEqual(item.linkPreviewImageData, Data([9]))
+            if pageFails { XCTAssertEqual(item.updatedAt, originalUpdatedAt) }
+
+            await loader.setFailingPaths([])
+            await fixture.model.refreshLinkPreview(for: item)
+
+            let retriedCalls = await loader.calls
+            XCTAssertEqual(retriedCalls.count, pageFails ? 4 : 6)
+            XCTAssertEqual(item.title, "Saved title")
+            XCTAssertEqual(item.linkDescription, "Fetched description")
+            XCTAssertEqual(item.faviconData, PreviewLoader.faviconData)
+            XCTAssertEqual(item.linkPreviewImageData, PreviewLoader.previewImageData)
+        }
+    }
+
+    func testManualRefreshPreservesSavedImagesWhenImageResponsesAreEmptyOrCorrupt() async throws {
+        for imageData in [Data(), Data("not an image".utf8)] {
+            let loader = PreviewLoader(imageData: imageData)
+            let fixture = try PreviewFixture(enabled: false, loader: loader)
+            defer { fixture.removeFiles() }
+            fixture.connect()
+            let item = try fixture.model.createForAutomation(linkDraft("invalid-images"))
+            let repository = try XCTUnwrap(fixture.model.repository)
+            try repository.updateLinkMetadata(item.id, metadata: LinkMetadata(
+                title: "Saved title", description: "Saved description", domain: "preview.test",
+                faviconData: PreviewLoader.faviconData, previewImageData: PreviewLoader.previewImageData
+            ))
+
+            await fixture.model.refreshLinkPreview(for: item)
+
+            let calls = await loader.calls
+            XCTAssertEqual(calls.count, 3)
+            XCTAssertTrue(calls.allSatisfy { $0.cachePolicy == .reloadIgnoringLocalCacheData })
+            XCTAssertEqual(item.title, "Saved title")
+            XCTAssertEqual(item.linkDescription, "Fetched description")
+            XCTAssertEqual(item.faviconData, PreviewLoader.faviconData)
+            XCTAssertEqual(item.linkPreviewImageData, PreviewLoader.previewImageData)
+        }
+    }
+
+    func testManualRefreshPreservesMissingMetadataAndBypassesFallbackFaviconCache() async throws {
+        let loader = PreviewLoader(html: "<html><head></head></html>", failingPaths: ["/favicon.ico"])
+        let fixture = try PreviewFixture(enabled: false, loader: loader)
+        defer { fixture.removeFiles() }
+        fixture.connect()
+        let item = try fixture.model.createForAutomation(linkDraft("missing"))
+        let repository = try XCTUnwrap(fixture.model.repository)
+        try repository.updateLinkMetadata(item.id, metadata: LinkMetadata(
+            title: "Saved title", description: "Saved description", domain: "preview.test",
+            faviconData: Data([8]), previewImageData: Data([9])
+        ))
+
+        await fixture.model.refreshLinkPreview(for: item)
+
+        let calls = await loader.calls
+        XCTAssertEqual(calls.map(\.url.path), ["/missing", "/favicon.ico"])
+        XCTAssertTrue(calls.allSatisfy { $0.cachePolicy == .reloadIgnoringLocalCacheData })
+        XCTAssertEqual(item.title, "Saved title")
+        XCTAssertEqual(item.linkDescription, "Saved description")
+        XCTAssertEqual(item.sourceDomain, "preview.test")
+        XCTAssertEqual(item.faviconData, Data([8]))
+        XCTAssertEqual(item.linkPreviewImageData, Data([9]))
+    }
+
+    func testManualRefreshOfNonLinkMakesNoRequestsOrChanges() async throws {
+        let loader = PreviewLoader()
+        let fixture = try PreviewFixture(enabled: true, loader: loader)
+        defer { fixture.removeFiles() }
+        fixture.connect()
+        let item = try fixture.model.createForAutomation(CaptureDraft(
+            type: .text, title: "Saved note", textContent: "Saved body", urlString: "https://preview.test/note"
+        ))
+        let originalUpdatedAt = item.updatedAt
+
+        await fixture.model.refreshLinkPreview(for: item)
+
+        let calls = await loader.calls
+        XCTAssertTrue(calls.isEmpty)
+        XCTAssertEqual(item.title, "Saved note")
+        XCTAssertEqual(item.textContent, "Saved body")
+        XCTAssertEqual(item.updatedAt, originalUpdatedAt)
+        XCTAssertNil(item.linkDescription)
+        XCTAssertNil(item.faviconData)
+        XCTAssertNil(item.linkPreviewImageData)
     }
 
     private func linkDraft(_ path: String) -> CaptureDraft {
@@ -329,7 +571,7 @@ private final class PreviewFixture {
         spool = try CaptureSpool(rootURL: root.appendingPathComponent("Spool", isDirectory: true))
         let paths = StowRuntimePaths(sharedContainer: root, temporaryDirectory: root.appendingPathComponent("Temporary"))
         let enricher = LinkMetadataEnricher { request, limit, timeout, kind in
-            await loader.load(request, limit: limit, timeout: timeout, kind: kind)
+            try await loader.load(request, limit: limit, timeout: timeout, kind: kind)
         }
         let search = SearchCoordinator(rebuild: { _ in }, search: { _ in [] })
         if let enabled {
@@ -354,6 +596,14 @@ private final class PreviewFixture {
 }
 
 private actor PreviewLoader {
+    // Complete one-pixel PNGs: black favicon and white preview image.
+    static let faviconData = Data(base64Encoded:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAX+XDSwAAAABJRU5ErkJggg=="
+    )!
+    static let previewImageData = Data(base64Encoded:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII="
+    )!
+
     enum Holding { case none, pages, assets }
 
     struct Call: Sendable {
@@ -362,43 +612,69 @@ private actor PreviewLoader {
         let timeout: TimeInterval
         let kind: BoundedHTTPContentKind
         let userAgent: String?
+        let cachePolicy: URLRequest.CachePolicy
     }
 
     private(set) var calls: [Call] = []
     private var holding: Holding
-    private var pending: [(Call, CheckedContinuation<BoundedHTTPResponse, Never>)] = []
+    private let html: String?
+    private let imageData: Data?
+    private var failingPaths: Set<String>
+    private var pending: [(Call, CheckedContinuation<BoundedHTTPResponse, any Error>)] = []
 
-    init(holding: Holding = .none) { self.holding = holding }
+    init(holding: Holding = .none, html: String? = nil, imageData: Data? = nil, failingPaths: Set<String> = []) {
+        self.holding = holding
+        self.html = html
+        self.imageData = imageData
+        self.failingPaths = failingPaths
+    }
 
-    func load(_ request: URLRequest, limit: Int, timeout: TimeInterval, kind: BoundedHTTPContentKind) async -> BoundedHTTPResponse {
-        let call = Call(url: request.url!, limit: limit, timeout: timeout, kind: kind, userAgent: request.value(forHTTPHeaderField: "User-Agent"))
+    func setHolding(_ holding: Holding) { self.holding = holding }
+
+    func setFailingPaths(_ paths: Set<String>) { failingPaths = paths }
+
+    func load(_ request: URLRequest, limit: Int, timeout: TimeInterval, kind: BoundedHTTPContentKind) async throws -> BoundedHTTPResponse {
+        let call = Call(
+            url: request.url!, limit: limit, timeout: timeout, kind: kind,
+            userAgent: request.value(forHTTPHeaderField: "User-Agent"), cachePolicy: request.cachePolicy
+        )
         calls.append(call)
         if (holding == .pages && kind == .html) || (holding == .assets && kind == .image) {
             // Deliberately ignore task cancellation until the test releases the response.
-            return await withCheckedContinuation { pending.append((call, $0)) }
+            return try await withCheckedThrowingContinuation { pending.append((call, $0)) }
         }
-        return response(for: call)
+        return try response(for: call)
     }
 
     func releaseAll() {
         holding = .none
         let responses = pending
         pending.removeAll()
-        for (call, continuation) in responses { continuation.resume(returning: response(for: call)) }
+        for (call, continuation) in responses {
+            continuation.resume(with: Result { try response(for: call) })
+        }
     }
 
-    private func response(for call: Call) -> BoundedHTTPResponse {
+    func release(path: String) {
+        guard let index = pending.firstIndex(where: { $0.0.url.path == path }) else { return }
+        let (call, continuation) = pending.remove(at: index)
+        continuation.resume(with: Result { try response(for: call) })
+    }
+
+    private func response(for call: Call) throws -> BoundedHTTPResponse {
+        if failingPaths.contains(call.url.path) { throw URLError(.badServerResponse) }
         let data: Data
         if call.kind == .html {
-            data = Data("""
+            let html = self.html ?? """
             <html><head><title>Fetched title</title>
             <meta name="description" content="Fetched description">
             <link rel="icon" href="/icon.png">
             <meta property="og:image" content="/preview.png">
             </head></html>
-            """.utf8)
+            """
+            data = Data(html.utf8)
         } else {
-            data = call.url.path == "/icon.png" ? Data([1, 2]) : Data([3, 4])
+            data = imageData ?? (call.url.path == "/icon.png" ? Self.faviconData : Self.previewImageData)
         }
         return BoundedHTTPResponse(data: data, response: URLResponse(
             url: call.url, mimeType: call.kind == .html ? "text/html" : "image/png",

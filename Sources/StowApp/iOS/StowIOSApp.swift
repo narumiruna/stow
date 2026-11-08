@@ -12,7 +12,8 @@ struct StowIOSApp: App {
         _preferences = State(initialValue: preferences)
         _model = State(initialValue: AppModel(
             runtimePaths: Self.galleryTestRuntimePaths(),
-            automaticLinkPreviewsEnabled: preferences.automaticLinkPreviewsEnabled
+            automaticLinkPreviewsEnabled: preferences.automaticLinkPreviewsEnabled,
+            linkMetadataEnricher: Self.makeLinkMetadataEnricher()
         ))
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
@@ -39,6 +40,16 @@ struct StowIOSApp: App {
         }
         #endif
         return nil
+    }
+
+    private static func makeLinkMetadataEnricher() -> LinkMetadataEnricher {
+        #if DEBUG && targetEnvironment(simulator)
+        if IOSGalleryTestFixtures.isRequested,
+           ProcessInfo.processInfo.arguments.contains("--ui-testing-link-refresh") {
+            return IOSGalleryTestFixtures.linkRefreshEnricher()
+        }
+        #endif
+        return LinkMetadataEnricher()
     }
 
     private static func makePreferences() -> IOSPreferences {

@@ -112,4 +112,10 @@ Run the confirmation and immediate-save Share Extension scenarios together when 
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh ios-share
 ```
 
+Run link-detail refresh, editing, and type-specific action scenarios together:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/ui_tests.sh ios-link-refresh
+```
+
 The default mode is `all`. It attempts both platforms before returning a failure. The script exits without running tests when a CI environment is detected.

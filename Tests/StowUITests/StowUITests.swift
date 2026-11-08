@@ -724,6 +724,38 @@ final class StowUITests: XCTestCase {
         }
     }
 
+    func testLinkDetailsPullToRefreshAddsMissingContentAndRefreshesExistingPreview() {
+        let app = launchApp(extraArguments: ["--ui-testing-seed-gallery", "--ui-testing-link-refresh"])
+        selectSection("Settings", in: app)
+        assertSwitch("automatic-link-previews", isOn: false, in: app)
+        selectSection("Inbox", in: app)
+
+        for title in ["instagram.com", galleryTitles[1]] {
+            openFixture(title, in: app)
+            let image = app.images["link-detail-preview-image"]
+            XCTAssertFalse(image.exists, "The fixture must start without a preview image")
+            if title == "instagram.com" { app.buttons["Edit"].tap() }
+            let scrollView = app.scrollViews.firstMatch
+            let start = scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
+            let end = scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+            start.press(forDuration: 0, thenDragTo: end)
+
+            XCTAssertTrue(app.staticTexts["Refreshed link description"].waitForExistence(timeout: 8))
+            XCTAssertTrue(image.waitForExistence(timeout: 3))
+            let expectedTitle = title == "instagram.com" ? "Refreshed link" : title
+            XCTAssertTrue(app.navigationBars[expectedTitle].exists, "Custom titles must not be replaced")
+            if app.buttons["Edit"].exists { app.buttons["Edit"].tap() }
+            XCTAssertEqual(app.textFields["Title"].value as? String, expectedTitle,
+                           "Editing must use the refreshed title, not the original placeholder")
+            app.buttons["Done"].tap()
+            app.navigationBars.buttons["Inbox"].tap()
+            XCTAssertEqual(items(titled: expectedTitle, in: app).count, 1, "Refresh must update the saved item")
+        }
+
+        selectSection("Settings", in: app)
+        assertSwitch("automatic-link-previews", isOn: false, in: app)
+    }
+
     func testDetailEditingPersistsNote() {
         let app = launchApp(extraArguments: ["--ui-testing-seed-panel"])
         openFixture("Panel Text", in: app)

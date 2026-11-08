@@ -70,6 +70,34 @@ enum IOSGalleryTestFixtures {
     }
 
     @MainActor
+    static func linkRefreshEnricher() -> LinkMetadataEnricher {
+        LinkMetadataEnricher { request, _, _, kind in
+            // Keep pull-to-refresh verification offline, with time for the native indicator.
+            try await Task.sleep(for: .milliseconds(300))
+            guard let url = request.url else { throw URLError(.badURL) }
+            let data: Data
+            if kind == .html {
+                data = Data("""
+                <html><head><title>Refreshed link</title>
+                <meta name="description" content="Refreshed link description">
+                <link rel="icon" href="/icon.jpg">
+                <meta property="og:image" content="/preview.jpg">
+                </head></html>
+                """.utf8)
+            } else {
+                guard let payload = ProcessInfo.processInfo.environment["STOW_UI_TEST_GALLERY_IMAGES"]?.data(using: .utf8),
+                      let encoded = try JSONDecoder().decode([String: String].self, from: payload)["cafe"],
+                      let image = Data(base64Encoded: encoded) else { throw CocoaError(.fileReadCorruptFile) }
+                data = image
+            }
+            return BoundedHTTPResponse(data: data, response: URLResponse(
+                url: url, mimeType: kind == .html ? "text/html" : "image/jpeg",
+                expectedContentLength: data.count, textEncodingName: nil
+            ))
+        }
+    }
+
+    @MainActor
     private static func seedPages(_ repository: StowRepository) throws {
         let now = Date()
         for number in 1...81 {

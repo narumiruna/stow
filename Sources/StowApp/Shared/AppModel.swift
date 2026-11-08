@@ -43,6 +43,7 @@ final class AppModel {
     private(set) var automaticLinkPreviewsEnabled: Bool
     @ObservationIgnored private let linkMetadataEnricher: LinkMetadataEnricher
     @ObservationIgnored private var linkPreviewTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var linkRefreshTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var linkPreviewGeneration = 0
 
     static var defaultAutomaticLinkPreviewsEnabled: Bool {
@@ -73,6 +74,7 @@ final class AppModel {
 
     deinit {
         for task in linkPreviewTasks.values { task.cancel() }
+        for task in linkRefreshTasks.values { task.cancel() }
     }
 
     func markLaunchReady() {
@@ -351,9 +353,30 @@ final class AppModel {
         }
     }
 
+    func refreshLinkPreview(for item: StowItem) async {
+        guard !Task.isCancelled, item.type == .link, let repository else { return }
+        if let task = linkRefreshTasks[item.id] {
+            await task.value
+            return
+        }
+
+        let itemID = item.id
+        let pendingPreview = linkPreviewTasks[itemID]
+        let enricher = linkMetadataEnricher
+        let task = Task { [weak self] in
+            defer { self?.linkRefreshTasks[itemID] = nil }
+            // Finish automatic work first so an older response cannot replace this refresh.
+            await pendingPreview?.value
+            await enricher.enrich(item: item, repository: repository, forceRefresh: true)
+        }
+        linkRefreshTasks[itemID] = task
+        await task.value
+    }
+
     private func scheduleLinkPreview(for item: StowItem) {
         guard automaticLinkPreviewsEnabled, item.type == .link,
               item.linkDescription == nil, linkPreviewTasks[item.id] == nil,
+              linkRefreshTasks[item.id] == nil,
               let repository else { return }
         let generation = linkPreviewGeneration
         let itemID = item.id
