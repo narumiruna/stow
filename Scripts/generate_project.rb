@@ -197,6 +197,11 @@ add_package(project, share_tests, package_ref, "StowCore")
 ui_tests = project.new_target(:ui_test_bundle, "StowUITests", :ios, "17.0")
 configure_target(ui_tests, platform: :ios, deployment: "17.0", bundle_id: "dev.narumi.stow.tests.ui.ios", info_plist: "Configuration/Test-Info.plist", module_name: "StowUITests")
 add_sources(tests_group, ui_tests, ROOT, ["StowUITests"], source_root: "Tests")
+gallery_fixtures = tests_group.groups.find { |group| group.path == "StowUITests" }.new_group("Fixtures", "Fixtures")
+Dir.glob(File.join(ROOT, "Tests/StowUITests/Fixtures/*.jpg")).sort.each do |path|
+  reference = gallery_fixtures.new_file(File.basename(path))
+  ui_tests.resources_build_phase.add_file_reference(reference, true)
+end
 ui_tests.add_dependency(ios_app)
 ui_tests.build_configurations.each { |c| c.build_settings["TEST_TARGET_NAME"] = "Stow-iOS" }
 
