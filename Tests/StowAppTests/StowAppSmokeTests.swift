@@ -215,8 +215,12 @@ final class BoundedHTTPResponseLoaderTests: XCTestCase {
         <meta property="og:image" content="/preview.png">
         </head></html>
         """
-        let iconData = Data([1, 2, 3])
-        let previewData = Data([4, 5, 6])
+        let iconData = try XCTUnwrap(Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAX+XDSwAAAABJRU5ErkJggg=="
+        ))
+        let previewData = try XCTUnwrap(Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII="
+        ))
         let enricher = LinkMetadataEnricher { request, _, _, _ in
             let url = try XCTUnwrap(request.url)
             let data: Data

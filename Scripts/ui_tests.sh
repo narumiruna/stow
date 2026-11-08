@@ -16,7 +16,7 @@ fi
 # Rust preview runtime acceptance. Keep any future automated UI orchestration here.
 
 usage() {
-  printf '%s\n' 'Usage: Scripts/ui_tests.sh [all|macos|ios|ios-share]' >&2
+  printf '%s\n' 'Usage: Scripts/ui_tests.sh [all|macos|ios|ios-share|ios-link-refresh]' >&2
 }
 
 if (( $# > 1 )); then
@@ -26,7 +26,7 @@ fi
 
 suite="${1:-all}"
 case "$suite" in
-  all|macos|ios|ios-share) ;;
+  all|macos|ios|ios-share|ios-link-refresh) ;;
   *)
     usage
     exit 64
@@ -149,6 +149,13 @@ run_ios_tests() (
       -only-testing:StowUITests/StowUITests/testSafariShareExtensionCapturesURLInOneSave \
       -only-testing:StowUITests/StowUITests/testSafariShareExtensionCanSaveImmediately \
       test
+  elif [[ "$suite" == "ios-link-refresh" ]]; then
+    xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" -resultBundlePath "$result_bundle" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
+      -only-testing:StowUITests/StowUITests/testLinkDetailsPullToRefreshAddsMissingContentAndRefreshesExistingPreview \
+      -only-testing:StowUITests/StowUITests/testDetailEditingPersistsNote \
+      -only-testing:StowUITests/StowUITests/testDetailSaveFailureRetainsDraftAndAllowsRetry \
+      -only-testing:StowUITests/StowUITests/testTypeSpecificDetailsExposeRequiredActions \
+      test
   else
     xcodebuild -project Stow.xcodeproj -scheme StowUITests -destination "platform=iOS Simulator,id=$device_id" -resultBundlePath "$result_bundle" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
   fi
@@ -162,7 +169,7 @@ if [[ "$suite" == "all" || "$suite" == "macos" ]]; then
   fi
 fi
 
-if [[ "$suite" == "all" || "$suite" == "ios" || "$suite" == "ios-share" ]]; then
+if [[ "$suite" == "all" || "$suite" == "ios" || "$suite" == "ios-share" || "$suite" == "ios-link-refresh" ]]; then
   if run_ios_tests; then
     printf '%s\n' 'iOS UI tests passed.'
   else

@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import StowCore
 
 enum BoundedHTTPContentKind: Sendable {
@@ -108,14 +109,18 @@ struct LinkMetadataEnricher {
     func enrich(
         item: StowItem,
         repository: StowRepository,
+        forceRefresh: Bool = false,
         isAllowed: @escaping @MainActor @Sendable () -> Bool = { true }
     ) async {
         guard !Task.isCancelled, isAllowed(), item.type == .link,
               let rawURL = item.urlString,
               let url = URL(string: rawURL),
-              item.linkDescription == nil else { return }
+              forceRefresh || item.linkDescription == nil else { return }
         do {
-            var request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
+            var request = URLRequest(
+                url: url,
+                cachePolicy: forceRefresh ? .reloadIgnoringLocalCacheData : .returnCacheDataElseLoad
+            )
             request.setValue("Stow/0.1", forHTTPHeaderField: "User-Agent")
             let result = try await loadResponse(
                 request,
@@ -129,15 +134,20 @@ struct LinkMetadataEnricher {
             let parsed = HTMLMetadataParser.parse(html, baseURL: result.response.url ?? url)
             async let favicon = fetchAsset(
                 parsed.faviconURL ?? URL(string: "/favicon.ico", relativeTo: url)?.absoluteURL,
+                forceRefresh: forceRefresh,
                 isAllowed: isAllowed
             )
-            async let preview = fetchAsset(parsed.previewImageURL, isAllowed: isAllowed)
+            async let preview = fetchAsset(
+                parsed.previewImageURL,
+                forceRefresh: forceRefresh,
+                isAllowed: isAllowed
+            )
             let metadata = await LinkMetadata(
                 title: parsed.title,
-                description: parsed.description,
+                description: parsed.description ?? item.linkDescription,
                 domain: url.host?.lowercased(),
-                faviconData: favicon,
-                previewImageData: preview
+                faviconData: favicon ?? item.faviconData,
+                previewImageData: preview ?? item.linkPreviewImageData
             )
             guard !Task.isCancelled, isAllowed() else { return }
             try repository.updateLinkMetadata(item.id, metadata: metadata)
@@ -148,17 +158,21 @@ struct LinkMetadataEnricher {
 
     private func fetchAsset(
         _ url: URL?,
+        forceRefresh: Bool,
         isAllowed: @MainActor @Sendable () -> Bool
     ) async -> Data? {
         guard !Task.isCancelled, isAllowed(), let url else { return nil }
         do {
             let result = try await loadResponse(
-                URLRequest(url: url),
+                URLRequest(url: url, cachePolicy: forceRefresh ? .reloadIgnoringLocalCacheData : .useProtocolCachePolicy),
                 5 * 1_024 * 1_024,
                 12,
                 .image
             )
-            guard !Task.isCancelled, isAllowed() else { return nil }
+            guard !Task.isCancelled, isAllowed(),
+                  let source = CGImageSourceCreateWithData(result.data as CFData, nil),
+                  CGImageSourceGetStatus(source) == .statusComplete,
+                  CGImageSourceGetCount(source) > 0 else { return nil }
             return result.data
         } catch {
             return nil

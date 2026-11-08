@@ -27,6 +27,30 @@ struct StowItemDetailView: View {
     }
 
     var body: some View {
+        Group {
+            if item.type == .link {
+                detailScrollView
+                    .scrollBounceBehavior(.always, axes: .vertical)
+                    .refreshable { await appModel.refreshLinkPreview(for: item) }
+            } else {
+                detailScrollView
+            }
+        }
+        .navigationTitle(item.displayTitle)
+        .onChange(of: item.displayTitle) { oldTitle, newTitle in
+            if title == oldTitle { title = newTitle }
+        }
+        .task { appModel.markUsed(item, metric: .itemOpened) }
+        .quickLookPreview($previewURL)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(editing ? "Done" : "Edit", action: toggleEditing)
+            }
+            ToolbarItem { Button { appModel.togglePin(item) } label: { Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.fill" : "pin") } }
+        }
+    }
+
+    private var detailScrollView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 contentPreview
@@ -35,15 +59,6 @@ struct StowItemDetailView: View {
             }
             .padding()
             .frame(maxWidth: 780, alignment: .leading)
-        }
-        .navigationTitle(item.displayTitle)
-        .task { appModel.markUsed(item, metric: .itemOpened) }
-        .quickLookPreview($previewURL)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(editing ? "Done" : "Edit", action: toggleEditing)
-            }
-            ToolbarItem { Button { appModel.togglePin(item) } label: { Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.fill" : "pin") } }
         }
     }
 
@@ -60,6 +75,8 @@ struct StowItemDetailView: View {
                         .frame(height: isCompactLayout ? 180 : 240)
                         .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .accessibilityLabel("Link preview")
+                        .accessibilityIdentifier("link-detail-preview-image")
                 }
                 HStack(alignment: .top, spacing: 12) {
                     if let data = item.faviconData, let icon = platformImage(data: data) {
@@ -175,6 +192,7 @@ struct StowItemDetailView: View {
 
     private func toggleEditing() {
         guard editing else {
+            title = item.displayTitle
             editing = true
             return
         }

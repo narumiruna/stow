@@ -26,6 +26,8 @@ Tap a card to open its details. Touch and hold a card for Copy, Pin, Archive, an
 
 Gallery view uses images and metadata already stored in your library. It does not enable automatic link previews or make additional network requests.
 
+To retry a link preview, open the link's details and pull down from the top. The system progress indicator stays visible while Stow fetches the page, icon, and preview image. This manual refresh works with automatic link previews off and does not change that setting. Failed requests keep saved metadata. Some websites do not provide preview content.
+
 ## iPhone and iPad settings
 
 Settings has four groups: **Security & Privacy**, **Saving & Sharing**, **Appearance & Browsing**, and **Sync & Data**.
@@ -44,7 +46,7 @@ App Lock protects access to this iOS app. It does not add database encryption, s
 
 **Security & Privacy → Automatic link previews** is off by default, including when upgrading without a previous choice. When enabled, Stow fetches saved pages and their icons and preview images. This can include existing links that have no preview. The page, redirect, and image hosts can receive network requests.
 
-Turning this off cancels pending preview work and prevents new automatic requests from this device. Requests already sent cannot be recalled. Existing metadata is kept, and previews can still arrive through iCloud from another device. Opening a link yourself is unchanged. The Mac continues its existing automatic preview behavior.
+Turning this off cancels pending automatic preview work and prevents new automatic requests from this device. Requests already sent cannot be recalled. Existing metadata is kept, and previews can still arrive through iCloud from another device. Opening a link yourself is unchanged. The Mac continues its existing automatic preview behavior.
 
 ### Browsing and appearance
 
