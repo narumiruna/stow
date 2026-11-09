@@ -317,7 +317,9 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
             onCancelClose: { [weak self] commandID in self?.cancelClose(commandID: commandID) },
             onRegisterSettingsAction: { [weak self] registration in self?.settingsAction = registration.perform },
             onResize: { [weak self] height, persist in self?.resize(to: height, persist: persist) },
-            onUse: { [weak self] item, attachment, kind in self?.use(item, attachment: attachment, kind: kind) }
+            onUse: { [weak self] item, attachment, kind, closeIsApproved in
+                self?.use(item, attachment: attachment, kind: kind, closeIsApproved: closeIsApproved)
+            }
         )
         .environment(model)
         .modelContainer(container)
@@ -372,20 +374,21 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         self.panel = panel
     }
 
-    private func use(_ item: StowItem, attachment: StowAttachment?, kind: RetrievalUseKind) {
+    private func use(_ item: StowItem, attachment: StowAttachment?, kind: RetrievalUseKind, closeIsApproved: Bool) {
         guard let model else { return }
         switch kind {
         case .defaultPaste, .plainTextPaste:
             let format: PasteFormat = kind == .plainTextPaste ? .plainText : .original
-            let copied = model.copy(item, attachment: attachment, format: format)
-            guard copied else { return }
+            // Write the pasteboard now; save the use only after the panel is gone so the save never delays the paste.
+            guard let recordUse = model.copyDeferringAccounting(item, attachment: attachment, format: format) else { return }
             switch pasteOutcome {
             case .directPaste:
                 let target = targetApplication
-                enqueueClose(.completedUse, returnFocus: false) { [weak self] in
+                closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved) { [weak self] in
                     Task { @MainActor [weak self] in
                         guard let self else { return }
                         let result = await self.directPasteService.paste(into: target)
+                        recordUse()
                         if case .failed(let failure) = result {
                             self.handleDirectPasteFailure(failure, target: target)
                         }
@@ -393,7 +396,9 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
                 }
             case .copyFallback:
                 // Close at once so focus returns to the target app and Command-V works immediately.
-                requestClose(.completedUse)
+                closeAfterUse(returnFocus: true, closeIsApproved: closeIsApproved) {
+                    Task { @MainActor in recordUse() }
+                }
             }
         case .copy:
             let copied = model.copy(item, attachment: attachment)
@@ -402,8 +407,20 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
             let opened = model.performUse(item, action: .open, metric: .itemOpened) {
                 try PlatformActions.open(item, attachment: attachment)
             }
-            if opened { enqueueClose(.completedUse, returnFocus: false) }
+            if opened { closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved) }
         }
+    }
+
+    /// Closes after a completed use. When the view already approved the close, dismiss synchronously instead of
+    /// waiting a SwiftUI update for `handleCloseCommand` to approve it.
+    private func closeAfterUse(returnFocus: Bool, closeIsApproved: Bool, afterClose: (() -> Void)? = nil) {
+        guard closeIsApproved else {
+            enqueueClose(.completedUse, returnFocus: returnFocus, afterClose: afterClose)
+            return
+        }
+        guard isVisible, pendingClose == nil else { return }
+        dismiss(returnFocus: returnFocus)
+        afterClose?()
     }
 
     private func enqueueClose(

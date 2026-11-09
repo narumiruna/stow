@@ -59,7 +59,7 @@ struct RetrievalPanelView: View {
     let onCancelClose: (UUID) -> Void
     let onRegisterSettingsAction: (QuickPanelSettingsAction) -> Void
     let onResize: (CGFloat, Bool) -> Void
-    let onUse: (StowItem, StowAttachment?, RetrievalUseKind) -> Void
+    let onUse: (StowItem, StowAttachment?, RetrievalUseKind, _ closeIsApproved: Bool) -> Void
 
     @State private var mode: RetrievalPanelMode = .clipboard
     @State private var query = ""
@@ -676,7 +676,7 @@ struct RetrievalPanelView: View {
                         return true
                     },
                     onCancel: { requestEditorTransition(.dismissEditor) },
-                    onOpen: { onUse(item, attachments[item.id], .open) },
+                    onOpen: { use(item, attachments[item.id], .open) },
                     onDirtyChange: { editorTransition.updateDirty($0) },
                     onDismissError: { editorTransition.dismissFailure() },
                     onConfirmDiscard: { confirmDiscard() },
@@ -695,9 +695,9 @@ struct RetrievalPanelView: View {
         if item.type == .text || item.type == .code || item.type == .link {
             Button { performPlainText(item) } label: { Label("Paste as Plain Text", systemImage: "textformat") }
         }
-        Button { onUse(item, attachment, .copy) } label: { Label("Copy", systemImage: "doc.on.doc") }
+        Button { use(item, attachment, .copy) } label: { Label("Copy", systemImage: "doc.on.doc") }
         if item.type == .link || item.type == .file {
-            Button { onUse(item, attachment, .open) } label: { Label("Open", systemImage: "arrow.up.forward.app") }
+            Button { use(item, attachment, .open) } label: { Label("Open", systemImage: "arrow.up.forward.app") }
         }
         Button { showPopover(.preview, for: item) } label: { Label("Preview", systemImage: "eye") }
         if item.type == .text || item.type == .code {
@@ -844,12 +844,7 @@ struct RetrievalPanelView: View {
         resolvedSearchToken = nil
     }
 
-    private func handleCloseCommand() {
-        guard let command = session.closeCommand else { return }
-        guard editorTransition.phase != .discardConfirmation else {
-            onCancelClose(command.id)
-            return
-        }
+    private var closeState: QuickPanelCloseState {
         let layer: QuickPanelPresentedLayer
         if panelMenuPresented {
             layer = .menu
@@ -860,12 +855,29 @@ struct RetrievalPanelView: View {
         } else {
             layer = .editor(isDirty: editorTransition.hasUnsavedChanges)
         }
-        let state = QuickPanelCloseState(
+        return QuickPanelCloseState(
             searchIsActive: searchActive,
             hasSearchCriteria: hasActiveSearch,
             presentedLayer: layer
         )
-        switch QuickPanelClosePolicy.decision(for: command.request, state: state) {
+    }
+
+    /// Hands a use to the controller with the close decision already made, so it can close without a SwiftUI round trip.
+    private func use(_ item: StowItem, _ attachment: StowAttachment?, _ kind: RetrievalUseKind) {
+        let closeIsApproved = QuickPanelClosePolicy.closesImmediatelyAfterUse(
+            state: closeState,
+            discardConfirmationPending: editorTransition.phase == .discardConfirmation
+        )
+        onUse(item, attachment, kind, closeIsApproved)
+    }
+
+    private func handleCloseCommand() {
+        guard let command = session.closeCommand else { return }
+        guard editorTransition.phase != .discardConfirmation else {
+            onCancelClose(command.id)
+            return
+        }
+        switch QuickPanelClosePolicy.decision(for: command.request, state: closeState) {
         case .closePanel:
             onApproveClose(command.id)
         case .closePresentedLayer:
@@ -998,23 +1010,23 @@ struct RetrievalPanelView: View {
     private func performDefault(_ requestedItem: StowItem? = nil) {
         let item = requestedItem.flatMap { requested in items.first { $0.id == requested.id } } ?? selectedItem
         guard let item else { return }
-        onUse(item, attachments[item.id], .defaultPaste)
+        use(item, attachments[item.id], .defaultPaste)
     }
 
     private func performPlainText(_ requestedItem: StowItem? = nil) {
         let item = requestedItem.flatMap { requested in items.first { $0.id == requested.id } } ?? selectedItem
         guard let item, item.type == .text || item.type == .code || item.type == .link else { return }
-        onUse(item, attachments[item.id], .plainTextPaste)
+        use(item, attachments[item.id], .plainTextPaste)
     }
 
     private func copySelected() {
         guard let item = selectedItem else { return }
-        onUse(item, attachments[item.id], .copy)
+        use(item, attachments[item.id], .copy)
     }
 
     private func openSelected() {
         guard let item = selectedItem, item.type == .link || item.type == .file else { return }
-        onUse(item, attachments[item.id], .open)
+        use(item, attachments[item.id], .open)
     }
 
     private func archiveSelected() {

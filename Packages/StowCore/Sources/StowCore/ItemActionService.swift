@@ -24,7 +24,7 @@ public final class ItemActionService {
     ) throws {
         _ = action
         try operation()
-        try repository.recordSuccessfulUse(itemID, at: date)
+        try recordSuccessfulUse(itemID: itemID, at: date)
     }
 
     public func perform(
@@ -35,6 +35,11 @@ public final class ItemActionService {
     ) async throws {
         _ = action
         try await operation()
+        try recordSuccessfulUse(itemID: itemID, at: date)
+    }
+
+    /// Records a use whose operation already succeeded, for callers that defer accounting off the latency path.
+    public func recordSuccessfulUse(itemID: UUID, at date: Date = Date()) throws {
         try repository.recordSuccessfulUse(itemID, at: date)
     }
 }

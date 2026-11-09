@@ -320,6 +320,36 @@ final class AppModel {
         }
     }
 
+    /// Runs `operation` now and returns the use accounting (repository save and metric) for the caller to run later,
+    /// or nil when the operation failed. Lets latency-sensitive paths finish their visible work before saving.
+    func performUseDeferringAccounting(
+        _ item: StowItem,
+        action: ItemRetrievalAction,
+        metric: MetricCounter,
+        operation: () throws -> Void
+    ) -> (() -> Void)? {
+        do {
+            guard let actionService else { throw StowRepositoryError.itemNotFound }
+            _ = action
+            try operation()
+            presentedError = nil
+            let itemID = item.id
+            let date = Date()
+            return { [weak self] in
+                guard let self else { return }
+                do {
+                    try actionService.recordSuccessfulUse(itemID: itemID, at: date)
+                    try? self.metrics?.record(metric)
+                } catch {
+                    self.presentedError = error.localizedDescription
+                }
+            }
+        } catch {
+            presentedError = error.localizedDescription
+            return nil
+        }
+    }
+
     func representations(for item: StowItem) -> [StowRepresentation] {
         do {
             guard let repository else { throw StowRepositoryError.itemNotFound }
