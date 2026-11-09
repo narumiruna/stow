@@ -24,6 +24,8 @@ final class RetrievalPanelSession: ObservableObject {
     @Published var feedback: String?
     @Published var isVisible = false
     @Published var previewGeneration = 0
+    @Published var defaultActionGeneration = 0
+    @Published var plainTextActionGeneration = 0
     @Published var acceptsPreviewShortcut = false
     @Published var directPasteAvailable = false
     @Published var isDragging = false
@@ -56,10 +58,42 @@ struct RetrievalPanelGeometry {
     }
 }
 
+/// Maps Return and keypad Enter to the quick panel's default actions.
+enum RetrievalReturnKey {
+    static let returnKeyCode: UInt16 = 36
+    static let keypadEnterKeyCode: UInt16 = 76
+
+    /// `false` for the default paste, `true` for plain-text paste, `nil` when the key is not a paste key.
+    static func plainTextRequest(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Bool? {
+        guard keyCode == returnKeyCode || keyCode == keypadEnterKeyCode else { return nil }
+        let relevant = modifiers.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function, .capsLock])
+        if relevant.isEmpty { return false }
+        if relevant == .shift { return true }
+        return nil
+    }
+}
+
 @MainActor
 final class StowRetrievalPanel: NSPanel {
     var previewHandler: (() -> Void)?
     var previewEnabled: (() -> Bool)?
+    /// Receives Return / keypad Enter; returns whether the key was consumed.
+    var returnHandler: ((_ plainText: Bool) -> Bool)?
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown,
+           let plainText = RetrievalReturnKey.plainTextRequest(keyCode: event.keyCode, modifiers: event.modifierFlags),
+           !isComposingText,
+           returnHandler?(plainText) == true {
+            return
+        }
+        super.sendEvent(event)
+    }
+
+    /// Return confirms IME composition (e.g. Zhuyin, Pinyin) instead of pasting.
+    private var isComposingText: Bool {
+        (firstResponder as? NSTextInputClient)?.hasMarkedText() == true
+    }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -326,6 +360,15 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         panel.delegate = self
         panel.previewHandler = { [weak self] in self?.session.previewGeneration += 1 }
         panel.previewEnabled = { [weak self] in self?.session.acceptsPreviewShortcut == true }
+        panel.returnHandler = { [weak self] plainText in
+            guard let self, self.isVisible, self.pendingClose == nil else { return false }
+            if plainText {
+                self.session.plainTextActionGeneration += 1
+            } else {
+                self.session.defaultActionGeneration += 1
+            }
+            return true
+        }
         self.panel = panel
     }
 
@@ -340,7 +383,11 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
             case .directPaste:
                 let target = targetApplication
                 enqueueClose(.completedUse, returnFocus: false) { [weak self] in
-                    self?.directPasteService.paste(into: target)
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        let result = await self.directPasteService.paste(into: target)
+                        if case .failed = result { self.handleDirectPasteFailure(target: target) }
+                    }
                 }
             case .copyFallback:
                 // Close at once so focus returns to the target app and Command-V works immediately.
@@ -448,6 +495,14 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         guard let application = NSWorkspace.shared.frontmostApplication,
               application.bundleIdentifier != Bundle.main.bundleIdentifier else { return nil }
         return application
+    }
+
+    /// The item is already on the clipboard; return focus if possible and signal that Command-V is needed.
+    private func handleDirectPasteFailure(target: NSRunningApplication?) {
+        if let target, !target.isTerminated, NSWorkspace.shared.frontmostApplication != target {
+            _ = target.activate()
+        }
+        NSSound.beep()
     }
 
     private func activateTargetApplication() {

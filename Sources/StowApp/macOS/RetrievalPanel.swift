@@ -194,6 +194,14 @@ struct RetrievalPanelView: View {
                 repairSelection()
             }
             .onChange(of: session.previewGeneration) { _, _ in previewSelected() }
+            .onChange(of: session.defaultActionGeneration) { _, _ in
+                guard popoverItemID == nil else { return }
+                performDefault()
+            }
+            .onChange(of: session.plainTextActionGeneration) { _, _ in
+                guard popoverItemID == nil else { return }
+                performPlainText()
+            }
             .onChange(of: session.closeCommand?.id) { _, _ in handleCloseCommand() }
             .onChange(of: searchFocused) { _, focused in
                 session.acceptsPreviewShortcut = !focused && popoverItemID == nil
@@ -393,12 +401,6 @@ struct RetrievalPanelView: View {
             .font(.system(size: isCompact ? 14 : 16, weight: .medium))
             .focused($searchFocused)
             .disabled(popoverItemID != nil)
-            .onSubmit { performDefault() }
-            .onKeyPress(keys: [.return], phases: .down) { press in
-                guard press.modifiers.contains(.shift) else { return .ignored }
-                performPlainText()
-                return .handled
-            }
             .onKeyPress(.tab) {
                 searchFocused = false
                 timelineFocused = true
@@ -711,11 +713,6 @@ struct RetrievalPanelView: View {
     private var keyboardCommands: some View {
         ZStack {
             Button("") { onRequestClose(.escape) }.keyboardShortcut(.cancelAction).hidden()
-            Button("") { performDefault() }.keyboardShortcut(.return, modifiers: []).hidden()
-            Button("") { performPlainText() }
-                .keyboardShortcut(.return, modifiers: .shift)
-                .accessibilityIdentifier("panel-paste-plain-text")
-                .hidden()
             Button("") { copySelected() }.keyboardShortcut("c", modifiers: .command).hidden()
             Button("") { openSelected() }.keyboardShortcut("o", modifiers: .command).hidden()
             Button("") { archiveSelected() }.keyboardShortcut("a", modifiers: [.command, .shift]).hidden()
@@ -1820,6 +1817,15 @@ private struct PanelCardDragSource: NSViewRepresentable {
 }
 
 @MainActor
+enum PanelCardHitTesting {
+    /// `NSView.hitTest(_:)` receives points in the superview's coordinate space; convert before comparing with `bounds`.
+    static func contains(superviewPoint point: NSPoint, in view: NSView) -> Bool {
+        let local = view.superview.map { view.convert(point, from: $0) } ?? point
+        return view.bounds.contains(local)
+    }
+}
+
+@MainActor
 private final class PanelCardDragSourceView: NSView, NSDraggingSource {
     let hostingView = NSHostingView(rootView: AnyView(EmptyView()))
     var material: (() -> PanelDragMaterial?)?
@@ -1852,7 +1858,7 @@ private final class PanelCardDragSourceView: NSView, NSDraggingSource {
         case .rightMouseDown, .rightMouseUp, .rightMouseDragged:
             return nil
         default:
-            return bounds.contains(point) ? self : nil
+            return PanelCardHitTesting.contains(superviewPoint: point, in: self) ? self : nil
         }
     }
 

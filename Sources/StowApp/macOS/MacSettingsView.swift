@@ -12,6 +12,7 @@ struct MacSettingsView: View {
     @Query private var attachments: [StowAttachment]
 
     @State private var directPasteGranted = AXIsProcessTrusted()
+    @State private var directPasteAvailability = DirectPasteAvailability.current()
     @State private var shortcutDraft: MacShortcutConfiguration
     @State private var appliedShortcuts: MacShortcutConfiguration
     @State private var shortcutFeedback: MacShortcutApplyResult?
@@ -77,6 +78,11 @@ struct MacSettingsView: View {
         settingsPage(title: "Paste & Shortcuts", subtitle: "Control direct paste and the shortcuts that open Stow.", symbol: "command") {
             settingsGroup("Direct Paste") {
                 statusRow(title: "Accessibility", value: directPasteGranted ? "Granted" : "Copy-only fallback")
+                if directPasteAvailability == .sandboxed {
+                    guidance("This build runs in the App Sandbox, which blocks sending Command-V to other apps. Stow copies the item so you can press Command-V yourself.")
+                } else if directPasteGranted, directPasteAvailability == .eventPostingNotAllowed {
+                    guidance("macOS has not allowed Stow to send keyboard events yet. Toggle Stow off and on in Accessibility settings, then reopen Stow.")
+                }
                 guidance("Accessibility lets Stow paste the selected item back into the app you were using. Without it, Stow safely copies the item so you can press Command-V yourself.")
                 if directPasteGranted {
                     Button("Open Accessibility Settings…") { openAccessibilitySettings() }
@@ -305,6 +311,7 @@ struct MacSettingsView: View {
         #else
         directPasteGranted = AXIsProcessTrusted()
         #endif
+        directPasteAvailability = DirectPasteAvailability.current()
         refreshClipboardStatus()
     }
 
