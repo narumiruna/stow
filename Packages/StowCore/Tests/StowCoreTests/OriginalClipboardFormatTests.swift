@@ -87,6 +87,28 @@ final class OriginalClipboardFormatTests: XCTestCase {
         XCTAssertEqual(legacy.entries.first?.data, Data("plain".utf8))
     }
 
+    func testCombinedPastePayloadJoinsTextLikeItemsInOrderAsPlainText() throws {
+        let text = StowItem(type: .text, title: "Text", textContent: "first")
+        let link = StowItem(type: .link, title: "Link", urlString: "https://example.com")
+        let code = StowItem(type: .code, title: "Code", textContent: "let x = 1")
+        let payload = try PastePayloadBuilder.buildCombined(items: [text, link, code])
+        XCTAssertEqual(payload.entries.map(\.typeIdentifier), [
+            StowRepresentationType.plainText,
+            StowRepresentationType.stowOwned,
+        ])
+        XCTAssertEqual(payload.entries.first?.data, Data("first\nhttps://example.com\nlet x = 1".utf8))
+    }
+
+    func testCombinedPastePayloadRejectsImagesFilesAndEmptySelections() {
+        let text = StowItem(type: .text, title: "Text", textContent: "first")
+        for other in [StowItem(type: .image, title: "Image"), StowItem(type: .file, title: "File")] {
+            XCTAssertThrowsError(try PastePayloadBuilder.buildCombined(items: [text, other])) { error in
+                XCTAssertEqual(error as? PastePayloadError, .unsupportedMultiItemSelection)
+            }
+        }
+        XCTAssertThrowsError(try PastePayloadBuilder.buildCombined(items: []))
+    }
+
     func testPastePayloadSkipsMalformedAuxiliaryDataAndDoesNotNeedToClearWriterEarly() throws {
         let item = StowItem(type: .text, title: "Title", textContent: "plain")
         let malformed = StowRepresentation(

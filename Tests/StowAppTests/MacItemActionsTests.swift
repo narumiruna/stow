@@ -89,6 +89,36 @@ final class MacItemActionsTests: XCTestCase {
         XCTAssertEqual(model.presentedError, PlatformActionError.unavailable.localizedDescription)
     }
 
+    func testCombinedCopyWritesOnePayloadAndRecordsEveryItemWhenAccountingRuns() throws {
+        let (model, root) = try makeModel()
+        let repository = try XCTUnwrap(model.repository)
+        let first = try repository.create(from: CaptureDraft(type: .text, title: "One", textContent: "one"))
+        let second = try repository.create(from: CaptureDraft(type: .code, title: "Two", textContent: "two"))
+        let writer = CopyWriter { payload in
+            XCTAssertEqual(payload.entries.first?.data, Data("one\ntwo".utf8))
+            return true
+        }
+        let recordUse = try XCTUnwrap(model.copyCombinedDeferringAccounting([first, second], writer: writer))
+        XCTAssertEqual(writer.calls, 1)
+        XCTAssertEqual([first.useCount, second.useCount], [0, 0])
+        recordUse()
+        XCTAssertEqual([first.useCount, second.useCount], [1, 1])
+        XCTAssertEqual(try copyCount(root), 2)
+    }
+
+    func testCombinedCopyRejectsNonTextItemsWithoutWriting() throws {
+        let (model, root) = try makeModel()
+        let repository = try XCTUnwrap(model.repository)
+        let text = try repository.create(from: CaptureDraft(type: .text, title: "One", textContent: "one"))
+        let file = try repository.create(from: CaptureDraft(type: .file, title: "File", stagedAttachmentName: "a.txt", attachmentByteCount: 1, contentType: "text/plain", fileName: "a.txt"))
+        let writer = CopyWriter { _ in true }
+        XCTAssertNil(model.copyCombinedDeferringAccounting([text, file], writer: writer))
+        XCTAssertEqual(writer.calls, 0)
+        XCTAssertEqual(text.useCount, 0)
+        XCTAssertEqual(try copyCount(root), 0)
+        XCTAssertEqual(model.presentedError, PastePayloadError.unsupportedMultiItemSelection.localizedDescription)
+    }
+
     private func makeModel(loadRepresentations: ((UUID) throws -> [StowRepresentation])? = nil) throws -> (AppModel, URL) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("StowCopyTests-\(UUID())")
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }

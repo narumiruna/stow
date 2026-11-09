@@ -45,6 +45,36 @@ struct QuickPanelSelectionState: Equatable {
 }
 
 enum QuickPanelSelectionPolicy {
+    /// Moves the focus to `target` and selects the contiguous range between the anchor and `target`,
+    /// so moving back toward the anchor shrinks the range. Without an anchor, the current focus becomes it.
+    static func extend(
+        _ state: QuickPanelSelectionState,
+        to target: UUID,
+        visibleIDs: [UUID]
+    ) -> QuickPanelSelectionState {
+        guard let targetIndex = visibleIDs.firstIndex(of: target) else { return state }
+        let anchor = [state.selectionAnchor, state.selection]
+            .compactMap { $0 }
+            .first { visibleIDs.contains($0) } ?? target
+        let anchorIndex = visibleIDs.firstIndex(of: anchor) ?? targetIndex
+        let range = min(anchorIndex, targetIndex)...max(anchorIndex, targetIndex)
+        return QuickPanelSelectionState(
+            selection: target,
+            selectedIDs: Set(visibleIDs[range]),
+            selectionAnchor: anchor
+        )
+    }
+
+    /// The selected items in timeline order, or nil when fewer than two are selected.
+    static func multipleSelection<Item: Identifiable>(
+        in items: [Item],
+        selectedIDs: Set<Item.ID>
+    ) -> [Item]? {
+        guard selectedIDs.count > 1 else { return nil }
+        let selected = items.filter { selectedIDs.contains($0.id) }
+        return selected.count > 1 ? selected : nil
+    }
+
     static func repair(
         _ state: QuickPanelSelectionState,
         visibleIDs: [UUID]

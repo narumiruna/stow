@@ -328,18 +328,31 @@ final class AppModel {
         metric: MetricCounter,
         operation: () throws -> Void
     ) -> (() -> Void)? {
+        performUseDeferringAccounting([item], action: action, metric: metric, operation: operation)
+    }
+
+    /// Runs one `operation` that uses every item in `items` at once (such as a combined paste) and returns
+    /// the accounting that records a use and a metric for each item, or nil when the operation failed.
+    func performUseDeferringAccounting(
+        _ items: [StowItem],
+        action: ItemRetrievalAction,
+        metric: MetricCounter,
+        operation: () throws -> Void
+    ) -> (() -> Void)? {
         do {
             guard let actionService else { throw StowRepositoryError.itemNotFound }
             _ = action
             try operation()
             presentedError = nil
-            let itemID = item.id
+            let itemIDs = items.map(\.id)
             let date = Date()
             return { [weak self] in
                 guard let self else { return }
                 do {
-                    try actionService.recordSuccessfulUse(itemID: itemID, at: date)
-                    try? self.metrics?.record(metric)
+                    for itemID in itemIDs {
+                        try actionService.recordSuccessfulUse(itemID: itemID, at: date)
+                        try? self.metrics?.record(metric)
+                    }
                 } catch {
                     self.presentedError = error.localizedDescription
                 }

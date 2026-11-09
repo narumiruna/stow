@@ -70,6 +70,44 @@ final class QuickPanelInteractionPolicyTests: XCTestCase {
         XCTAssertEqual(repaired.selectionAnchor, selected)
     }
 
+    func testShiftArrowExtendsFromAnchorAndShrinksWhenMovingBack() {
+        let ids = (0..<5).map { _ in UUID() }
+        var state = QuickPanelSelectionState(selection: ids[1], selectedIDs: [ids[1]], selectionAnchor: ids[1])
+        state = QuickPanelSelectionPolicy.extend(state, to: ids[2], visibleIDs: ids)
+        state = QuickPanelSelectionPolicy.extend(state, to: ids[3], visibleIDs: ids)
+        XCTAssertEqual(state, QuickPanelSelectionState(selection: ids[3], selectedIDs: Set(ids[1...3]), selectionAnchor: ids[1]))
+        state = QuickPanelSelectionPolicy.extend(state, to: ids[2], visibleIDs: ids)
+        XCTAssertEqual(state.selectedIDs, Set(ids[1...2]))
+        state = QuickPanelSelectionPolicy.extend(state, to: ids[1], visibleIDs: ids)
+        XCTAssertEqual(state.selectedIDs, [ids[1]])
+        state = QuickPanelSelectionPolicy.extend(state, to: ids[0], visibleIDs: ids)
+        XCTAssertEqual(state, QuickPanelSelectionState(selection: ids[0], selectedIDs: Set(ids[0...1]), selectionAnchor: ids[1]))
+    }
+
+    func testExtendUsesTheFocusWhenTheAnchorIsMissingOrHidden() {
+        let ids = (0..<4).map { _ in UUID() }
+        let noAnchor = QuickPanelSelectionState(selection: ids[2], selectedIDs: [ids[2]], selectionAnchor: nil)
+        XCTAssertEqual(
+            QuickPanelSelectionPolicy.extend(noAnchor, to: ids[3], visibleIDs: ids),
+            QuickPanelSelectionState(selection: ids[3], selectedIDs: Set(ids[2...3]), selectionAnchor: ids[2])
+        )
+        let hiddenAnchor = QuickPanelSelectionState(selection: ids[1], selectedIDs: [ids[1]], selectionAnchor: UUID())
+        XCTAssertEqual(QuickPanelSelectionPolicy.extend(hiddenAnchor, to: ids[0], visibleIDs: ids).selectedIDs, Set(ids[0...1]))
+        let unchanged = QuickPanelSelectionPolicy.extend(noAnchor, to: UUID(), visibleIDs: ids)
+        XCTAssertEqual(unchanged, noAnchor)
+    }
+
+    func testMultipleSelectionKeepsTimelineOrderAndNeedsTwoVisibleItems() {
+        struct Card: Identifiable, Equatable { let id = UUID() }
+        let cards = (0..<4).map { _ in Card() }
+        XCTAssertEqual(
+            QuickPanelSelectionPolicy.multipleSelection(in: cards, selectedIDs: [cards[3].id, cards[0].id, cards[2].id]),
+            [cards[0], cards[2], cards[3]]
+        )
+        XCTAssertNil(QuickPanelSelectionPolicy.multipleSelection(in: cards, selectedIDs: [cards[1].id]))
+        XCTAssertNil(QuickPanelSelectionPolicy.multipleSelection(in: cards, selectedIDs: [cards[1].id, UUID()]))
+    }
+
     func testZeroResultsClearEverySelection() {
         let stale = UUID()
         let state = QuickPanelSelectionState(

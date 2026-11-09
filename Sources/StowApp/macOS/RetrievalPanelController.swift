@@ -319,6 +319,9 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
             onResize: { [weak self] height, persist in self?.resize(to: height, persist: persist) },
             onUse: { [weak self] item, attachment, kind, closeIsApproved in
                 self?.use(item, attachment: attachment, kind: kind, closeIsApproved: closeIsApproved)
+            },
+            onPasteMultiple: { [weak self] items, closeIsApproved in
+                self?.pasteMultiple(items, closeIsApproved: closeIsApproved)
             }
         )
         .environment(model)
@@ -381,25 +384,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
             let format: PasteFormat = kind == .plainTextPaste ? .plainText : .original
             // Write the pasteboard now; save the use only after the panel is gone so the save never delays the paste.
             guard let recordUse = model.copyDeferringAccounting(item, attachment: attachment, format: format) else { return }
-            switch pasteOutcome {
-            case .directPaste:
-                let target = targetApplication
-                closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved) { [weak self] in
-                    Task { @MainActor [weak self] in
-                        guard let self else { return }
-                        let result = await self.directPasteService.paste(into: target)
-                        recordUse()
-                        if case .failed(let failure) = result {
-                            self.handleDirectPasteFailure(failure, target: target)
-                        }
-                    }
-                }
-            case .copyFallback:
-                // Close at once so focus returns to the target app and Command-V works immediately.
-                closeAfterUse(returnFocus: true, closeIsApproved: closeIsApproved) {
-                    Task { @MainActor in recordUse() }
-                }
-            }
+            deliverPaste(closeIsApproved: closeIsApproved, recordUse: recordUse)
         case .copy:
             let copied = model.copy(item, attachment: attachment)
             if copied { showFeedback("Copied") }
@@ -408,6 +393,34 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
                 try PlatformActions.open(item, attachment: attachment)
             }
             if opened { closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved) }
+        }
+    }
+
+    private func pasteMultiple(_ items: [StowItem], closeIsApproved: Bool) {
+        guard let model, let recordUse = model.copyCombinedDeferringAccounting(items) else { return }
+        deliverPaste(closeIsApproved: closeIsApproved, recordUse: recordUse)
+    }
+
+    /// Closes the panel and pastes what is already on the pasteboard, then runs the deferred use accounting.
+    private func deliverPaste(closeIsApproved: Bool, recordUse: @escaping () -> Void) {
+        switch pasteOutcome {
+        case .directPaste:
+            let target = targetApplication
+            closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved) { [weak self] in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    let result = await self.directPasteService.paste(into: target)
+                    recordUse()
+                    if case .failed(let failure) = result {
+                        self.handleDirectPasteFailure(failure, target: target)
+                    }
+                }
+            }
+        case .copyFallback:
+            // Close at once so focus returns to the target app and Command-V works immediately.
+            closeAfterUse(returnFocus: true, closeIsApproved: closeIsApproved) {
+                Task { @MainActor in recordUse() }
+            }
         }
     }
 

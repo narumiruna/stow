@@ -612,6 +612,43 @@ final class StowMacUITests: XCTestCase {
         app.terminate()
     }
 
+    func testShiftArrowRangeSelectionPastesSeveralItems() {
+        let app = launchApp()
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        textEdit.launch()
+        let panel = app.windows["Stow Quick Panel"]
+
+        // Seeded timeline, newest first: File, Image, Code, Text, Link. The panel opens on File.
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 5))
+        app.typeKey(.rightArrow, modifierFlags: [])
+        app.typeKey(.rightArrow, modifierFlags: [])
+        app.typeKey(.rightArrow, modifierFlags: .shift)
+        app.typeKey(.rightArrow, modifierFlags: .shift)
+        app.typeKey(.leftArrow, modifierFlags: .shift)
+        attach(panel.screenshot(), named: "stow-panel-range-selection")
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertEqual(
+            NSPasteboard.general.string(forType: .string),
+            "let panel = true\npanel text payload",
+            "Shift-Left must shrink the range back to Code and Text before Return pastes both in timeline order"
+        )
+        XCTAssertTrue(panel.waitForNonExistence(timeout: 1))
+
+        showPanel(in: app)
+        XCTAssertTrue(panel.waitForExistence(timeout: 5))
+        app.typeKey(.rightArrow, modifierFlags: .shift)
+        let changeCount = NSPasteboard.general.changeCount
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(panel.staticTexts["Select only text, code, or links to paste several items together."].waitForExistence(timeout: 2))
+        XCTAssertEqual(NSPasteboard.general.changeCount, changeCount, "A selection with files or images must not paste")
+        XCTAssertTrue(panel.exists)
+
+        textEdit.terminate()
+        app.terminate()
+    }
+
     func testQuickPanelDarkModeAndReducedMotion() {
         let app = launchApp(extraArguments: ["-AppleInterfaceStyle", "Dark", "-NSReduceMotion", "YES"])
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
