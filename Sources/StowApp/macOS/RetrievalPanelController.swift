@@ -386,7 +386,9 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
                     Task { @MainActor [weak self] in
                         guard let self else { return }
                         let result = await self.directPasteService.paste(into: target)
-                        if case .failed = result { self.handleDirectPasteFailure(target: target) }
+                        if case .failed(let failure) = result {
+                            self.handleDirectPasteFailure(failure, target: target)
+                        }
                     }
                 }
             case .copyFallback:
@@ -498,8 +500,13 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
     }
 
     /// The item is already on the clipboard; return focus if possible and signal that Command-V is needed.
-    private func handleDirectPasteFailure(target: NSRunningApplication?) {
-        if let target, !target.isTerminated, NSWorkspace.shared.frontmostApplication != target {
+    /// The item stays on the pasteboard for a manual Command-V. Only return focus to the target when the user
+    /// has not moved on to another app; otherwise just signal the fallback.
+    private func handleDirectPasteFailure(_ failure: DirectPasteFailure, target: NSRunningApplication?) {
+        let stowIsFrontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
+            == ProcessInfo.processInfo.processIdentifier
+        if failure.allowsReactivatingTarget(stowIsFrontmost: stowIsFrontmost),
+           let target, !target.isTerminated {
             _ = target.activate()
         }
         NSSound.beep()

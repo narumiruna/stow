@@ -91,6 +91,23 @@ private struct PasteTargetDouble: RetrievalPasteTargetState {
     let isTerminated: Bool
 }
 
+final class DirectPasteFailureFocusTests: XCTestCase {
+    func testFocusLossTimeoutAndTerminationNeverReactivateTheTarget() {
+        for failure in [DirectPasteFailure.focusLost, .focusTimeout, .targetTerminated] {
+            XCTAssertFalse(failure.allowsReactivatingTarget(stowIsFrontmost: true), "\(failure)")
+            XCTAssertFalse(failure.allowsReactivatingTarget(stowIsFrontmost: false), "\(failure)")
+        }
+    }
+
+    func testOtherFailuresReactivateOnlyWhileStowIsFrontmost() {
+        let failures: [DirectPasteFailure] = [.unavailable(.accessibilityNotTrusted), .activationFailed, .eventPostingFailed]
+        for failure in failures {
+            XCTAssertTrue(failure.allowsReactivatingTarget(stowIsFrontmost: true), "\(failure)")
+            XCTAssertFalse(failure.allowsReactivatingTarget(stowIsFrontmost: false), "\(failure)")
+        }
+    }
+}
+
 final class DirectPasteAvailabilityTests: XCTestCase {
     func testSandboxBlocksDirectPasteEvenWithPermissions() {
         XCTAssertEqual(DirectPasteAvailability.evaluate(isSandboxed: true, accessibilityTrusted: true, canPostEvents: true), .sandboxed)

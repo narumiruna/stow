@@ -49,6 +49,20 @@ enum DirectPasteFailure: Equatable {
     case eventPostingFailed
 }
 
+extension DirectPasteFailure {
+    /// Whether the copy fallback may bring the target back to the front after this failure.
+    /// Never after focus moved elsewhere, the wait timed out, or the target quit, and only while Stow itself
+    /// is still frontmost, so the fallback never takes focus from an app the user switched to.
+    func allowsReactivatingTarget(stowIsFrontmost: Bool) -> Bool {
+        switch self {
+        case .focusLost, .focusTimeout, .targetTerminated:
+            false
+        case .unavailable, .activationFailed, .eventPostingFailed:
+            stowIsFrontmost
+        }
+    }
+}
+
 enum DirectPasteResult: Equatable {
     case pasted
     case failed(DirectPasteFailure)
