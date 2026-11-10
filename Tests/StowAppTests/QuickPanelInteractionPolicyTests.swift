@@ -84,6 +84,19 @@ final class QuickPanelInteractionPolicyTests: XCTestCase {
         XCTAssertEqual(state, QuickPanelSelectionState(selection: ids[0], selectedIDs: Set(ids[0...1]), selectionAnchor: ids[1]))
     }
 
+    func testPlainArrowResetSelectsOnlyTheFocusAndStartsANewRange() {
+        let ids = (0..<5).map { _ in UUID() }
+        var state = QuickPanelSelectionState(selection: ids[1], selectedIDs: [ids[1]], selectionAnchor: ids[1])
+        state = QuickPanelSelectionPolicy.extend(state, to: ids[3], visibleIDs: ids)
+        XCTAssertEqual(state.selectedIDs, Set(ids[1...3]))
+
+        state = QuickPanelSelectionPolicy.reset(to: ids[4])
+        XCTAssertEqual(state, QuickPanelSelectionState(selection: ids[4], selectedIDs: [ids[4]], selectionAnchor: ids[4]))
+
+        state = QuickPanelSelectionPolicy.extend(state, to: ids[3], visibleIDs: ids)
+        XCTAssertEqual(state, QuickPanelSelectionState(selection: ids[3], selectedIDs: Set(ids[3...4]), selectionAnchor: ids[4]))
+    }
+
     func testExtendUsesTheFocusWhenTheAnchorIsMissingOrHidden() {
         let ids = (0..<4).map { _ in UUID() }
         let noAnchor = QuickPanelSelectionState(selection: ids[2], selectedIDs: [ids[2]], selectionAnchor: nil)

@@ -525,7 +525,7 @@ final class StowMacUITests: XCTestCase {
         let directApp = launchApp(extraArguments: [
             "--ui-testing-utility-mode",
             "--ui-testing-preserve-frontmost-application",
-        ])
+        ], directPasteEnabled: true)
         defer {
             directApp.terminate()
             textEdit.terminate()
@@ -613,29 +613,38 @@ final class StowMacUITests: XCTestCase {
     }
 
     func testShiftArrowRangeSelectionPastesSeveralItems() {
-        let app = launchApp()
-        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
         textEdit.launch()
+        defer { textEdit.terminate() }
+
+        // Relaunch to seed a fresh timeline because successful use changes its order.
+        for plainText in [false, true] {
+            let app = launchApp()
+            defer { app.terminate() }
+            XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
+            let panel = app.windows["Stow Quick Panel"]
+            // Seeded timeline, newest first: File, Image, Code, Text, Link.
+            showPanel(in: app)
+            XCTAssertTrue(panel.waitForExistence(timeout: 5))
+            app.typeKey(.rightArrow, modifierFlags: [])
+            app.typeKey(.rightArrow, modifierFlags: [])
+            app.typeKey(.rightArrow, modifierFlags: .shift)
+            app.typeKey(.rightArrow, modifierFlags: .shift)
+            app.typeKey(.leftArrow, modifierFlags: .shift)
+            attach(panel.screenshot(), named: "stow-panel-range-selection")
+            app.typeKey(.return, modifierFlags: plainText ? .shift : [])
+            XCTAssertEqual(
+                NSPasteboard.general.string(forType: .string),
+                "let panel = true\npanel text payload",
+                "Shift-Left must shrink the range back to Code and Text before either Return action pastes both in timeline order"
+            )
+            XCTAssertTrue(panel.waitForNonExistence(timeout: 1))
+        }
+
+        let app = launchApp()
+        defer { app.terminate() }
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
         let panel = app.windows["Stow Quick Panel"]
-
-        // Seeded timeline, newest first: File, Image, Code, Text, Link. The panel opens on File.
-        showPanel(in: app)
-        XCTAssertTrue(panel.waitForExistence(timeout: 5))
-        app.typeKey(.rightArrow, modifierFlags: [])
-        app.typeKey(.rightArrow, modifierFlags: [])
-        app.typeKey(.rightArrow, modifierFlags: .shift)
-        app.typeKey(.rightArrow, modifierFlags: .shift)
-        app.typeKey(.leftArrow, modifierFlags: .shift)
-        attach(panel.screenshot(), named: "stow-panel-range-selection")
-        app.typeKey(.return, modifierFlags: [])
-        XCTAssertEqual(
-            NSPasteboard.general.string(forType: .string),
-            "let panel = true\npanel text payload",
-            "Shift-Left must shrink the range back to Code and Text before Return pastes both in timeline order"
-        )
-        XCTAssertTrue(panel.waitForNonExistence(timeout: 1))
-
         showPanel(in: app)
         XCTAssertTrue(panel.waitForExistence(timeout: 5))
         app.typeKey(.rightArrow, modifierFlags: .shift)
@@ -644,9 +653,40 @@ final class StowMacUITests: XCTestCase {
         XCTAssertTrue(panel.staticTexts["Select only text, code, or links to paste several items together."].waitForExistence(timeout: 2))
         XCTAssertEqual(NSPasteboard.general.changeCount, changeCount, "A selection with files or images must not paste")
         XCTAssertTrue(panel.exists)
+    }
 
-        textEdit.terminate()
-        app.terminate()
+    func testCombinedDirectPasteUsesTimelineOrder() throws {
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        textEdit.launch()
+        let editor = textEdit.textViews.firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        defer { textEdit.terminate() }
+
+        for plainText in [false, true] {
+            clear(editor)
+            let app = launchApp(extraArguments: [
+                "--ui-testing-utility-mode",
+                "--ui-testing-preserve-frontmost-application",
+            ], directPasteEnabled: true)
+            defer { app.terminate() }
+            let panel = app.windows["Stow Quick Panel"]
+            showPanel(from: textEdit, panel: panel)
+            guard panel.staticTexts["Paste mode: Direct"].waitForExistence(timeout: 2) else {
+                throw XCTSkip("Combined Direct Paste requires Accessibility access.")
+            }
+            app.typeKey(.rightArrow, modifierFlags: [])
+            app.typeKey(.rightArrow, modifierFlags: [])
+            app.typeKey(.rightArrow, modifierFlags: .shift)
+            app.typeKey(.return, modifierFlags: plainText ? .shift : [])
+            XCTAssertTrue(panel.waitForNonExistence(timeout: 3))
+            let pasted = XCTNSPredicateExpectation(
+                predicate: NSPredicate { _, _ in
+                    (editor.value as? String)?.contains("let panel = true\npanel text payload") == true
+                },
+                object: editor
+            )
+            XCTAssertEqual(XCTWaiter.wait(for: [pasted], timeout: 5), .completed)
+        }
     }
 
     func testQuickPanelDarkModeAndReducedMotion() {
@@ -849,15 +889,18 @@ final class StowMacUITests: XCTestCase {
         appearanceApp.terminate()
     }
 
-    private func launchApp(extraArguments: [String] = [], monitoringEnabled: Bool = true) -> XCUIApplication {
+    private func launchApp(
+        extraArguments: [String] = [],
+        monitoringEnabled: Bool = true,
+        directPasteEnabled: Bool = false
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-testing",
             "--ui-testing-seed-panel",
-            "--ui-testing-disable-direct-paste",
             "-ApplePersistenceIgnoreState", "YES",
             "-clipboardMonitoringEnabled", monitoringEnabled ? "YES" : "NO"
-        ] + extraArguments
+        ] + (directPasteEnabled ? [] : ["--ui-testing-disable-direct-paste"]) + extraArguments
         app.launchEnvironment[Self.sharedContainerEnvironmentKey] = testSharedContainerURL.path
         app.launch()
         return app

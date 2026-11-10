@@ -107,12 +107,6 @@ final class StowRetrievalPanel: NSPanel {
 
 @MainActor
 final class RetrievalPanelController: NSObject, NSWindowDelegate {
-    private struct PendingClose {
-        let id: UUID
-        let returnFocus: Bool
-        let afterClose: (() -> Void)?
-    }
-
     private var panel: StowRetrievalPanel?
     private let session = RetrievalPanelSession()
     private let directPasteService = DirectPasteService()
@@ -125,7 +119,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
     private var keyMonitor: Any?
     private var globalPointerMonitor: Any?
     private var localPointerMonitor: Any?
-    private var pendingClose: PendingClose?
+    private let closeQueue = QuickPanelCloseQueue()
     private var settingsAction: (() -> Void)?
     private var menuTrackingDepth = 0
     private var menuTrackingEndedAt = Date.distantPast
@@ -224,17 +218,16 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
     }
 
     func approveClose(commandID: UUID) {
-        guard let pendingClose, pendingClose.id == commandID else { return }
+        guard let pendingClose = closeQueue.take(commandID: commandID) else { return }
         let returnFocus = pendingClose.returnFocus
         let afterClose = pendingClose.afterClose
-        self.pendingClose = nil
         dismiss(returnFocus: returnFocus)
         afterClose?()
     }
 
     func cancelClose(commandID: UUID) {
-        guard pendingClose?.id == commandID else { return }
-        pendingClose = nil
+        guard closeQueue.pending?.command.id == commandID else { return }
+        closeQueue.cancel(commandID: commandID)
         session.closeCommand = nil
     }
 
@@ -247,7 +240,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         panel?.orderOut(nil)
         panel?.close()
         panel = nil
-        pendingClose = nil
+        closeQueue.cancel()
         session.closeCommand = nil
         session.isVisible = false
         session.isDragging = false
@@ -366,7 +359,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         panel.previewHandler = { [weak self] in self?.session.previewGeneration += 1 }
         panel.previewEnabled = { [weak self] in self?.session.acceptsPreviewShortcut == true }
         panel.returnHandler = { [weak self] plainText in
-            guard let self, self.isVisible, self.pendingClose == nil else { return false }
+            guard let self, self.isVisible, self.closeQueue.pending == nil else { return false }
             if plainText {
                 self.session.plainTextActionGeneration += 1
             } else {
@@ -382,7 +375,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         switch kind {
         case .defaultPaste, .plainTextPaste:
             let format: PasteFormat = kind == .plainTextPaste ? .plainText : .original
-            // Write the pasteboard now; save the use only after the panel is gone so the save never delays the paste.
+            // Write now. Defer accounting until paste completes or the close is canceled.
             guard let recordUse = model.copyDeferringAccounting(item, attachment: attachment, format: format) else { return }
             deliverPaste(closeIsApproved: closeIsApproved, recordUse: recordUse)
         case .copy:
@@ -401,37 +394,47 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
         deliverPaste(closeIsApproved: closeIsApproved, recordUse: recordUse)
     }
 
-    /// Closes the panel and pastes what is already on the pasteboard, then runs the deferred use accounting.
+    /// Pastes only after the panel closes. Records the clipboard write even if closing is skipped or canceled.
     private func deliverPaste(closeIsApproved: Bool, recordUse: @escaping () -> Void) {
+        let recordUseLater: () -> Void = { Task { @MainActor in recordUse() } }
         switch pasteOutcome {
         case .directPaste:
             let target = targetApplication
-            closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved) { [weak self] in
+            closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved, afterClose: { [weak self] in
                 Task { @MainActor [weak self] in
+                    defer { recordUse() }
                     guard let self else { return }
                     let result = await self.directPasteService.paste(into: target)
-                    recordUse()
                     if case .failed(let failure) = result {
                         self.handleDirectPasteFailure(failure, target: target)
                     }
                 }
-            }
+            }, onCancel: recordUseLater)
         case .copyFallback:
             // Close at once so focus returns to the target app and Command-V works immediately.
-            closeAfterUse(returnFocus: true, closeIsApproved: closeIsApproved) {
-                Task { @MainActor in recordUse() }
-            }
+            closeAfterUse(
+                returnFocus: true, closeIsApproved: closeIsApproved,
+                afterClose: recordUseLater, onCancel: recordUseLater
+            )
         }
     }
 
     /// Closes after a completed use. When the view already approved the close, dismiss synchronously instead of
     /// waiting a SwiftUI update for `handleCloseCommand` to approve it.
-    private func closeAfterUse(returnFocus: Bool, closeIsApproved: Bool, afterClose: (() -> Void)? = nil) {
+    private func closeAfterUse(
+        returnFocus: Bool,
+        closeIsApproved: Bool,
+        afterClose: (() -> Void)? = nil,
+        onCancel: (() -> Void)? = nil
+    ) {
         guard closeIsApproved else {
-            enqueueClose(.completedUse, returnFocus: returnFocus, afterClose: afterClose)
+            enqueueClose(.completedUse, returnFocus: returnFocus, afterClose: afterClose, onCancel: onCancel)
             return
         }
-        guard isVisible, pendingClose == nil else { return }
+        guard isVisible, closeQueue.pending == nil else {
+            onCancel?()
+            return
+        }
         dismiss(returnFocus: returnFocus)
         afterClose?()
     }
@@ -439,11 +442,13 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
     private func enqueueClose(
         _ request: QuickPanelCloseRequest,
         returnFocus: Bool,
-        afterClose: (() -> Void)? = nil
+        afterClose: (() -> Void)? = nil,
+        onCancel: (() -> Void)? = nil
     ) {
-        guard isVisible, pendingClose == nil else { return }
-        let command = QuickPanelCloseCommand(id: UUID(), request: request)
-        pendingClose = PendingClose(id: command.id, returnFocus: returnFocus, afterClose: afterClose)
+        guard let command = closeQueue.enqueue(
+            request, isVisible: isVisible, returnFocus: returnFocus,
+            afterClose: afterClose, onCancel: onCancel
+        ) else { return }
         session.closeCommand = command
     }
 

@@ -106,6 +106,79 @@ final class MacItemActionsTests: XCTestCase {
         XCTAssertEqual(try copyCount(root), 2)
     }
 
+    func testCombinedCopyAccountsOnceForEveryCloseOutcome() async throws {
+        enum Outcome: CaseIterable { case approved, canceled, hidden, pending, dismissed }
+
+        for outcome in Outcome.allCases {
+            let (model, root) = try makeModel()
+            let repository = try XCTUnwrap(model.repository)
+            let first = try repository.create(from: CaptureDraft(type: .text, title: "One", textContent: "one"))
+            let second = try repository.create(from: CaptureDraft(type: .code, title: "Two", textContent: "two"))
+            let writer = CopyWriter { _ in true }
+            let recordUse = try XCTUnwrap(model.copyCombinedDeferringAccounting([first, second], writer: writer))
+            let queue = QuickPanelCloseQueue()
+            var pastes = 0
+            let accounted = expectation(description: "Combined use recorded: \(outcome)")
+            let recordUseLater: () -> Void = {
+                Task { @MainActor in
+                    recordUse()
+                    accounted.fulfill()
+                }
+            }
+            if outcome == .pending {
+                _ = queue.enqueue(.outsideClick, isVisible: true, returnFocus: false)
+            }
+            let command = queue.enqueue(
+                .completedUse, isVisible: outcome != .hidden, returnFocus: false,
+                afterClose: { pastes += 1; recordUseLater() }, onCancel: recordUseLater
+            )
+
+            switch outcome {
+            case .approved:
+                let command = try XCTUnwrap(command)
+                let pending = try XCTUnwrap(queue.take(commandID: command.id))
+                pending.afterClose?()
+                XCTAssertNil(queue.take(commandID: command.id))
+            case .canceled:
+                let command = try XCTUnwrap(command)
+                queue.cancel(commandID: command.id)
+                queue.cancel(commandID: command.id)
+            case .dismissed:
+                XCTAssertNotNil(command)
+                queue.cancel()
+            case .hidden, .pending:
+                XCTAssertNil(command)
+            }
+            queue.cancel()
+            queue.cancel()
+            XCTAssertEqual(writer.calls, 1)
+            XCTAssertEqual([first.useCount, second.useCount], [0, 0])
+            await fulfillment(of: [accounted], timeout: 5)
+            XCTAssertEqual([first.useCount, second.useCount], [1, 1])
+            XCTAssertNotNil(first.lastUsedAt)
+            XCTAssertEqual(first.lastUsedAt, second.lastUsedAt)
+            XCTAssertEqual(try copyCount(root), 2)
+            XCTAssertEqual(pastes, outcome == .approved ? 1 : 0)
+            XCTAssertNil(model.presentedError)
+        }
+    }
+
+    func testCombinedCopyWriteFailureDoesNotRecordAnyItem() throws {
+        let (model, root) = try makeModel()
+        let repository = try XCTUnwrap(model.repository)
+        let first = try repository.create(from: CaptureDraft(type: .text, title: "One", textContent: "one"))
+        let second = try repository.create(from: CaptureDraft(type: .code, title: "Two", textContent: "two"))
+        let writer = CopyWriter { _ in false }
+
+        XCTAssertNil(model.copyCombinedDeferringAccounting([first, second], writer: writer))
+        XCTAssertEqual(writer.calls, 1)
+        XCTAssertEqual([first.useCount, second.useCount], [0, 0])
+        XCTAssertNil(first.lastUsedAt)
+        XCTAssertNil(second.lastUsedAt)
+        XCTAssertEqual(try copyCount(root), 0)
+        XCTAssertEqual(model.presentedError, PlatformActionError.unavailable.localizedDescription)
+    }
+
     func testCombinedCopyRejectsNonTextItemsWithoutWriting() throws {
         let (model, root) = try makeModel()
         let repository = try XCTUnwrap(model.repository)
@@ -117,6 +190,51 @@ final class MacItemActionsTests: XCTestCase {
         XCTAssertEqual(text.useCount, 0)
         XCTAssertEqual(try copyCount(root), 0)
         XCTAssertEqual(model.presentedError, PastePayloadError.unsupportedMultiItemSelection.localizedDescription)
+    }
+
+    func testPlainCopyReportsAccountingFailureAfterSuccessfulWrite() throws {
+        let (model, root) = try makeModel()
+        let item = StowItem(type: .text, title: "Missing", textContent: "body")
+        let writer = CopyWriter { _ in true }
+
+        XCTAssertFalse(model.copy(item, attachment: nil, writer: writer))
+        XCTAssertEqual(writer.calls, 1)
+        XCTAssertEqual(item.useCount, 0)
+        XCTAssertNil(item.lastUsedAt)
+        XCTAssertEqual(try copyCount(root), 0)
+        XCTAssertEqual(model.presentedError, StowRepositoryError.itemNotFound.localizedDescription)
+    }
+
+    func testCanceledCloseDefersSuccessfulCopyAccountingWithoutPasting() async throws {
+        let (model, root) = try makeModel()
+        let item = try XCTUnwrap(model.repository).create(from: CaptureDraft(type: .text, title: "Text", textContent: "body"))
+        let writer = CopyWriter { _ in true }
+        let recordUse = try XCTUnwrap(model.copyDeferringAccounting(item, attachment: nil, writer: writer))
+        let queue = QuickPanelCloseQueue()
+        var pastes = 0
+        let accounted = expectation(description: "Use recorded after cancellation")
+        let command = try XCTUnwrap(queue.enqueue(
+            .completedUse, isVisible: true, returnFocus: false,
+            afterClose: { pastes += 1 },
+            onCancel: {
+                Task { @MainActor in
+                    recordUse()
+                    accounted.fulfill()
+                }
+            }
+        ))
+
+        queue.cancel(commandID: command.id)
+        queue.cancel()
+        XCTAssertEqual(writer.calls, 1)
+        XCTAssertEqual(item.useCount, 0)
+        XCTAssertEqual(try copyCount(root), 0)
+        await fulfillment(of: [accounted], timeout: 5)
+        XCTAssertEqual(item.useCount, 1)
+        XCTAssertNotNil(item.lastUsedAt)
+        XCTAssertEqual(try copyCount(root), 1)
+        XCTAssertEqual(pastes, 0)
+        XCTAssertNil(model.presentedError)
     }
 
     private func makeModel(loadRepresentations: ((UUID) throws -> [StowRepresentation])? = nil) throws -> (AppModel, URL) {

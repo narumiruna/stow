@@ -45,6 +45,11 @@ struct QuickPanelSelectionState: Equatable {
 }
 
 enum QuickPanelSelectionPolicy {
+    /// Selects only `target` and starts the next range at that item.
+    static func reset(to target: UUID) -> QuickPanelSelectionState {
+        QuickPanelSelectionState(selection: target, selectedIDs: [target], selectionAnchor: target)
+    }
+
     /// Moves the focus to `target` and selects the contiguous range between the anchor and `target`,
     /// so moving back toward the anchor shrinks the range. Without an anchor, the current focus becomes it.
     static func extend(

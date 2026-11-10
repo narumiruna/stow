@@ -8,14 +8,16 @@ extension AppModel {
         format: PasteFormat = .original,
         writer: any PlatformPasteboardWriting = SystemPlatformPasteboardWriter()
     ) -> Bool {
-        guard let recordUse = copyDeferringAccounting(item, attachment: attachment, format: format, writer: writer) else {
-            return false
+        let representations = representations(for: item)
+        return performUse(item, action: .copy, metric: .itemCopied) {
+            try PlatformActions.copy(
+                item, attachment: attachment, representations: representations,
+                format: format, writer: writer
+            )
         }
-        recordUse()
-        return true
     }
 
-    /// Writes the pasteboard now and returns the use accounting to run after the panel has closed,
+    /// Writes the pasteboard now and returns the use accounting to run after the panel closes or cancels its close,
     /// or nil when the write failed.
     func copyDeferringAccounting(
         _ item: StowItem,

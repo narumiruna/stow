@@ -964,9 +964,10 @@ struct RetrievalPanelView: View {
         } else if flags.contains(.shift), selectionAnchor != nil {
             extendSelection(to: item)
         } else {
-            selectedIDs = [item.id]
-            selection = item.id
-            selectionAnchor = item.id
+            let state = QuickPanelSelectionPolicy.reset(to: item.id)
+            selection = state.selection
+            selectedIDs = state.selectedIDs
+            selectionAnchor = state.selectionAnchor
         }
         searchFocused = false
         timelineFocused = true
