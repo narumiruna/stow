@@ -25,6 +25,22 @@ final class QuickPanelClosePolicyTests: XCTestCase {
         )
     }
 
+    func testCompletedUseClosesImmediatelyUnlessEditorWorkNeedsTheView() {
+        func immediate(_ layer: QuickPanelPresentedLayer, search: Bool = false, pending: Bool = false) -> Bool {
+            QuickPanelClosePolicy.closesImmediatelyAfterUse(
+                state: QuickPanelCloseState(searchIsActive: search, hasSearchCriteria: search, presentedLayer: layer),
+                discardConfirmationPending: pending
+            )
+        }
+        XCTAssertTrue(immediate(.none))
+        XCTAssertTrue(immediate(.none, search: true))
+        XCTAssertTrue(immediate(.menu))
+        XCTAssertTrue(immediate(.preview))
+        XCTAssertTrue(immediate(.editor(isDirty: false)))
+        XCTAssertFalse(immediate(.editor(isDirty: true)))
+        XCTAssertFalse(immediate(.none, pending: true))
+    }
+
     func testExplicitAndShortcutCloseSkipDisposableSearchState() {
         for request in [QuickPanelCloseRequest.explicit, .shortcutToggle, .completedUse] {
             XCTAssertEqual(

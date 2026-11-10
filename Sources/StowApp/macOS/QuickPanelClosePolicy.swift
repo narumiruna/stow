@@ -81,3 +81,12 @@ enum QuickPanelClosePolicy {
         }
     }
 }
+
+extension QuickPanelClosePolicy {
+    /// Whether a completed use may close the panel synchronously, skipping the SwiftUI close round trip.
+    /// Falls back to the queued close when a dirty editor or a pending discard confirmation needs the view.
+    static func closesImmediatelyAfterUse(state: QuickPanelCloseState, discardConfirmationPending: Bool) -> Bool {
+        guard !discardConfirmationPending else { return false }
+        return decision(for: .completedUse, state: state) == .closePanel
+    }
+}
