@@ -5,12 +5,14 @@ import XCTest
 final class PortableSearchFixtureTests: XCTestCase {
     @MainActor
     func testSharedSearchFixtures() async throws {
-        // Fixtures are repository files, not Swift package resources.
-        var root = URL(fileURLWithPath: #filePath)
-        for _ in 0..<5 { root.deleteLastPathComponent() }
+        // Fixtures are test files, not Swift package resources.
+        let fixtureURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/search.json")
         let fixture = try JSONDecoder().decode(
             SearchFixture.self,
-            from: Data(contentsOf: root.appendingPathComponent("Desktop/fixtures/search.json"))
+            from: Data(contentsOf: fixtureURL)
         )
         XCTAssertFalse(fixture.datasets.isEmpty)
 
