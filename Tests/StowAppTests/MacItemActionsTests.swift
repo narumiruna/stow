@@ -89,6 +89,51 @@ final class MacItemActionsTests: XCTestCase {
         XCTAssertEqual(model.presentedError, PlatformActionError.unavailable.localizedDescription)
     }
 
+    func testPlainCopyReportsAccountingFailureAfterSuccessfulWrite() throws {
+        let (model, root) = try makeModel()
+        let item = StowItem(type: .text, title: "Missing", textContent: "body")
+        let writer = CopyWriter { _ in true }
+
+        XCTAssertFalse(model.copy(item, attachment: nil, writer: writer))
+        XCTAssertEqual(writer.calls, 1)
+        XCTAssertEqual(item.useCount, 0)
+        XCTAssertNil(item.lastUsedAt)
+        XCTAssertEqual(try copyCount(root), 0)
+        XCTAssertEqual(model.presentedError, StowRepositoryError.itemNotFound.localizedDescription)
+    }
+
+    func testCanceledCloseDefersSuccessfulCopyAccountingWithoutPasting() async throws {
+        let (model, root) = try makeModel()
+        let item = try XCTUnwrap(model.repository).create(from: CaptureDraft(type: .text, title: "Text", textContent: "body"))
+        let writer = CopyWriter { _ in true }
+        let recordUse = try XCTUnwrap(model.copyDeferringAccounting(item, attachment: nil, writer: writer))
+        let queue = QuickPanelCloseQueue()
+        var pastes = 0
+        let accounted = expectation(description: "Use recorded after cancellation")
+        let command = try XCTUnwrap(queue.enqueue(
+            .completedUse, isVisible: true, returnFocus: false,
+            afterClose: { pastes += 1 },
+            onCancel: {
+                Task { @MainActor in
+                    recordUse()
+                    accounted.fulfill()
+                }
+            }
+        ))
+
+        queue.cancel(commandID: command.id)
+        queue.cancel()
+        XCTAssertEqual(writer.calls, 1)
+        XCTAssertEqual(item.useCount, 0)
+        XCTAssertEqual(try copyCount(root), 0)
+        await fulfillment(of: [accounted], timeout: 5)
+        XCTAssertEqual(item.useCount, 1)
+        XCTAssertNotNil(item.lastUsedAt)
+        XCTAssertEqual(try copyCount(root), 1)
+        XCTAssertEqual(pastes, 0)
+        XCTAssertNil(model.presentedError)
+    }
+
     private func makeModel(loadRepresentations: ((UUID) throws -> [StowRepresentation])? = nil) throws -> (AppModel, URL) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("StowCopyTests-\(UUID())")
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
