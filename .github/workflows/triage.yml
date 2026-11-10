@@ -7,18 +7,30 @@ on:
 permissions:
   issues: write
 
-concurrency:
-  group: pi-triage-${{ github.event.issue.number }}
-  cancel-in-progress: true
-
 jobs:
   triage:
+    # Configure this environment's PI_AUTH_JSON before enabling the workflow.
+    environment: pi-oauth
+    concurrency:
+      group: pi-oauth-auth-json
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: narumiruna/pi-action/triage@986bbbb43d30f5d1bc52d434039a3f5161a13600 # main
+      - name: Classify issue
+        id: triage
+        uses: narumiruna/pi-actions/triage@1fb85820d1be62bd5caffb2b0011d85f4c17bc14
         with:
           auth-json: ${{ secrets.PI_AUTH_JSON }}
-          provider: openai-codex
+          auth-output: ${{ runner.temp }}/pi-triage-auth/auth.json
+          provider: openai
           model: gpt-6.1-sol
           thinking: medium
+
+      - name: Persist refreshed credentials
+        if: always() && steps.triage.outcome != 'skipped'
+        uses: narumiruna/pi-actions/persist-auth@1fb85820d1be62bd5caffb2b0011d85f4c17bc14
+        with:
+          auth-file: ${{ runner.temp }}/pi-triage-auth/auth.json
+          auth-json: ${{ secrets.PI_AUTH_JSON }}
+          token: ${{ secrets.PAT_TOKEN }}
