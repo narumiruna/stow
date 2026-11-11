@@ -312,6 +312,9 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
             onResize: { [weak self] height, persist in self?.resize(to: height, persist: persist) },
             onUse: { [weak self] item, attachment, kind, closeIsApproved in
                 self?.use(item, attachment: attachment, kind: kind, closeIsApproved: closeIsApproved)
+            },
+            onPasteMultiple: { [weak self] items, closeIsApproved in
+                self?.pasteMultiple(items, closeIsApproved: closeIsApproved)
             }
         )
         .environment(model)
@@ -374,27 +377,7 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
             let format: PasteFormat = kind == .plainTextPaste ? .plainText : .original
             // Write now. Defer accounting until paste completes or the close is canceled.
             guard let recordUse = model.copyDeferringAccounting(item, attachment: attachment, format: format) else { return }
-            let recordUseLater: () -> Void = { Task { @MainActor in recordUse() } }
-            switch pasteOutcome {
-            case .directPaste:
-                let target = targetApplication
-                closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved, afterClose: { [weak self] in
-                    Task { @MainActor [weak self] in
-                        defer { recordUse() }
-                        guard let self else { return }
-                        let result = await self.directPasteService.paste(into: target)
-                        if case .failed(let failure) = result {
-                            self.handleDirectPasteFailure(failure, target: target)
-                        }
-                    }
-                }, onCancel: recordUseLater)
-            case .copyFallback:
-                // Close at once so focus returns to the target app and Command-V works immediately.
-                closeAfterUse(
-                    returnFocus: true, closeIsApproved: closeIsApproved,
-                    afterClose: recordUseLater, onCancel: recordUseLater
-                )
-            }
+            deliverPaste(closeIsApproved: closeIsApproved, recordUse: recordUse)
         case .copy:
             let copied = model.copy(item, attachment: attachment)
             if copied { showFeedback("Copied") }
@@ -403,6 +386,36 @@ final class RetrievalPanelController: NSObject, NSWindowDelegate {
                 try PlatformActions.open(item, attachment: attachment)
             }
             if opened { closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved) }
+        }
+    }
+
+    private func pasteMultiple(_ items: [StowItem], closeIsApproved: Bool) {
+        guard let model, let recordUse = model.copyCombinedDeferringAccounting(items) else { return }
+        deliverPaste(closeIsApproved: closeIsApproved, recordUse: recordUse)
+    }
+
+    /// Pastes only after the panel closes. Records the clipboard write even if closing is skipped or canceled.
+    private func deliverPaste(closeIsApproved: Bool, recordUse: @escaping () -> Void) {
+        let recordUseLater: () -> Void = { Task { @MainActor in recordUse() } }
+        switch pasteOutcome {
+        case .directPaste:
+            let target = targetApplication
+            closeAfterUse(returnFocus: false, closeIsApproved: closeIsApproved, afterClose: { [weak self] in
+                Task { @MainActor [weak self] in
+                    defer { recordUse() }
+                    guard let self else { return }
+                    let result = await self.directPasteService.paste(into: target)
+                    if case .failed(let failure) = result {
+                        self.handleDirectPasteFailure(failure, target: target)
+                    }
+                }
+            }, onCancel: recordUseLater)
+        case .copyFallback:
+            // Close at once so focus returns to the target app and Command-V works immediately.
+            closeAfterUse(
+                returnFocus: true, closeIsApproved: closeIsApproved,
+                afterClose: recordUseLater, onCancel: recordUseLater
+            )
         }
     }
 

@@ -111,14 +111,48 @@ public struct PastePayload: Equatable, Sendable {
     }
 }
 
+public enum PastePayloadError: LocalizedError, Equatable {
+    case unsupportedMultiItemSelection
+
+    public var errorDescription: String? {
+        switch self {
+        case .unsupportedMultiItemSelection:
+            "Select only text, code, or links to paste several items together."
+        }
+    }
+}
+
 public enum PastePayloadBuilder {
+    /// The plain text a text-like item pastes as.
+    public static func plainText(for item: StowItem) -> String {
+        (item.type == .link ? item.urlString : item.textContent) ?? item.title
+    }
+
+    /// Whether `buildCombined` can include the item.
+    public static func supportsCombinedPaste(_ item: StowItem) -> Bool {
+        item.type == .text || item.type == .code || item.type == .link
+    }
+
+    /// One plain-text payload joining several text-like items with newlines, in the given order.
+    /// Rich representations are dropped because they cannot be merged across items.
+    public static func buildCombined(items: [StowItem]) throws -> PastePayload {
+        guard !items.isEmpty, items.allSatisfy(supportsCombinedPaste) else {
+            throw PastePayloadError.unsupportedMultiItemSelection
+        }
+        let text = items.map(plainText(for:)).joined(separator: "\n")
+        return PastePayload(entries: [
+            PastePayloadEntry(typeIdentifier: StowRepresentationType.plainText, data: Data(text.utf8)),
+            PastePayloadEntry(typeIdentifier: StowRepresentationType.stowOwned, data: Data("1".utf8)),
+        ])
+    }
+
     public static func build(
         item: StowItem,
         attachment: StowAttachment? = nil,
         representations: [StowRepresentation],
         format: PasteFormat
     ) throws -> PastePayload {
-        let string = (item.type == .link ? item.urlString : item.textContent) ?? item.title
+        let string = plainText(for: item)
         var entries: [PastePayloadEntry] = []
         switch item.type {
         case .text, .code, .link:

@@ -60,6 +60,7 @@ struct RetrievalPanelView: View {
     let onRegisterSettingsAction: (QuickPanelSettingsAction) -> Void
     let onResize: (CGFloat, Bool) -> Void
     let onUse: (StowItem, StowAttachment?, RetrievalUseKind, _ closeIsApproved: Bool) -> Void
+    let onPasteMultiple: ([StowItem], _ closeIsApproved: Bool) -> Void
 
     @State private var mode: RetrievalPanelMode = .clipboard
     @State private var query = ""
@@ -864,11 +865,14 @@ struct RetrievalPanelView: View {
 
     /// Hands a use to the controller with the close decision already made, so it can close without a SwiftUI round trip.
     private func use(_ item: StowItem, _ attachment: StowAttachment?, _ kind: RetrievalUseKind) {
-        let closeIsApproved = QuickPanelClosePolicy.closesImmediatelyAfterUse(
+        onUse(item, attachment, kind, canCloseImmediatelyAfterUse)
+    }
+
+    private var canCloseImmediatelyAfterUse: Bool {
+        QuickPanelClosePolicy.closesImmediatelyAfterUse(
             state: closeState,
             discardConfirmationPending: editorTransition.phase == .discardConfirmation
         )
-        onUse(item, attachment, kind, closeIsApproved)
     }
 
     private func handleCloseCommand() {
@@ -957,15 +961,13 @@ struct RetrievalPanelView: View {
             if selectedIDs.contains(item.id) { selectedIDs.remove(item.id) } else { selectedIDs.insert(item.id) }
             selection = item.id
             selectionAnchor = item.id
-        } else if flags.contains(.shift), let anchor = selectionAnchor,
-                  let anchorIndex = items.firstIndex(where: { $0.id == anchor }),
-                  let itemIndex = items.firstIndex(where: { $0.id == item.id }) {
-            selectedIDs = Set(items[min(anchorIndex, itemIndex)...max(anchorIndex, itemIndex)].map(\.id))
-            selection = item.id
+        } else if flags.contains(.shift), selectionAnchor != nil {
+            extendSelection(to: item)
         } else {
-            selectedIDs = [item.id]
-            selection = item.id
-            selectionAnchor = item.id
+            let state = QuickPanelSelectionPolicy.reset(to: item.id)
+            selection = state.selection
+            selectedIDs = state.selectedIDs
+            selectionAnchor = state.selectionAnchor
         }
         searchFocused = false
         timelineFocused = true
@@ -981,11 +983,21 @@ struct RetrievalPanelView: View {
             guard item.id != popoverItemID else { return }
             requestEditorTransition(.selection(itemID: item.id))
         } else if extending {
-            selectedIDs.insert(item.id)
-            selection = item.id
+            extendSelection(to: item)
         } else {
             select(item, ignoringModifiers: true)
         }
+    }
+
+    private func extendSelection(to item: StowItem) {
+        let state = QuickPanelSelectionPolicy.extend(
+            QuickPanelSelectionState(selection: selection, selectedIDs: selectedIDs, selectionAnchor: selectionAnchor),
+            to: item.id,
+            visibleIDs: items.map(\.id)
+        )
+        selection = state.selection
+        selectedIDs = state.selectedIDs
+        selectionAnchor = state.selectionAnchor
     }
 
     private func repairSelection() {
@@ -1008,15 +1020,31 @@ struct RetrievalPanelView: View {
     }
 
     private func performDefault(_ requestedItem: StowItem? = nil) {
+        if requestedItem == nil, pasteMultipleSelected() { return }
         let item = requestedItem.flatMap { requested in items.first { $0.id == requested.id } } ?? selectedItem
         guard let item else { return }
         use(item, attachments[item.id], .defaultPaste)
     }
 
     private func performPlainText(_ requestedItem: StowItem? = nil) {
+        if requestedItem == nil, pasteMultipleSelected() { return }
         let item = requestedItem.flatMap { requested in items.first { $0.id == requested.id } } ?? selectedItem
         guard let item, item.type == .text || item.type == .code || item.type == .link else { return }
         use(item, attachments[item.id], .plainTextPaste)
+    }
+
+    /// Pastes every selected item as one plain-text paste when Return is pressed with several items selected.
+    /// Returns false when fewer than two items are selected so the caller falls back to single-item paste.
+    private func pasteMultipleSelected() -> Bool {
+        guard let selected = QuickPanelSelectionPolicy.multipleSelection(in: items, selectedIDs: selectedIDs) else {
+            return false
+        }
+        guard selected.allSatisfy(PastePayloadBuilder.supportsCombinedPaste) else {
+            showActionFeedback(PastePayloadError.unsupportedMultiItemSelection.localizedDescription)
+            return true
+        }
+        onPasteMultiple(selected, canCloseImmediatelyAfterUse)
+        return true
     }
 
     private func copySelected() {

@@ -33,4 +33,16 @@ extension AppModel {
             )
         }
     }
+
+    /// Writes several text-like items to the pasteboard as one plain-text payload, in the given order,
+    /// and returns the use accounting for every item, or nil when the items cannot be combined or the write failed.
+    func copyCombinedDeferringAccounting(
+        _ items: [StowItem],
+        writer: any PlatformPasteboardWriting = SystemPlatformPasteboardWriter()
+    ) -> (() -> Void)? {
+        performUseDeferringAccounting(items, action: .copy, metric: .itemCopied) {
+            let payload = try PastePayloadBuilder.buildCombined(items: items)
+            guard writer.write(payload) else { throw PlatformActionError.unavailable }
+        }
+    }
 }
